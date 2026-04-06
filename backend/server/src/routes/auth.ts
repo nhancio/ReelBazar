@@ -10,7 +10,7 @@ const URL_REGEX = /^https?:\/\/.+/;
 // Register new user
 authRouter.post('/register', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { name, email, phone, gender, dob, country, websiteLink, brandName, productCategories } = req.body;
+    const { name, username, email, phone, gender, dob, country, websiteLink, brandName, productCategories, interests, themePreference } = req.body;
 
     if (!name) {
       return res.status(400).json({ message: 'Name is required' });
@@ -48,6 +48,7 @@ authRouter.post('/register', authMiddleware, async (req: Request, res: Response)
     const userData = {
       firebaseUid: req.user!.firebaseUid,
       name: name.trim(),
+      username: username || name.trim().replace(/\s+/g, '').toLowerCase(),
       email: email || null,
       phone: phone || null,
       gender: gender || null,
@@ -55,7 +56,9 @@ authRouter.post('/register', authMiddleware, async (req: Request, res: Response)
       country: country || null,
       websiteLink: websiteLink || null,
       brandName: brandName || null,
-      productCategories: productCategories || [],
+      productCategories: productCategories || interests || [],
+      interests: interests || productCategories || [],
+      themePreference: themePreference || 'dark',
       avatarUrl: null,
       createdAt: now,
       updatedAt: now,
@@ -99,7 +102,7 @@ authRouter.patch('/me', authMiddleware, async (req: Request, res: Response) => {
       return res.status(403).json({ message: 'User not registered' });
     }
 
-    const { name, email, phone, gender, dob, country, websiteLink, brandName, productCategories, avatarUrl } = req.body;
+    const { name, username, email, phone, gender, dob, country, websiteLink, brandName, productCategories, interests, themePreference, avatarUrl } = req.body;
 
     if (email !== undefined && email !== null && !EMAIL_REGEX.test(email)) {
       return res.status(400).json({ message: 'Invalid email format' });
@@ -115,6 +118,7 @@ authRouter.patch('/me', authMiddleware, async (req: Request, res: Response) => {
 
     const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
     if (name !== undefined) updates.name = name.trim();
+    if (username !== undefined) updates.username = username;
     if (email !== undefined) updates.email = email;
     if (phone !== undefined) updates.phone = phone;
     if (gender !== undefined) updates.gender = gender;
@@ -123,7 +127,14 @@ authRouter.patch('/me', authMiddleware, async (req: Request, res: Response) => {
     if (websiteLink !== undefined) updates.websiteLink = websiteLink;
     if (brandName !== undefined) updates.brandName = brandName;
     if (productCategories !== undefined) updates.productCategories = productCategories;
+    if (interests !== undefined) updates.interests = interests;
+    if (themePreference !== undefined) updates.themePreference = themePreference;
     if (avatarUrl !== undefined) updates.avatarUrl = avatarUrl;
+
+    console.log('[authRouter.patch:/me] updateProfile request', {
+      userId: req.user.id,
+      updates,
+    });
 
     await db().collection('users').doc(req.user.id).update(updates);
     const doc = await db().collection('users').doc(req.user.id).get();

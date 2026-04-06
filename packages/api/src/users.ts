@@ -17,6 +17,6 @@ export const usersApi = {
   updateAvatar: (file: File) =>
     uploadFile('/users/me/avatar', file),
 
-  updateProfile: (data: { name?: string; productCategories?: string[] }) =>
+  updateProfile: (data: { name?: string; username?: string; productCategories?: string[]; interests?: string[]; themePreference?: 'dark' | 'light' }) =>
     api.put<{ user: User }>('/users/me', { body: data }),
 };

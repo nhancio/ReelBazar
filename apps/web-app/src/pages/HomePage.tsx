@@ -15,6 +15,7 @@ import {
   startAfter, 
   doc, 
   getDoc,
+  where,
   updateDoc,
   increment,
   setDoc,
@@ -33,24 +34,41 @@ export default function HomePage() {
   const navigate = useNavigate();
   const [reels, setReels] = useState<Reel[]>(cachedReels);
   const [following, setFollowing] = useState<Set<string>>(new Set());
+  const [likedReels, setLikedReels] = useState<Set<string>>(new Set());
+  const [savedReels, setSavedReels] = useState<Set<string>>(new Set());
+  const [likePending, setLikePending] = useState<Set<string>>(new Set());
+  const [savePending, setSavePending] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(cachedReels.length === 0);
   const [hasMore, setHasMore] = useState(cachedHasMore);
   const [error, setError] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const loadFollowing = useCallback(async () => {
-    if (guestMode) return;
-    try {
-      const { followingIds } = await usersApi.getFollowing().catch(() => ({ followingIds: [] }));
-      setFollowing(new Set(followingIds));
-    } catch (err) {
-      console.error('Failed to load following list:', err);
+  const loadUserState = useCallback(async () => {
+    if (guestMode || !currentUser) {
+      setFollowing(new Set());
+      setLikedReels(new Set());
+      setSavedReels(new Set());
+      return;
     }
-  }, [guestMode]);
+
+    try {
+      const [{ followingIds }, likesSnapshot, savesSnapshot] = await Promise.all([
+        usersApi.getFollowing().catch(() => ({ followingIds: [] })),
+        getDocs(query(collection(db, 'reelLikes'), where('userId', '==', currentUser.id))),
+        getDocs(query(collection(db, 'reelSaves'), where('userId', '==', currentUser.id))),
+      ]);
+
+      setFollowing(new Set(followingIds));
+      setLikedReels(new Set(likesSnapshot.docs.map((snapshot) => snapshot.data().reelId as string)));
+      setSavedReels(new Set(savesSnapshot.docs.map((snapshot) => snapshot.data().reelId as string)));
+    } catch (err) {
+      console.error('Failed to load user reel state:', err);
+    }
+  }, [guestMode, currentUser]);
 
   useEffect(() => {
-    loadFollowing();
-  }, [loadFollowing]);
+    loadUserState();
+  }, [loadUserState]);
 
   const loadReels = useCallback(async (reset = false) => {
     try {
@@ -122,6 +140,10 @@ export default function HomePage() {
     }
   }, [loadReels]);
 
+  useEffect(() => {
+    cachedReels = reels;
+  }, [reels]);
+
   const handleRequireAuth = () => {
     setShowAuthModal(true);
   };
@@ -141,17 +163,32 @@ export default function HomePage() {
 
   const handleLike = async (reelId: string) => {
     if (guestMode || !currentUser) return handleRequireAuth();
+    if (likePending.has(reelId)) return;
+
+    const wasLiked = likedReels.has(reelId);
+    setLikePending((prev) => new Set(prev).add(reelId));
+    setLikedReels((prev) => {
+      const next = new Set(prev);
+      if (wasLiked) next.delete(reelId);
+      else next.add(reelId);
+      return next;
+    });
+    setReels((prev) =>
+      prev.map((reel) =>
+        reel.id === reelId
+          ? { ...reel, likesCount: Math.max(0, (reel.likesCount || 0) + (wasLiked ? -1 : 1)) }
+          : reel
+      )
+    );
+
     try {
       const likeId = `${currentUser.id}_${reelId}`;
       const likeRef = doc(db, 'reelLikes', likeId);
-      const likeDoc = await getDoc(likeRef);
-
-      if (likeDoc.exists()) {
+      if (wasLiked) {
         await deleteDoc(likeRef);
         await updateDoc(doc(db, 'reels', reelId), {
           likesCount: increment(-1)
         });
-        setReels(prev => prev.map(r => r.id === reelId ? { ...r, likesCount: Math.max(0, r.likesCount - 1) } : r));
       } else {
         await setDoc(likeRef, {
           userId: currentUser.id,
@@ -161,21 +198,55 @@ export default function HomePage() {
         await updateDoc(doc(db, 'reels', reelId), {
           likesCount: increment(1)
         });
-        setReels(prev => prev.map(r => r.id === reelId ? { ...r, likesCount: r.likesCount + 1 } : r));
       }
     } catch (err) {
       console.error('Failed to like reel:', err);
+      setLikedReels((prev) => {
+        const next = new Set(prev);
+        if (wasLiked) next.add(reelId);
+        else next.delete(reelId);
+        return next;
+      });
+      setReels((prev) =>
+        prev.map((reel) =>
+          reel.id === reelId
+            ? { ...reel, likesCount: Math.max(0, (reel.likesCount || 0) + (wasLiked ? 1 : -1)) }
+            : reel
+        )
+      );
+    } finally {
+      setLikePending((prev) => {
+        const next = new Set(prev);
+        next.delete(reelId);
+        return next;
+      });
     }
   };
 
   const handleSave = async (reelId: string) => {
     if (guestMode || !currentUser) return handleRequireAuth();
+    if (savePending.has(reelId)) return;
+
+    const wasSaved = savedReels.has(reelId);
+    setSavePending((prev) => new Set(prev).add(reelId));
+    setSavedReels((prev) => {
+      const next = new Set(prev);
+      if (wasSaved) next.delete(reelId);
+      else next.add(reelId);
+      return next;
+    });
+    setReels((prev) =>
+      prev.map((reel) =>
+        reel.id === reelId
+          ? { ...reel, savesCount: Math.max(0, (reel.savesCount || 0) + (wasSaved ? -1 : 1)) }
+          : reel
+      )
+    );
+
     try {
       const saveId = `${currentUser.id}_${reelId}`;
       const saveRef = doc(db, 'reelSaves', saveId);
-      const saveDoc = await getDoc(saveRef);
-
-      if (saveDoc.exists()) {
+      if (wasSaved) {
         await deleteDoc(saveRef);
         await updateDoc(doc(db, 'reels', reelId), {
           savesCount: increment(-1)
@@ -192,6 +263,25 @@ export default function HomePage() {
       }
     } catch (err) {
       console.error('Failed to save reel:', err);
+      setSavedReels((prev) => {
+        const next = new Set(prev);
+        if (wasSaved) next.add(reelId);
+        else next.delete(reelId);
+        return next;
+      });
+      setReels((prev) =>
+        prev.map((reel) =>
+          reel.id === reelId
+            ? { ...reel, savesCount: Math.max(0, (reel.savesCount || 0) + (wasSaved ? 1 : -1)) }
+            : reel
+        )
+      );
+    } finally {
+      setSavePending((prev) => {
+        const next = new Set(prev);
+        next.delete(reelId);
+        return next;
+      });
     }
   };
 
@@ -279,6 +369,10 @@ export default function HomePage() {
             <InstaPostCard
               key={reel.id}
               reel={reel}
+              liked={likedReels.has(reel.id)}
+              saved={savedReels.has(reel.id)}
+              likeDisabled={likePending.has(reel.id)}
+              saveDisabled={savePending.has(reel.id)}
               guestMode={guestMode}
               onRequireAuth={handleRequireAuth}
               onLike={() => handleLike(reel.id)}

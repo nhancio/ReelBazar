@@ -60,11 +60,13 @@ export default function Layout() {
               <NavLink
                 key={item.path}
                 to={item.path}
-                className="flex flex-col items-center justify-center pt-3 pb-1 w-16 transition-transform active:scale-90 relative"
+                className={`flex flex-col items-center justify-center pt-3 pb-1 w-16 transition-transform active:scale-90 relative rounded-2xl ${
+                  isActive ? 'bg-white/10' : ''
+                }`}
               >
                 <NavIcon name={item.icon} active={isActive} avatarUrl={user?.avatarUrl} />
-                {isActive && item.icon !== 'user' && (
-                  <div className="absolute bottom-0 w-1 h-1 rounded-full bg-red-500" />
+                {isActive && (
+                  <div className="absolute bottom-0 w-6 h-0.5 rounded-full bg-white" />
                 )}
               </NavLink>
             );

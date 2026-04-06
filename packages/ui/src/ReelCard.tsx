@@ -13,41 +13,18 @@ interface ReelCardProps {
   onProductClick?: () => void;
   liked?: boolean;
   saved?: boolean;
+  likeDisabled?: boolean;
+  saveDisabled?: boolean;
   isFollowing?: boolean;
   guestMode?: boolean;
   onRequireAuth?: () => void;
 }
 
-export function ReelCard({ reel, isActive, onLike, onSave, onComment, onShare, onFollow, onProfileClick, onProductClick, liked, saved, isFollowing, guestMode, onRequireAuth }: ReelCardProps) {
+const getDisplayName = (user?: Reel['creator']) => user?.username || user?.name || 'Unknown Creator';
+
+export function ReelCard({ reel, isActive, onLike, onSave, onComment, onShare, onFollow, onProfileClick, onProductClick, liked, saved, likeDisabled, saveDisabled, isFollowing, guestMode, onRequireAuth }: ReelCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-
-  const [localLiked, setLocalLiked] = useState(!!liked);
-  const [localSaved, setLocalSaved] = useState(!!saved);
-  const [localLikesCount, setLocalLikesCount] = useState(reel.likesCount || 0);
-  const [localSavesCount, setLocalSavesCount] = useState(reel.savesCount || 0);
-
-  // Sync with props if they are explicitly provided
-  useEffect(() => {
-    if (liked !== undefined) {
-      setLocalLiked(!!liked);
-    }
-  }, [liked]);
-
-  useEffect(() => {
-    if (saved !== undefined) {
-      setLocalSaved(!!saved);
-    }
-  }, [saved]);
-
-  useEffect(() => {
-    setLocalLikesCount(reel.likesCount || 0);
-  }, [reel.id, reel.likesCount]);
-
-  useEffect(() => {
-    setLocalSavesCount(reel.savesCount || 0);
-  }, [reel.id, reel.savesCount]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -111,25 +88,21 @@ export function ReelCard({ reel, isActive, onLike, onSave, onComment, onShare, o
 
   const handleLocalLike = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (likeDisabled) return;
     if (guestMode) {
       if (onRequireAuth) onRequireAuth();
       return;
     }
-    const newLiked = !localLiked;
-    setLocalLiked(newLiked);
-    setLocalLikesCount(prev => prev + (newLiked ? 1 : -1));
     if (onLike) onLike();
   };
 
   const handleLocalSave = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (saveDisabled) return;
     if (guestMode) {
       if (onRequireAuth) onRequireAuth();
       return;
     }
-    const newSaved = !localSaved;
-    setLocalSaved(newSaved);
-    setLocalSavesCount(prev => prev + (newSaved ? 1 : -1));
     if (onSave) onSave();
   };
 
@@ -170,7 +143,7 @@ export function ReelCard({ reel, isActive, onLike, onSave, onComment, onShare, o
             {reel.creator?.avatarUrl ? (
                <img src={reel.creator.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
             ) : (
-               (reel.creator?.name || 'U').slice(0, 1).toUpperCase()
+               getDisplayName(reel.creator).slice(0, 1).toUpperCase()
             )}
           </div>
           <div 
@@ -178,19 +151,21 @@ export function ReelCard({ reel, isActive, onLike, onSave, onComment, onShare, o
             className="flex flex-col drop-shadow-md cursor-pointer active:scale-95 transition-transform"
           >
             <span className="text-sm font-semibold text-white">
-              {reel.creator?.name || 'Unknown Creator'}
+              {getDisplayName(reel.creator)}
             </span>
           </div>
-          <button 
-            className={`ml-2 rounded-full border px-3 py-1 text-[11px] font-semibold backdrop-blur-sm transition ${
-              isFollowing 
-                ? 'border-white/20 bg-white/20 text-white hover:bg-white/30' 
-                : 'border-white/80 text-white hover:bg-white hover:text-black'
-            }`} 
-            onClick={(e) => handleInteraction(e, onFollow)}
-          >
-            {isFollowing ? 'Following' : 'Follow'}
-          </button>
+          {onFollow && (
+            <button
+              className={`ml-2 rounded-full border px-3 py-1 text-[11px] font-semibold backdrop-blur-sm transition ${
+                isFollowing
+                  ? 'border-white/20 bg-white/20 text-white hover:bg-white/30'
+                  : 'border-white/80 text-white hover:bg-white hover:text-black'
+              }`}
+              onClick={(e) => handleInteraction(e, onFollow)}
+            >
+              {isFollowing ? 'Following' : 'Follow'}
+            </button>
+          )}
         </div>
 
         {reel.caption && (
@@ -215,9 +190,9 @@ export function ReelCard({ reel, isActive, onLike, onSave, onComment, onShare, o
 
       {/* Action Buttons - Bottom Right */}
       <div className="absolute bottom-12 right-2 flex flex-col items-center gap-5">
-        <button onClick={handleLocalLike} className="group flex flex-col items-center gap-1 transition-transform active:scale-90">
+        <button onClick={handleLocalLike} disabled={likeDisabled} className="group flex flex-col items-center gap-1 transition-transform active:scale-90 disabled:opacity-60">
           <div className="flex h-10 w-10 items-center justify-center">
-            {localLiked ? (
+            {liked ? (
               <svg className="h-8 w-8 text-red-500" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
               </svg>
@@ -227,12 +202,12 @@ export function ReelCard({ reel, isActive, onLike, onSave, onComment, onShare, o
               </svg>
             )}
           </div>
-          <span className="text-xs font-semibold text-white drop-shadow-md">{localLikesCount}</span>
+          <span className="text-xs font-semibold text-white drop-shadow-md">{reel.likesCount || 0}</span>
         </button>
 
-        <button onClick={handleLocalSave} className="group flex flex-col items-center gap-1 transition-transform active:scale-90">
+        <button onClick={handleLocalSave} disabled={saveDisabled} className="group flex flex-col items-center gap-1 transition-transform active:scale-90 disabled:opacity-60">
           <div className="flex h-10 w-10 items-center justify-center">
-            {localSaved ? (
+            {saved ? (
               <svg className="h-8 w-8 text-yellow-400" viewBox="0 0 24 24" fill="currentColor">
                 <path fillRule="evenodd" d="M6.32 2.577a49.255 49.255 0 0111.36 0c1.497.174 2.57 1.46 2.57 2.93V21a.75.75 0 01-1.085.67L12 18.089l-7.165 3.583A.75.75 0 013.75 21V5.507c0-1.47 1.073-2.756 2.57-2.93z" clipRule="evenodd" />
               </svg>
@@ -242,7 +217,7 @@ export function ReelCard({ reel, isActive, onLike, onSave, onComment, onShare, o
               </svg>
             )}
           </div>
-          <span className="text-xs font-semibold text-white drop-shadow-md">{localSavesCount}</span>
+          <span className="text-xs font-semibold text-white drop-shadow-md">{reel.savesCount || 0}</span>
         </button>
 
         <button onClick={(e) => handleInteraction(e, onShare, true)} className="group flex flex-col items-center gap-1 transition-transform active:scale-90">

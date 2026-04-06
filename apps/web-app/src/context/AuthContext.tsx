@@ -43,7 +43,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return cached ? JSON.parse(cached) : null;
   });
   const [loading, setLoading] = useState(true);
-  const [guestMode, setGuestMode] = useState<boolean>(() => localStorage.getItem(GUEST_MODE_KEY) === 'true');
+  const [guestMode, setGuestMode] = useState<boolean>(() => {
+    if (auth.currentUser) {
+      localStorage.removeItem(GUEST_MODE_KEY);
+      localStorage.removeItem(`${GUEST_MODE_KEY}-role`);
+      return false;
+    }
+    return localStorage.getItem(GUEST_MODE_KEY) === 'true';
+  });
   const [authError, setAuthError] = useState<string | null>(null);
 
   const clearAuthError = useCallback(() => setAuthError(null), []);
@@ -78,7 +85,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userDoc = await getDoc(doc(db, 'users', currentFbUser.uid));
       
       if (userDoc.exists()) {
-        const userData = { id: userDoc.id, ...userDoc.data() } as User;
+        const rawData = userDoc.data();
+        const normalizedInterests =
+          (rawData.interests as string[] | undefined)?.length
+            ? (rawData.interests as string[])
+            : ((rawData.productCategories as string[] | undefined) || []);
+
+        const userData = {
+          id: userDoc.id,
+          ...rawData,
+          username: (rawData.username as string | undefined) || (rawData.name as string | undefined)?.replace(/\s+/g, '').toLowerCase(),
+          interests: normalizedInterests,
+          avatarUrl: (rawData.avatarUrl as string | null | undefined) || currentFbUser.photoURL,
+        } as User;
+        console.info('[auth] refreshUser:loaded', {
+          userId: userData.id,
+          username: userData.username,
+          interests: userData.interests,
+          productCategories: rawData.productCategories,
+        });
         setUser(userData);
         localStorage.setItem(USER_CACHE_KEY, JSON.stringify(userData));
         setAuthError(null);
@@ -89,16 +114,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           firebaseUid: currentFbUser.uid,
           email: currentFbUser.email,
           name: currentFbUser.displayName || 'User',
-          userType: 'viewer', // Default type
+          username: (currentFbUser.displayName || 'user').replace(/\s+/g, '').toLowerCase(),
+          avatarUrl: currentFbUser.photoURL,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
         
-        await setDoc(doc(db, 'users', currentFbUser.uid), {
-          ...newUser,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
+        try {
+          await setDoc(doc(db, 'users', currentFbUser.uid), {
+            ...newUser,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+          console.info('[auth] refreshUser:autoRegistered', { userId: currentFbUser.uid });
+        } catch (setErr) {
+          console.warn('Could not auto-register user to Firestore (likely rules/CORS), continuing locally:', setErr);
+        }
         
         setUser(newUser);
         localStorage.setItem(USER_CACHE_KEY, JSON.stringify(newUser));
@@ -107,8 +138,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error: any) {
       console.error('Error refreshing user from Firestore:', error);
       setAuthError('Failed to load profile.');
+      
+      // Fallback: don't leave them hanging if Firestore fails entirely
+      const fallbackUser: User = {
+        id: currentFbUser.uid,
+        firebaseUid: currentFbUser.uid,
+        email: currentFbUser.email,
+        name: currentFbUser.displayName || 'User',
+        username: (currentFbUser.displayName || 'user').replace(/\s+/g, '').toLowerCase(),
+        avatarUrl: currentFbUser.photoURL,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setUser(fallbackUser);
+      localStorage.setItem(USER_CACHE_KEY, JSON.stringify(fallbackUser));
     }
   }, [guestMode, firebaseUser]);
+
+  useEffect(() => {
+    if (guestMode && auth.currentUser) {
+      exitGuestMode();
+    }
+  }, [guestMode, exitGuestMode]);
 
   useEffect(() => {
     if (guestMode) {
@@ -155,6 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       const userData: Partial<User> = {
         name: data.name,
+        username: data.name.replace(/\s+/g, '').toLowerCase(),
         email: data.email || firebaseUser.email,
         phone: data.phone,
         gender: data.gender as any,

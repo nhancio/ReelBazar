@@ -21,7 +21,7 @@ usersRouter.put('/me', authMiddleware, requireRegistered, async (req: Request, r
   try {
     const updates = req.body;
     // Basic validation
-    const allowedFields = ['name', 'brandName', 'productCategories'];
+    const allowedFields = ['name', 'username', 'brandName', 'productCategories', 'interests', 'themePreference'];
     const updateData: Record<string, any> = {};
     
     for (const field of allowedFields) {
@@ -29,6 +29,11 @@ usersRouter.put('/me', authMiddleware, requireRegistered, async (req: Request, r
         updateData[field] = updates[field];
       }
     }
+
+    console.log('[usersRouter.put:/me] updateProfile request', {
+      userId: req.user!.id,
+      updateData,
+    });
 
     await db().collection('users').doc(req.user!.id).update(updateData);
     
@@ -189,12 +194,15 @@ usersRouter.get('/:id', async (req: Request, res: Response) => {
       user: {
         id: doc.id,
         name: data.name,
+        username: data.username,
         email: data.email,
         phone: data.phone,
         gender: data.gender,
         age: data.age,
         brandName: data.brandName,
         productCategories: data.productCategories,
+        interests: data.interests,
+        themePreference: data.themePreference,
         avatarUrl: data.avatarUrl,
         createdAt: data.createdAt,
         followersCount: data.followersCount || 0,

@@ -9,31 +9,19 @@ interface InstaPostCardProps {
   onProfileClick?: () => void;
   liked?: boolean;
   saved?: boolean;
+  likeDisabled?: boolean;
+  saveDisabled?: boolean;
   guestMode?: boolean;
   onRequireAuth?: () => void;
 }
 
-export function InstaPostCard({ reel, onLike, onSave, onShare, onProfileClick, liked, saved, guestMode, onRequireAuth }: InstaPostCardProps) {
+const getDisplayName = (user?: Reel['creator']) => user?.username || user?.name || 'User';
+
+export function InstaPostCard({ reel, onLike, onSave, onShare, onProfileClick, liked, saved, likeDisabled, saveDisabled, guestMode, onRequireAuth }: InstaPostCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [muted, setMuted] = useState(true);
   const [isVisible, setIsVisible] = useState(false);
-
-  const [localLiked, setLocalLiked] = useState(!!liked);
-  const [localSaved, setLocalSaved] = useState(!!saved);
-  const [localLikesCount, setLocalLikesCount] = useState(reel.likesCount || 0);
-
-  useEffect(() => {
-    if (liked !== undefined) setLocalLiked(!!liked);
-  }, [liked]);
-
-  useEffect(() => {
-    if (saved !== undefined) setLocalSaved(!!saved);
-  }, [saved]);
-
-  useEffect(() => {
-    setLocalLikesCount(reel.likesCount || 0);
-  }, [reel.id, reel.likesCount]);
 
   // Intersection Observer for auto-play
   useEffect(() => {
@@ -90,17 +78,15 @@ export function InstaPostCard({ reel, onLike, onSave, onShare, onProfileClick, l
 
   const handleLocalLike = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (likeDisabled) return;
     if (guestMode) return onRequireAuth?.();
-    const newLiked = !localLiked;
-    setLocalLiked(newLiked);
-    setLocalLikesCount(prev => prev + (newLiked ? 1 : -1));
     if (onLike) onLike();
   };
 
   const handleLocalSave = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (saveDisabled) return;
     if (guestMode) return onRequireAuth?.();
-    setLocalSaved(!localSaved);
     if (onSave) onSave();
   };
 
@@ -121,13 +107,13 @@ export function InstaPostCard({ reel, onLike, onSave, onShare, onProfileClick, l
                 <img src={reel.creator.avatarUrl} alt="" className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full w-full items-center justify-center font-bold text-xs">
-                  {(reel.creator?.name || 'U').charAt(0).toUpperCase()}
+                  {getDisplayName(reel.creator).charAt(0).toUpperCase()}
                 </div>
               )}
             </div>
           </div>
           <div className="flex flex-col">
-            <span className="text-[13px] font-semibold tracking-tight">{reel.creator?.name || 'User'}</span>
+            <span className="text-[13px] font-semibold tracking-tight">{getDisplayName(reel.creator)}</span>
             {reel.creator?.brandName && <span className="text-[11px] text-white/60">{reel.creator.brandName}</span>}
           </div>
         </div>
@@ -162,8 +148,8 @@ export function InstaPostCard({ reel, onLike, onSave, onShare, onProfileClick, l
       {/* Action Bar */}
       <div className="flex items-center justify-between px-3 pt-3 pb-2">
         <div className="flex items-center gap-4">
-          <button onClick={handleLocalLike} className="active:opacity-50 transition-opacity">
-            {localLiked ? (
+          <button onClick={handleLocalLike} disabled={likeDisabled} className="active:opacity-50 transition-opacity disabled:opacity-60">
+            {liked ? (
               <svg className="w-[26px] h-[26px] text-[#ff3040]" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
             ) : (
               <svg className="w-[26px] h-[26px] text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
@@ -176,9 +162,9 @@ export function InstaPostCard({ reel, onLike, onSave, onShare, onProfileClick, l
             <svg className="w-[22px] h-[22px] text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
           </button>
         </div>
-        <button onClick={handleLocalSave} className="active:opacity-50 transition-opacity">
-          {localSaved ? (
-            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>
+        <button onClick={handleLocalSave} disabled={saveDisabled} className="active:opacity-50 transition-opacity disabled:opacity-60">
+          {saved ? (
+            <svg className="w-6 h-6 text-yellow-400" fill="currentColor" viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>
           ) : (
             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
           )}
@@ -187,12 +173,12 @@ export function InstaPostCard({ reel, onLike, onSave, onShare, onProfileClick, l
 
       {/* Likes */}
       <div className="px-3 mb-1">
-        <span className="text-[13px] font-semibold">{localLikesCount.toLocaleString()} likes</span>
+        <span className="text-[13px] font-semibold">{(reel.likesCount || 0).toLocaleString()} likes</span>
       </div>
 
       {/* Caption */}
       <div className="px-3 text-[13px] leading-[18px]">
-        <span className="font-semibold mr-1.5">{reel.creator?.name || 'User'}</span>
+        <span className="font-semibold mr-1.5">{getDisplayName(reel.creator)}</span>
         <span>{reel.caption}</span>
       </div>
 

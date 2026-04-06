@@ -4,7 +4,7 @@ import { auth } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 
 export default function AuthPage() {
-  const { enterGuestMode, authError, clearAuthError } = useAuth();
+  const { enterGuestMode, exitGuestMode, authError, clearAuthError } = useAuth();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -13,6 +13,7 @@ export default function AuthPage() {
     clearAuthError();
     setLoading(true);
     try {
+      exitGuestMode();
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
     } catch (err: any) {

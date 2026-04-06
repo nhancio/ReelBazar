@@ -34,6 +34,7 @@ export interface User {
   id: string;
   email: string | null;
   name: string;
+  username?: string | null;
   userType?: UserType;
   phone?: string | null;
   gender?: Gender | null;
@@ -42,12 +43,14 @@ export interface User {
   websiteLink?: string | null;
   brandName?: string | null;
   productCategories?: Category[];
+  interests?: string[];
   avatarUrl?: string | null;
   firebaseUid?: string;
   createdAt?: string;
   updatedAt?: string;
   followersCount?: number;
   followingCount?: number;
+  themePreference?: 'dark' | 'light';
 }
 
 export interface Reel {
