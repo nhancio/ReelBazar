@@ -45,9 +45,9 @@ export default function App() {
   return (
     <ErrorBoundary>
       <Routes>
-        <Route path="/reel/:reelId" element={<SingleReelPage />} />
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/reel/:reelId" element={<SingleReelPage />} />
           <Route path="/create" element={<CreateReelPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/profile/:userId" element={<ProfilePage />} />

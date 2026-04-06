@@ -21,48 +21,83 @@ interface ReelCardProps {
 export function ReelCard({ reel, isActive, onLike, onSave, onComment, onShare, onFollow, onProfileClick, onProductClick, liked, saved, isFollowing, guestMode, onRequireAuth }: ReelCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const [localLiked, setLocalLiked] = useState(!!liked);
   const [localSaved, setLocalSaved] = useState(!!saved);
   const [localLikesCount, setLocalLikesCount] = useState(reel.likesCount || 0);
   const [localSavesCount, setLocalSavesCount] = useState(reel.savesCount || 0);
 
-  // Sync with props if they change externally (e.g. initial load)
+  // Sync with props if they are explicitly provided
   useEffect(() => {
-    setLocalLiked(!!liked);
-    setLocalLikesCount(reel.likesCount || 0);
-  }, [liked, reel.likesCount]);
+    if (liked !== undefined) {
+      setLocalLiked(!!liked);
+    }
+  }, [liked]);
 
   useEffect(() => {
-    setLocalSaved(!!saved);
+    if (saved !== undefined) {
+      setLocalSaved(!!saved);
+    }
+  }, [saved]);
+
+  useEffect(() => {
+    setLocalLikesCount(reel.likesCount || 0);
+  }, [reel.id, reel.likesCount]);
+
+  useEffect(() => {
     setLocalSavesCount(reel.savesCount || 0);
-  }, [saved, reel.savesCount]);
+  }, [reel.id, reel.savesCount]);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
+    const attemptPlay = async () => {
+      try {
+        if (isActive && !document.hidden) {
+          // Try to play with sound first
+          video.muted = muted;
+          await video.play();
+        } else {
+          video.pause();
+          video.currentTime = 0;
+        }
+      } catch (err) {
+        console.warn('Autoplay with sound blocked, trying muted:', err);
+        // If blocked, we might need to mute to allow autoplay
+        if (isActive && !document.hidden) {
+          video.muted = true;
+          setMuted(true);
+          await video.play().catch(e => console.error('Muted autoplay also failed:', e));
+        }
+      }
+    };
+
     const handleVisibilityChange = () => {
       if (document.hidden) {
         video.pause();
       } else if (isActive) {
-        video.play().catch(() => {});
+        attemptPlay();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    if (isActive && !document.hidden) {
-      video.play().catch(() => {});
-    } else {
-      video.pause();
-      video.currentTime = 0;
-    }
+    attemptPlay();
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isActive]);
+  }, [isActive, muted]);
+
+  const handleToggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newMuted = !muted;
+    setMuted(newMuted);
+    if (videoRef.current) {
+      videoRef.current.muted = newMuted;
+    }
+  };
 
   const handleInteraction = (e: React.MouseEvent, action?: () => void, allowGuest?: boolean) => {
     e.stopPropagation();
@@ -99,7 +134,7 @@ export function ReelCard({ reel, isActive, onLike, onSave, onComment, onShare, o
   };
 
   return (
-    <div className="relative h-full w-full flex-shrink-0 snap-start overflow-hidden bg-black" onClick={() => setMuted(!muted)}>
+    <div className="relative h-full w-full flex-shrink-0 snap-start overflow-hidden bg-black" onClick={handleToggleMute}>
       <video
         ref={videoRef}
         src={reel.videoUrl}
@@ -115,7 +150,7 @@ export function ReelCard({ reel, isActive, onLike, onSave, onComment, onShare, o
 
       {/* Mute/Unmute Button */}
       <button 
-        onClick={(e) => { e.stopPropagation(); setMuted(!muted); }}
+        onClick={handleToggleMute}
         className="absolute right-4 top-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-white transition-transform hover:bg-black/60 active:scale-90 z-10"
       >
         {muted ? (

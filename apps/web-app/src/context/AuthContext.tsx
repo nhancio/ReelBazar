@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { auth } from '../firebase';
-import { setAuthToken, authApi } from '@reelbazaar/api';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '../firebase';
+import { setAuthToken } from '@reelbazaar/api';
 import type { User, UserType } from '@reelbazaar/config';
 import { getDemoUser } from '../demoData';
 
@@ -66,39 +67,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = useCallback(async (fbUserParam?: FirebaseUser | null) => {
     if (guestMode) return;
     const currentFbUser = fbUserParam !== undefined ? fbUserParam : firebaseUser;
+    
+    if (!currentFbUser) {
+      setUser(null);
+      localStorage.removeItem(USER_CACHE_KEY);
+      return;
+    }
+
     try {
-      const { user } = await authApi.getProfile();
-      setUser(user);
-      localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
-      setAuthError(null);
-    } catch (error: any) {
-      // Only auto-register if it's a 404 (User not registered)
-      const isNotRegistered = error.message?.includes('404') || error.status === 404 || error.message?.includes('not registered');
+      const userDoc = await getDoc(doc(db, 'users', currentFbUser.uid));
       
-      if (currentFbUser && isNotRegistered) {
-        try {
-          const { user } = await authApi.register({
-            firebaseUid: currentFbUser.uid,
-            email: currentFbUser.email,
-            name: currentFbUser.displayName || 'User',
-          });
-          setUser(user);
-          localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
-          localStorage.removeItem('pending-user-type');
-          setAuthError(null);
-        } catch (e: any) {
-          console.error('Auto-registration failed:', e);
-          setAuthError(e.message || 'Failed to create profile. Please try again.');
-          setUser(null);
-          localStorage.removeItem(USER_CACHE_KEY);
-          localStorage.removeItem('pending-user-type');
-          await auth.signOut();
-        }
-      } else if (!currentFbUser) {
-        setUser(null);
-        localStorage.removeItem(USER_CACHE_KEY);
+      if (userDoc.exists()) {
+        const userData = { id: userDoc.id, ...userDoc.data() } as User;
+        setUser(userData);
+        localStorage.setItem(USER_CACHE_KEY, JSON.stringify(userData));
+        setAuthError(null);
+      } else {
+        // Auto-register
+        const newUser: User = {
+          id: currentFbUser.uid,
+          firebaseUid: currentFbUser.uid,
+          email: currentFbUser.email,
+          name: currentFbUser.displayName || 'User',
+          userType: 'viewer', // Default type
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        
+        await setDoc(doc(db, 'users', currentFbUser.uid), {
+          ...newUser,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        
+        setUser(newUser);
+        localStorage.setItem(USER_CACHE_KEY, JSON.stringify(newUser));
+        setAuthError(null);
       }
-      // If it's a 500 or network error, keep the cached user for now but log it
+    } catch (error: any) {
+      console.error('Error refreshing user from Firestore:', error);
+      setAuthError('Failed to load profile.');
     }
   }, [guestMode, firebaseUser]);
 
@@ -142,10 +150,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       productCategories?: string[];
     }) => {
       if (!firebaseUser) throw new Error('Not authenticated');
-      const { user } = await authApi.register({
-        firebaseUid: firebaseUser.uid,
-        email: data.email || firebaseUser.email,
+      
+      const userType = (localStorage.getItem('pending-user-type') as UserType) || 'viewer';
+      
+      const userData: Partial<User> = {
         name: data.name,
+        email: data.email || firebaseUser.email,
         phone: data.phone,
         gender: data.gender as any,
         dob: data.dob,
@@ -153,9 +163,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         websiteLink: data.websiteLink,
         brandName: data.brandName,
         productCategories: data.productCategories as any,
-      });
-      setUser(user);
-      localStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+        userType,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await setDoc(doc(db, 'users', firebaseUser.uid), userData, { merge: true });
+      
+      const updatedDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+      if (updatedDoc.exists()) {
+        const updatedUser = { id: updatedDoc.id, ...updatedDoc.data() } as User;
+        setUser(updatedUser);
+        localStorage.setItem(USER_CACHE_KEY, JSON.stringify(updatedUser));
+      }
     },
     [firebaseUser]
   );

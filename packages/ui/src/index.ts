@@ -3,6 +3,7 @@ export { Input } from './Input';
 export { CategoryTabs } from './CategoryTabs';
 export { UserTypeBadge } from './UserTypeBadge';
 export { ReelCard } from './ReelCard';
+export { InstaPostCard } from './InstaPostCard';
 export { Avatar } from './Avatar';
 export { LoadingSpinner } from './LoadingSpinner';
 export { AuthModal } from './AuthModal';

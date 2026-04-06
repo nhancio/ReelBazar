@@ -1,10 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { usersApi, reelsApi } from '@reelbazaar/api';
 import { Avatar, Button, LoadingSpinner } from '@reelbazaar/ui';
 import type { User, Reel } from '@reelbazaar/config';
 import { demoReels, demoUsers } from '../demoData';
+import { 
+  doc, 
+  getDoc, 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  orderBy,
+  updateDoc,
+  setDoc,
+  deleteDoc
+} from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../firebase';
 
 export default function ProfilePage() {
   const { userId } = useParams<{ userId: string }>();
@@ -19,6 +32,14 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+
+  // Followers/Following state
+  const [followersList, setFollowersList] = useState<User[]>([]);
+  const [followingList, setFollowingList] = useState<User[]>([]);
+  const [showFollowers, setShowFollowers] = useState(false);
+  const [showFollowing, setShowFollowing] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [currentUserFollowingMap, setCurrentUserFollowingMap] = useState<Record<string, boolean>>({});
 
   const isOwnProfile = !userId || userId === currentUser?.id;
   const displayUser = isOwnProfile ? currentUser : profileUser;
@@ -37,34 +58,64 @@ export default function ProfilePage() {
           setProfileUser(!isOwnProfile && fallbackUser ? fallbackUser : null);
           const targetId = isOwnProfile ? currentUser!.id : fallbackUser!.id;
           
-          // In guest mode, just use demo data
           setReels(demoReels.filter((reel) => reel.creatorId === targetId));
-          setSavedReels(demoReels.slice(0, 2)); // Mock saved reels for guest
+          setSavedReels(demoReels.slice(0, 2));
           return;
-        }
-
-        if (!isOwnProfile && userId) {
-          const { user } = await usersApi.getById(userId);
-          setProfileUser(user);
-        } else if (currentUser) {
-          // Refresh current user stats
-          const { user } = await usersApi.getById(currentUser.id);
-          setProfileUser(user);
         }
 
         const targetId = isOwnProfile ? currentUser!.id : userId!;
         
-        // Load user's reels
-        const { reels: userReels } = await reelsApi.getUserReels(targetId);
+        // Fetch profile user if not own profile
+        if (!isOwnProfile && userId) {
+          const userDoc = await getDoc(doc(db, 'users', userId));
+          if (userDoc.exists()) {
+            setProfileUser({ id: userDoc.id, ...userDoc.data() } as User);
+          }
+        }
+
+        // Load user's reels from Firestore
+        const reelsCol = collection(db, 'reels');
+        const q = query(reelsCol, where('creatorId', '==', targetId), orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+        const userReels = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reel));
         setReels(userReels);
 
         // Load saved reels if it's own profile
         if (isOwnProfile) {
-          const { reels: saved } = await reelsApi.getSavedReels(targetId);
-          setSavedReels(saved);
+          const savesCol = collection(db, 'reelSaves');
+          const sq = query(savesCol, where('userId', '==', targetId));
+          const sSnapshot = await getDocs(sq);
+          const savedIds = sSnapshot.docs.map(doc => doc.data().reelId);
+          
+          if (savedIds.length > 0) {
+            const savedReelsList: Reel[] = [];
+            for (const id of savedIds) {
+              const rDoc = await getDoc(doc(db, 'reels', id));
+              if (rDoc.exists()) {
+                savedReelsList.push({ id: rDoc.id, ...rDoc.data() } as Reel);
+              }
+            }
+            setSavedReels(savedReelsList);
+          }
         }
+
+        // Pre-load current user following map if not guest
+        if (currentUser) {
+          const myFollowsQ = query(collection(db, 'follows'), where('followerId', '==', currentUser.id));
+          const myFollowsSnap = await getDocs(myFollowsQ);
+          const map: Record<string, boolean> = {};
+          myFollowsSnap.docs.forEach(d => {
+            map[d.data().followingId] = true;
+          });
+          setCurrentUserFollowingMap(map);
+        }
+
       } catch (err) {
-        console.error(err);
+        console.error('Error loading profile data:', err);
+        if (reels.length === 0) {
+           const targetId = isOwnProfile ? currentUser?.id : userId;
+           setReels(demoReels.filter(r => r.creatorId === targetId));
+        }
       } finally {
         setLoading(false);
       }
@@ -72,14 +123,98 @@ export default function ProfilePage() {
     load();
   }, [userId, isOwnProfile, currentUser, guestMode]);
 
+  const loadFollowers = async () => {
+    if (guestMode || !displayUser) return;
+    setLoadingUsers(true);
+    setShowFollowers(true);
+    try {
+      const q = query(collection(db, 'follows'), where('followingId', '==', displayUser.id));
+      const snap = await getDocs(q);
+      const userIds = snap.docs.map(d => d.data().followerId);
+      
+      const users: User[] = [];
+      for (const uid of userIds) {
+        const uDoc = await getDoc(doc(db, 'users', uid));
+        if (uDoc.exists()) users.push({ id: uDoc.id, ...uDoc.data() } as User);
+      }
+      setFollowersList(users);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const loadFollowing = async () => {
+    if (guestMode || !displayUser) return;
+    setLoadingUsers(true);
+    setShowFollowing(true);
+    try {
+      const q = query(collection(db, 'follows'), where('followerId', '==', displayUser.id));
+      const snap = await getDocs(q);
+      const userIds = snap.docs.map(d => d.data().followingId);
+      
+      const users: User[] = [];
+      for (const uid of userIds) {
+        const uDoc = await getDoc(doc(db, 'users', uid));
+        if (uDoc.exists()) users.push({ id: uDoc.id, ...uDoc.data() } as User);
+      }
+      setFollowingList(users);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const toggleFollow = async (targetUserId: string) => {
+    if (guestMode || !currentUser) return;
+    const isCurrentlyFollowing = currentUserFollowingMap[targetUserId];
+    
+    // Optimistic
+    setCurrentUserFollowingMap(prev => ({
+      ...prev,
+      [targetUserId]: !isCurrentlyFollowing
+    }));
+
+    try {
+      const followId = `${currentUser.id}_${targetUserId}`;
+      const followRef = doc(db, 'follows', followId);
+      if (isCurrentlyFollowing) {
+        await deleteDoc(followRef);
+      } else {
+        await setDoc(followRef, {
+          followerId: currentUser.id,
+          followingId: targetUserId,
+          createdAt: new Date().toISOString()
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      // Revert
+      setCurrentUserFollowingMap(prev => ({
+        ...prev,
+        [targetUserId]: isCurrentlyFollowing
+      }));
+    }
+  };
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !isOwnProfile || guestMode) return;
+    if (!file || !isOwnProfile || guestMode || !currentUser) return;
 
     setUploadingAvatar(true);
     try {
-      await usersApi.updateAvatar(file);
-      window.location.reload(); // Refresh to see the new avatar everywhere
+      const storageRef = ref(storage, `avatars/${currentUser.id}`);
+      await uploadBytes(storageRef, file);
+      const avatarUrl = await getDownloadURL(storageRef);
+      
+      await updateDoc(doc(db, 'users', currentUser.id), {
+        avatarUrl,
+        updatedAt: new Date().toISOString()
+      });
+      
+      window.location.reload();
     } catch (err) {
       console.error('Failed to update avatar', err);
       alert('Failed to update profile picture.');
@@ -92,11 +227,75 @@ export default function ProfilePage() {
 
   const displayReels = activeTab === 'my' ? reels : savedReels;
 
-  // We rely on backend providing followersCount and followingCount if available.
   const postsCount = reels.length;
-  // Use 'any' type casting safely to access newly added properties that might not be in config yet
-  const followersCount = (displayUser as any).followersCount || 0;
-  const followingCount = (displayUser as any).followingCount || 0;
+  // Fallback to local length if array is fetched, otherwise use prop if exists
+  const followersCount = (displayUser as any).followersCount || followersList.length || 0;
+  const followingCount = (displayUser as any).followingCount || followingList.length || 0;
+
+  const renderUserListModal = (title: string, list: User[], isVisible: boolean, onClose: () => void) => {
+    if (!isVisible) return null;
+    return (
+      <div className="fixed inset-0 z-[60] flex flex-col bg-black text-white animate-in slide-in-from-bottom-2">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
+          <div className="w-8" /> {/* Spacer */}
+          <h2 className="text-base font-bold">{title}</h2>
+          <button onClick={onClose} className="p-1 w-8 flex justify-end">
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* List */}
+        <div className="flex-1 overflow-y-auto">
+          {loadingUsers ? (
+            <div className="pt-20"><LoadingSpinner /></div>
+          ) : list.length === 0 ? (
+            <div className="pt-20 text-center text-white/50 text-sm">No users found</div>
+          ) : (
+            <div className="flex flex-col">
+              {list.map(u => {
+                const isMe = u.id === currentUser?.id;
+                const isFollowing = currentUserFollowingMap[u.id];
+                
+                return (
+                  <div key={u.id} className="flex items-center justify-between px-4 py-3 hover:bg-white/5 active:bg-white/10 transition-colors">
+                    <div 
+                      className="flex items-center flex-1 min-w-0 cursor-pointer"
+                      onClick={() => {
+                        onClose();
+                        navigate(`/profile/${u.id}`);
+                      }}
+                    >
+                      <Avatar name={u.name} src={u.avatarUrl} size="md" />
+                      <div className="ml-3 flex flex-col justify-center overflow-hidden pr-2">
+                        <span className="font-semibold text-[14px] truncate">{u.name}</span>
+                        {u.brandName && <span className="text-[13px] text-white/50 truncate">{u.brandName}</span>}
+                      </div>
+                    </div>
+                    
+                    {!isMe && !guestMode && (
+                      <button 
+                        onClick={() => toggleFollow(u.id)}
+                        className={`px-4 py-1.5 rounded-lg text-[13px] font-semibold transition-colors shrink-0 ${
+                          isFollowing 
+                            ? 'bg-[#333] text-white hover:bg-[#444]' 
+                            : 'bg-blue-500 text-white hover:bg-blue-600'
+                        }`}
+                      >
+                        {isFollowing ? 'Following' : 'Follow'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-[100dvh] bg-black text-white pb-24">
@@ -147,11 +346,11 @@ export default function ProfilePage() {
               <p className="text-lg font-bold">{postsCount}</p>
               <p className="text-[13px] text-white/80">posts</p>
             </div>
-            <div className="text-center cursor-pointer active:opacity-50" onClick={() => alert("Followers list coming soon!")}>
+            <div className="text-center cursor-pointer active:opacity-50" onClick={loadFollowers}>
               <p className="text-lg font-bold">{followersCount}</p>
               <p className="text-[13px] text-white/80">followers</p>
             </div>
-            <div className="text-center cursor-pointer active:opacity-50" onClick={() => alert("Following list coming soon!")}>
+            <div className="text-center cursor-pointer active:opacity-50" onClick={loadFollowing}>
               <p className="text-lg font-bold">{followingCount}</p>
               <p className="text-[13px] text-white/80">following</p>
             </div>
@@ -248,6 +447,7 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* Settings Modal */}
       {showSettings && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-sm" onClick={() => setShowSettings(false)}>
           <div className="bg-[#1a1a1a] w-full rounded-t-3xl p-6 flex flex-col gap-4 animate-in slide-in-from-bottom-10" onClick={e => e.stopPropagation()}>
@@ -265,6 +465,10 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+
+      {/* User Lists Modals */}
+      {renderUserListModal("Followers", followersList, showFollowers, () => setShowFollowers(false))}
+      {renderUserListModal("Following", followingList, showFollowing, () => setShowFollowing(false))}
     </div>
   );
 }

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ReelCard, LoadingSpinner } from '@reelbazaar/ui';
-import { reelsApi } from '@reelbazaar/api';
 import type { Reel } from '@reelbazaar/config';
 import { useAuth } from '../context/AuthContext';
 import { demoReels } from '../demoData';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 export default function SingleReelPage() {
   const { reelId } = useParams<{ reelId: string }>();
@@ -27,12 +28,30 @@ export default function SingleReelPage() {
         }
         
         if (reelId) {
-          const { reel: fetchedReel } = await reelsApi.getById(reelId);
-          setReel(fetchedReel);
+          const rDoc = await getDoc(doc(db, 'reels', reelId));
+          if (rDoc.exists()) {
+             const data = rDoc.data();
+             let creator = null;
+             if (data.creatorId) {
+               const uDoc = await getDoc(doc(db, 'users', data.creatorId));
+               if (uDoc.exists()) {
+                 creator = { id: uDoc.id, ...uDoc.data() };
+               }
+             }
+             setReel({ id: rDoc.id, ...data, creator } as Reel);
+          } else {
+             // Fallback to demo data if not found in Firestore
+             const found = demoReels.find(r => r.id === reelId);
+             if (found) setReel(found);
+             else setError("Reel not found");
+          }
         }
       } catch (err) {
-        console.error(err);
-        setError("Failed to load reel");
+        console.error('Error fetching reel from Firestore:', err);
+        // Fallback to demo data on error
+        const found = demoReels.find(r => r.id === reelId);
+        if (found) setReel(found);
+        else setError("Failed to load reel");
       } finally {
         setLoading(false);
       }
@@ -64,7 +83,7 @@ export default function SingleReelPage() {
   }
 
   return (
-    <div className="relative h-[100dvh] w-full bg-black">
+    <div className="relative h-full w-full bg-black">
       {/* Back Button Overlay */}
       <button 
         onClick={() => navigate(-1)}
