@@ -8,6 +8,33 @@ import { getDemoUser } from '../demoData';
 const GUEST_MODE_KEY = 'reelbazaar-guest-mode';
 const USER_CACHE_KEY = 'reelbazaar-user-cache';
 
+interface AuthContextType {
+  firebaseUser: FirebaseUser | null;
+  user: User | null;
+  loading: boolean;
+  isRegistered: boolean;
+  guestMode: boolean;
+  authError: string | null;
+  register: (data: {
+    name: string;
+    email?: string | null;
+    phone?: string;
+    gender?: string;
+    dob?: string;
+    country?: string;
+    websiteLink?: string;
+    brandName?: string;
+    productCategories?: string[];
+  }) => Promise<void>;
+  refreshUser: (fbUserParam?: FirebaseUser | null) => Promise<void>;
+  signOut: () => Promise<void>;
+  enterGuestMode: (userType?: UserType) => void;
+  exitGuestMode: () => void;
+  clearAuthError: () => void;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [user, setUser] = useState<User | null>(() => {
