@@ -1,0 +1,15 @@
+[build]
+  base = "apps/landing-page"
+  command = "npm run build"
+  publish = "out"
+
+[[redirects]]
+  from = "/app/*"
+  to = "https://rb-app.nhancio.com/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

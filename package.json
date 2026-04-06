@@ -1,0 +1,23 @@
+{
+  "name": "reelbazaar",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "backend/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "dev:backend": "turbo run dev --filter=server",
+    "dev:web": "turbo run dev --filter=web-app",
+    "dev:landing": "turbo run dev --filter=landing-page",
+    "db:seed": "cd backend/server && npx tsx src/seed.ts"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  },
+  "packageManager": "npm@10.0.0"
+}

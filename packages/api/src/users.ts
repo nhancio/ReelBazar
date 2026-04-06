@@ -1,0 +1,22 @@
+import { api, uploadFile } from './client';
+import type { User } from '@reelbazaar/config';
+
+export const usersApi = {
+  getById: (id: string) =>
+    api.get<{ user: User }>(`/users/${id}`),
+
+  search: (query: string) =>
+    api.get<{ users: User[] }>('/users/search', { params: { q: query } }),
+
+  toggleFollow: (id: string) =>
+    api.post<{ following: boolean }>(`/users/${id}/follow`),
+
+  getFollowing: () =>
+    api.get<{ followingIds: string[] }>('/users/me/following'),
+
+  updateAvatar: (file: File) =>
+    uploadFile('/users/me/avatar', file),
+
+  updateProfile: (data: { name?: string; productCategories?: string[] }) =>
+    api.put<{ user: User }>('/users/me', { body: data }),
+};

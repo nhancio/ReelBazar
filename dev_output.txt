@@ -1,0 +1,23 @@
+
+> reelbazaar@1.0.0 dev
+> turbo run dev --filter web-app
+
+• turbo 2.9.1
+
+   • Packages in scope: web-app
+   • Running dev in 1 packages
+   • Remote caching disabled
+
+web-app:dev: cache bypass, force executing 8940e32e9d1e9ae6
+web-app:dev: 
+web-app:dev: > web-app@1.0.0 dev
+web-app:dev: > vite
+web-app:dev: 
+web-app:dev: Port 3000 is in use, trying another one...
+web-app:dev: Port 3001 is in use, trying another one...
+web-app:dev: 
+web-app:dev:   VITE v5.4.21  ready in 300 ms
+web-app:dev: 
+web-app:dev:   ➜  Local:   http://localhost:3002/
+web-app:dev:   ➜  Network: use --host to expose
+ ERROR  run failed: command  exited (1)
