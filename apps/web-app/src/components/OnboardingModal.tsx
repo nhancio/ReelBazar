@@ -1,41 +1,63 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import type { User } from '@reelbazaar/config';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '@reelbazaar/ui';
+import { authApi } from '@reelbazaar/api';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { agentDebugLog } from '../debug/agentDebugLog';
 
 const OPTIONS = ['Electronics', 'Fashion', 'Beauty', 'Lifestyle'];
 
+function isProfileComplete(user: User): boolean {
+  const interests = user.interests?.length ? user.interests : user.productCategories || [];
+  const usernameOk = Boolean(user.username?.trim());
+  return usernameOk && interests.length > 0;
+}
+
 export default function OnboardingModal() {
-  const { user, guestMode, refreshUser, firebaseUser } = useAuth();
+  const { user, guestMode, refreshUser, firebaseUser, isNewUser } = useAuth();
   const existingInterests = useMemo(
     () => user?.interests?.length ? user.interests : user?.productCategories || [],
     [user?.interests, user?.productCategories]
   );
 
-  // Only show if logged in, NOT in guest mode, and hasn't set up profile
-  const shouldShow = user && !guestMode && (!user.username || existingInterests.length === 0);
+  // First visit: collect username + categories. Returning users (doc has both) go straight to the app.
+  const shouldShow = Boolean(
+    user && firebaseUser && !guestMode && !isProfileComplete(user)
+  );
 
   const [username, setUsername] = useState(user?.username || (user?.name ? user.name.replace(/\s+/g, '').toLowerCase() : ''));
   const [selectedInterests, setSelectedInterests] = useState<string[]>(existingInterests);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (!shouldShow || !user) return;
+    setUsername(user.username || (user.name ? user.name.replace(/\s+/g, '').toLowerCase() : ''));
     setSelectedInterests(existingInterests);
-  }, [existingInterests]);
+  }, [shouldShow, user?.id]);
 
   useEffect(() => {
     if (!user) return;
-    console.info('[onboarding] render', {
-      shouldShow,
-      userId: user.id,
-      username: user.username,
-      interests: user.interests,
+      console.info('[onboarding] render', {
+        shouldShow,
+        isNewUser,
+        profileComplete: user ? isProfileComplete(user) : null,
+        userId: user.id,
+        username: user.username,
+        interests: user.interests,
       productCategories: user.productCategories,
       localSelectedInterests: selectedInterests,
       guestMode,
     });
-  }, [guestMode, selectedInterests, shouldShow, user]);
+  }, [guestMode, isNewUser, selectedInterests, shouldShow, user]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('rb:overlay-playback', { detail: { blocked: shouldShow } }));
+    return () => {
+      window.dispatchEvent(new CustomEvent('rb:overlay-playback', { detail: { blocked: false } }));
+    };
+  }, [shouldShow]);
 
   if (!shouldShow) return null;
 
@@ -57,6 +79,20 @@ export default function OnboardingModal() {
     
     setLoading(true);
     try {
+      // #region agent log
+      agentDebugLog({
+        runId: 'post-fix',
+        hypothesisId: 'H4',
+        location: 'OnboardingModal.tsx:handleSubmit:beforePayload',
+        message: 'submit context',
+        data: {
+          usernameLen: username.trim().length,
+          interestsCount: selectedInterests.length,
+          hasFirebaseUser: !!firebaseUser,
+          isNewUser,
+        },
+      });
+      // #endregion
       const sanitizedUsername = username.toLowerCase().replace(/\s+/g, '');
       const payload = {
         username: sanitizedUsername,
@@ -66,9 +102,59 @@ export default function OnboardingModal() {
         updatedAt: new Date().toISOString()
       };
 
+      console.info('[onboarding] submit:backendAttempt', payload);
+      // #region agent log
+      agentDebugLog({
+        runId: 'post-fix',
+        hypothesisId: 'H1',
+        location: 'OnboardingModal.tsx:handleSubmit:beforeUpdateProfile',
+        message: 'calling PATCH /auth/me',
+        data: { nameLen: payload.name.length, usernameLen: payload.username.length },
+      });
+      // #endregion
+      let backendResponse: Awaited<ReturnType<typeof authApi.updateProfile>>;
+      try {
+        backendResponse = await authApi.updateProfile({
+          username: payload.username,
+          name: payload.name,
+          interests: payload.interests,
+          productCategories: payload.productCategories,
+        });
+      } catch (apiErr: unknown) {
+        const msg = apiErr instanceof Error ? apiErr.message : String(apiErr);
+        if (!msg.includes('User not registered')) throw apiErr;
+        // #region agent log
+        agentDebugLog({
+          runId: 'post-fix',
+          hypothesisId: 'H1',
+          location: 'OnboardingModal.tsx:handleSubmit:registerFallback',
+          message: 'PATCH 403 — registering user on API',
+          data: {},
+        });
+        // #endregion
+        backendResponse = await authApi.register({
+          firebaseUid: firebaseUser.uid,
+          email: firebaseUser.email ?? null,
+          name: payload.name,
+          username: payload.username,
+          interests: payload.interests,
+          productCategories: payload.productCategories,
+        });
+      }
+      console.info('[onboarding] submit:backendSuccess', backendResponse);
+      // #region agent log
+      agentDebugLog({
+        runId: 'post-fix',
+        hypothesisId: 'H1',
+        location: 'OnboardingModal.tsx:handleSubmit:backendOk',
+        message: 'backend profile sync succeeded',
+        data: {},
+      });
+      // #endregion
+
       await setDoc(doc(db, 'users', firebaseUser.uid), payload, { merge: true });
       const userSnapshot = await getDoc(doc(db, 'users', firebaseUser.uid));
-      console.info('[onboarding] submit:firestoreSuccess', {
+      console.info('[onboarding] submit:firestoreVerification', {
         exists: userSnapshot.exists(),
         data: userSnapshot.exists() ? userSnapshot.data() : null,
       });
@@ -83,6 +169,18 @@ export default function OnboardingModal() {
       await refreshUser();
       console.info('[onboarding] submit:refreshUserComplete');
     } catch (err: any) {
+      // #region agent log
+      agentDebugLog({
+        runId: 'post-fix',
+        hypothesisId: 'H2',
+        location: 'OnboardingModal.tsx:handleSubmit:catch',
+        message: 'submit error',
+        data: {
+          errMessage: String(err?.message || '').slice(0, 300),
+          errName: err?.name,
+        },
+      });
+      // #endregion
       console.warn('[onboarding] submit:firestoreError', {
         code: err?.code,
         message: err?.message,
@@ -108,7 +206,7 @@ export default function OnboardingModal() {
   const selectionRequired = selectedInterests.length === 0;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black px-4" onClick={(e) => e.stopPropagation()}>
+    <div data-rb-onboarding-open="true" className="fixed inset-0 z-[100] flex items-center justify-center bg-black px-4" onClick={(e) => e.stopPropagation()}>
       <div className="w-full max-w-sm rounded-[32px] bg-[#121212] border border-white/10 p-8 animate-in zoom-in-95 duration-200 shadow-2xl">
         <h2 className="text-2xl font-bold text-white mb-2">Welcome to ReelBazaar! 👋</h2>
         <p className="text-sm text-white/50 mb-8">Let's set up your profile quickly.</p>

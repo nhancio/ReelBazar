@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply bg-slate-900 text-slate-800 antialiased overflow-hidden;
+    @apply antialiased overflow-hidden;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -41,6 +41,24 @@
       overflow: hidden;
     }
   }
+}
+
+:root[data-theme='dark'] body {
+  background-color: #020617;
+  color: #f8fafc;
+}
+
+:root[data-theme='dark'] #root {
+  background-color: #000000;
+}
+
+:root[data-theme='light'] body {
+  background-color: #f1f5f9;
+  color: #111827;
+}
+
+:root[data-theme='light'] #root {
+  background-color: #f8fafc;
 }
 
 @layer components {

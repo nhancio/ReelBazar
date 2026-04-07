@@ -14,7 +14,12 @@
     "dev:backend": "turbo run dev --filter=server",
     "dev:web": "turbo run dev --filter=web-app",
     "dev:landing": "turbo run dev --filter=landing-page",
-    "db:seed": "cd backend/server && npx tsx src/seed.ts"
+    "db:seed": "cd backend/server && npx tsx src/seed.ts",
+    "deploy:build": "turbo run build --filter=web-app --filter=landing-page --filter=server",
+    "deploy:firebase": "firebase deploy --only hosting",
+    "deploy:vercel:landing": "cd apps/landing-page && vercel deploy --prod --yes",
+    "deploy:vercel:api": "cd backend/server && vercel deploy --prod --yes",
+    "deploy": "bash deploy.sh"
   },
   "devDependencies": {
     "turbo": "^2.0.0"

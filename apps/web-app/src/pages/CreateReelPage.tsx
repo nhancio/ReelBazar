@@ -1,21 +1,21 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input } from '@reelbazaar/ui';
-import { CATEGORIES, type Category, SUPPORTED_VIDEO_TYPES, MAX_FILE_SIZE } from '@reelbazaar/config';
+import { SUPPORTED_VIDEO_TYPES, MAX_FILE_SIZE } from '@reelbazaar/config';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db, storage } from '../firebase';
+import { auth, db, storage } from '../firebase';
 import { v4 as uuidv4 } from 'uuid';
 
 export default function CreateReelPage() {
   const { guestMode, user } = useAuth();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string>('');
   const [productLink, setProductLink] = useState('');
-  const [category, setCategory] = useState<Category>('Women');
   const [caption, setCaption] = useState('');
   const [brandTag, setBrandTag] = useState('');
   const [loading, setLoading] = useState(false);
@@ -82,10 +82,9 @@ export default function CreateReelPage() {
         videoUrl,
         thumbnailUrl: null,
         productLink,
-        category,
         caption: caption || null,
         brandTag: brandTag || null,
-        creatorId: user.id,
+        creatorId: auth.currentUser?.uid ?? user.id,
         likesCount: 0,
         viewsCount: 0,
         savesCount: 0,
@@ -110,48 +109,80 @@ export default function CreateReelPage() {
     }
   };
 
-  return (
-    <div className="rb-page pb-24">
-        <div className="mb-6 px-1">
-          <p className="text-sm font-medium text-slate-500">Creator studio</p>
-          <h1 className="rb-title text-[2rem]">Create Reel</h1>
-          {guestMode && <p className="mt-1 text-sm text-slate-500">Demo mode: uploads stay local and are not sent anywhere.</p>}
-      </div>
+  /* ! overrides globals.css base input/textarea (rounded glass style) */
+  const fieldClass =
+    theme === 'light'
+      ? 'w-full !rounded-lg !border !border-black/12 !bg-white !px-3 !py-2.5 text-[15px] text-black placeholder:text-black/35 !shadow-none focus:!border-black/25 focus:!outline-none focus:!ring-1 focus:!ring-black/20'
+      : 'w-full !rounded-lg !border !border-white/12 !bg-[#262626] !px-3 !py-2.5 text-[15px] text-white placeholder:text-white/35 !shadow-none focus:!border-white/25 focus:!outline-none focus:!ring-1 focus:!ring-white/20';
 
-      <form onSubmit={handleSubmit} className="space-y-4 max-w-lg mx-auto px-1">
+  return (
+    <div className={`min-h-full w-full pb-28 ${theme === 'light' ? 'bg-[#f6f7fb] text-black' : 'bg-black text-white'}`}>
+      {/* Instagram-style header */}
+      <header className={`sticky top-0 z-10 flex items-center justify-center border-b px-2 py-3 ${theme === 'light' ? 'border-black/10 bg-white' : 'border-white/10 bg-black'}`}>
+        <button
+          type="button"
+          aria-label="Go back"
+          onClick={() => navigate(-1)}
+          className={`absolute left-2 p-2 rounded-full ${theme === 'light' ? 'hover:bg-black/10 active:bg-black/5' : 'hover:bg-white/10 active:bg-white/5'}`}
+        >
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h1 className="text-base font-semibold tracking-tight">New reel</h1>
+      </header>
+
+      <form onSubmit={handleSubmit} className="mx-auto max-w-lg space-y-5 px-4 pt-4">
+        {guestMode && (
+          <p className="text-center text-[13px] text-white/45">Browse mode — sign in to publish reels.</p>
+        )}
+
         <div
+          role="button"
+          tabIndex={0}
           onClick={() => !loading && fileInputRef.current?.click()}
-          className={`rb-card relative flex h-40 w-full cursor-pointer items-center justify-center overflow-hidden border-2 border-dashed border-slate-300 bg-slate-50 p-2 transition-colors hover:bg-slate-100 ${loading ? 'opacity-70 pointer-events-none' : ''}`}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              if (!loading) fileInputRef.current?.click();
+            }
+          }}
+          className={`relative flex min-h-[200px] w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border border-dashed border-white/20 bg-[#121212] transition-colors hover:border-white/30 hover:bg-[#161616] ${loading ? 'pointer-events-none opacity-70' : ''}`}
         >
           {preview ? (
-            <video src={preview} className="h-full w-full rounded-xl object-cover" />
+            <video src={preview} className="max-h-[280px] w-full object-contain" playsInline muted />
           ) : (
-            <div className="text-center p-4">
-              <svg className="mx-auto mb-2 h-8 w-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              <p className="font-medium text-slate-700 text-sm">Tap to upload video</p>
-              <p className="mt-1 text-[11px] text-slate-500">MP4, WebM, QuickTime up to 50MB</p>
+            <div className="px-6 py-10 text-center">
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-white/5">
+                <svg className="h-7 w-7 text-[#0095f6]" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <p className="text-[15px] font-semibold text-white">Add video</p>
+              <p className="mt-1 text-xs text-white/45">MP4, WebM or QuickTime · up to 50MB</p>
             </div>
           )}
-          
+
           {loading && (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
-              <div className="relative h-20 w-20 flex items-center justify-center">
-                 <svg className="h-full w-full rotate-[-90deg]">
-                    <circle 
-                      cx="40" cy="40" r="36" stroke="white" strokeWidth="4" fill="transparent" opacity="0.2"
-                    />
-                    <circle 
-                      cx="40" cy="40" r="36" stroke="white" strokeWidth="4" fill="transparent"
-                      strokeDasharray={226.19}
-                      strokeDashoffset={226.19 * (1 - progress / 100)}
-                      strokeLinecap="round"
-                    />
-                 </svg>
-                 <span className="absolute text-sm font-bold text-white">{progress}%</span>
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm">
+              <div className="relative flex h-20 w-20 items-center justify-center">
+                <svg className="h-full w-full -rotate-90">
+                  <circle cx="40" cy="40" r="36" stroke="white" strokeWidth="4" fill="transparent" className="opacity-20" />
+                  <circle
+                    cx="40"
+                    cy="40"
+                    r="36"
+                    stroke="white"
+                    strokeWidth="4"
+                    fill="transparent"
+                    strokeDasharray={226.19}
+                    strokeDashoffset={226.19 * (1 - progress / 100)}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span className="absolute text-sm font-bold text-white">{progress}%</span>
               </div>
-              <p className="mt-4 text-sm font-semibold text-white">Uploading reel...</p>
+              <p className="mt-4 text-sm font-semibold text-white">Posting…</p>
             </div>
           )}
 
@@ -165,65 +196,51 @@ export default function CreateReelPage() {
           />
         </div>
 
-        <div className="space-y-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
-          <Input
-            label="Product Link *"
-            type="url"
-            value={productLink}
-            onChange={(e) => setProductLink(e.target.value)}
-            placeholder="https://example.com/product"
-            required
-            className="border-slate-200 focus:border-blue-500 focus:ring-blue-500/20"
-          />
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-white/45">Product link</label>
+            <input
+              type="url"
+              value={productLink}
+              onChange={(e) => setProductLink(e.target.value)}
+              placeholder="https://"
+              required
+              className={fieldClass}
+            />
+          </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-slate-700">Caption</label>
+          <div>
+            <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-white/45">Caption</label>
             <textarea
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
-              placeholder="Describe your reel..."
-              className="w-full min-h-[60px] rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none"
+              placeholder="Write a caption…"
+              rows={3}
+              className={`${fieldClass} min-h-[88px] resize-none`}
             />
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="flex flex-col gap-1.5 px-1">
-            <label className="text-sm font-medium text-slate-700">Category *</label>
-            <div className="flex flex-wrap gap-2">
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setCategory(cat)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    category === cat 
-                      ? 'bg-black text-white' 
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <Input
-            label="Brand Tag"
+        <div>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-white/45">Brand tag</label>
+          <input
+            type="text"
             value={brandTag}
             onChange={(e) => setBrandTag(e.target.value)}
-            placeholder="@BrandName"
-            className="bg-white border-slate-200"
+            placeholder="@brand"
+            className={fieldClass}
           />
         </div>
 
-        {error && <p className="text-sm text-red-500 px-1">{error}</p>}
+        {error && <p className="text-sm text-[#ed4956]">{error}</p>}
 
-        <div className="pt-2">
-          <Button type="submit" fullWidth loading={loading} disabled={!file || !productLink}>
-            Upload
-          </Button>
-        </div>
+        <button
+          type="submit"
+          disabled={!file || !productLink || loading}
+          className="w-full rounded-lg bg-[#0095f6] py-3 text-[15px] font-semibold text-white transition-opacity hover:bg-[#1877f2] disabled:cursor-not-allowed disabled:opacity-40 active:opacity-90"
+        >
+          {loading ? 'Sharing…' : 'Share'}
+        </button>
       </form>
     </div>
   );

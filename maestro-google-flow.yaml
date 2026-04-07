@@ -1,0 +1,8 @@
+url: https://reelbaazar.web.app
+---
+- launchApp
+- assertVisible: "Continue with Google"
+- tapOn: "Continue with Google"
+- extendedWaitUntil:
+    visible: "accounts.google.com"
+    timeout: 15000

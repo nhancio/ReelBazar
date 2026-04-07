@@ -18,7 +18,9 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 
 // Explicitly set local persistence to ensure sessions survive browser restarts/refreshes
-setPersistence(auth, browserLocalPersistence).catch(console.error);
+export const authPersistenceReady = setPersistence(auth, browserLocalPersistence).catch((err) => {
+  console.error('Failed to set Firebase auth persistence:', err);
+});
 
 // Enable offline persistence for Firestore to reduce load times
 enableIndexedDbPersistence(db).catch((err) => {

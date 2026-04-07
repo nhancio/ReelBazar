@@ -12,7 +12,7 @@ export function initFirebaseAdmin() {
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const projectId = process.env.FIREBASE_PROJECT_ID || 'demo-reelbazaar';
-  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || `${projectId}.appspot.com`;
+  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || `${projectId}.firebasestorage.app`;
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   const resolvedPath = serviceAccountPath ? path.resolve(process.cwd(), serviceAccountPath) : null;
@@ -21,7 +21,7 @@ export function initFirebaseAdmin() {
     const serviceAccount = JSON.parse(serviceAccountJson);
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.appspot.com`,
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.firebasestorage.app`,
     });
   } else if (privateKey && clientEmail) {
     admin.initializeApp({
@@ -36,7 +36,7 @@ export function initFirebaseAdmin() {
     const serviceAccount = JSON.parse(fs.readFileSync(resolvedPath, 'utf-8'));
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.appspot.com`,
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.firebasestorage.app`,
     });
   } else {
     console.warn(`Firebase Admin: No service account found at ${resolvedPath}. Using default initialization.`);

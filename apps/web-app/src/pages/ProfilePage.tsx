@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Avatar, LoadingSpinner } from '@reelbazaar/ui';
 import type { User, Reel } from '@reelbazaar/config';
-import { demoReels, demoUsers } from '../demoData';
 import {
   doc,
   getDoc,
@@ -11,23 +10,41 @@ import {
   query,
   where,
   getDocs,
-  orderBy,
   updateDoc,
   setDoc,
   deleteDoc
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase';
-
-const THEME_KEY = 'reelbazaar-theme-preference';
+import { usersApi } from '@reelbazaar/api';
+import { useTheme } from '../context/ThemeContext';
 
 const getProfileHandle = (user: User | null | undefined) => user?.username || user?.name?.replace(/\s+/g, '').toLowerCase() || 'user';
 const getProfileName = (user: User | null | undefined) => user?.username || user?.name || 'User';
 
+/** ISO strings (client writes) or Firestore Timestamp — used to sort without a composite index. */
+function reelCreatedAtMs(createdAt: unknown): number {
+  if (createdAt == null) return 0;
+  if (typeof createdAt === 'string') {
+    const t = Date.parse(createdAt);
+    return Number.isFinite(t) ? t : 0;
+  }
+  if (
+    typeof createdAt === 'object' &&
+    createdAt !== null &&
+    'toMillis' in createdAt &&
+    typeof (createdAt as { toMillis: unknown }).toMillis === 'function'
+  ) {
+    return (createdAt as { toMillis: () => number }).toMillis();
+  }
+  return 0;
+}
+
 export default function ProfilePage() {
   const { userId } = useParams<{ userId: string }>();
-  const { user: currentUser, signOut, guestMode } = useAuth();
+  const { user: currentUser, signOut, guestMode, refreshUser, exitGuestMode } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [profileUser, setProfileUser] = useState<User | null>(null);
@@ -37,10 +54,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [themePreference, setThemePreference] = useState<'dark' | 'light'>(() => {
-    const stored = localStorage.getItem(THEME_KEY);
-    return stored === 'light' ? 'light' : 'dark';
-  });
+  const { theme, setTheme } = useTheme();
 
   const [followersList, setFollowersList] = useState<User[]>([]);
   const [followingList, setFollowingList] = useState<User[]>([]);
@@ -56,8 +70,13 @@ export default function ProfilePage() {
   const displayUser = isOwnProfile ? currentUser : profileUser;
 
   useEffect(() => {
-    localStorage.setItem(THEME_KEY, themePreference);
-  }, [themePreference]);
+    const st = location.state as { openSettings?: boolean } | null;
+    if (!st?.openSettings) return;
+    if (!currentUser && !guestMode) return;
+    const own = !userId || userId === currentUser?.id;
+    if (own) setShowSettings(true);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.state, location.pathname, userId, currentUser, guestMode, navigate]);
 
   const loadUserList = useCallback(async (userIds: string[]) => {
     const users = await Promise.all(
@@ -104,86 +123,108 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const load = async () => {
-      if (!currentUser && !guestMode) return;
+      if (!guestMode && !currentUser) return;
+
+      const isOwn = !userId || userId === currentUser?.id;
+      const targetId = isOwn ? (currentUser?.id ?? null) : (userId ?? null);
+
+      if (!targetId) {
+        setProfileUser(null);
+        setReels([]);
+        setSavedReels([]);
+        setFollowersCount(0);
+        setFollowingCount(0);
+        setCurrentUserFollowingMap({});
+        setLoading(false);
+        return;
+      }
 
       setLoading(true);
       try {
-        if (guestMode) {
-          const fallbackUser =
-            userId === demoUsers.brand.id
-              ? demoUsers.brand
-              : userId === demoUsers.brandAlt.id
-                ? demoUsers.brandAlt
-                : currentUser;
+        const targetUserPromise = isOwn && currentUser ? Promise.resolve(null) : getDoc(doc(db, 'users', targetId));
 
-          setProfileUser(!isOwnProfile && fallbackUser ? fallbackUser : null);
-          const targetId = isOwnProfile ? currentUser?.id : fallbackUser?.id;
-          setReels(demoReels.filter((reel) => reel.creatorId === targetId));
-          setSavedReels(isOwnProfile ? demoReels.slice(0, 2) : []);
-          setFollowersCount(fallbackUser?.followersCount || 0);
-          setFollowingCount(fallbackUser?.followingCount || 0);
-          return;
-        }
-
-        const targetId = isOwnProfile ? currentUser!.id : userId!;
-
-        const [
-          targetUserDoc,
-          userReelsSnapshot,
-          followersSnapshot,
-          followingSnapshot,
-          currentFollowingSnapshot,
-        ] = await Promise.all([
-          isOwnProfile ? Promise.resolve(null) : getDoc(doc(db, 'users', targetId)),
-          getDocs(query(collection(db, 'reels'), where('creatorId', '==', targetId), orderBy('createdAt', 'desc'))),
+        const [targetUserDoc, userReelsSnapshot, followersSnapshot, followingSnapshot] = await Promise.all([
+          targetUserPromise,
+          getDocs(query(collection(db, 'reels'), where('creatorId', '==', targetId))),
           getDocs(query(collection(db, 'follows'), where('followingId', '==', targetId))),
           getDocs(query(collection(db, 'follows'), where('followerId', '==', targetId))),
-          getDocs(query(collection(db, 'follows'), where('followerId', '==', currentUser!.id))),
         ]);
 
-        if (!isOwnProfile && targetUserDoc?.exists()) {
-          setProfileUser({ id: targetUserDoc.id, ...targetUserDoc.data() } as User);
-        } else if (!isOwnProfile) {
+        const currentFollowingSnapshot = currentUser
+          ? await getDocs(query(collection(db, 'follows'), where('followerId', '==', currentUser.id)))
+          : null;
+
+        if (!isOwn) {
+          if (targetUserDoc?.exists()) {
+            setProfileUser({ id: targetUserDoc.id, ...targetUserDoc.data() } as User);
+          } else {
+            setProfileUser(null);
+          }
+        } else {
           setProfileUser(null);
         }
 
-        setReels(userReelsSnapshot.docs.map((item) => ({ id: item.id, ...item.data() } as Reel)));
+        const profileReels = userReelsSnapshot.docs.map((item) => ({ id: item.id, ...item.data() } as Reel));
+        profileReels.sort((a, b) => reelCreatedAtMs(b.createdAt) - reelCreatedAtMs(a.createdAt));
+        setReels(profileReels);
         setFollowersCount(followersSnapshot.size);
         setFollowingCount(followingSnapshot.size);
 
         const followingMap: Record<string, boolean> = {};
-        currentFollowingSnapshot.docs.forEach((item) => {
-          followingMap[item.data().followingId] = true;
-        });
+        if (currentFollowingSnapshot) {
+          currentFollowingSnapshot.docs.forEach((item) => {
+            followingMap[item.data().followingId] = true;
+          });
+        }
         setCurrentUserFollowingMap(followingMap);
 
-        if (isOwnProfile) {
-          const savedSnapshot = await getDocs(query(collection(db, 'reelSaves'), where('userId', '==', targetId)));
-          const savedIds = savedSnapshot.docs.map((item) => item.data().reelId as string);
+        if (isOwn && currentUser) {
+          try {
+            const savedSnapshot = await getDocs(query(collection(db, 'reelSaves'), where('userId', '==', targetId)));
+            const saveRows = savedSnapshot.docs.map((docSnap) => {
+              const data = docSnap.data();
+              return {
+                reelId: data.reelId as string,
+                createdAt: String(data.createdAt ?? ''),
+              };
+            });
+            saveRows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
-          if (savedIds.length === 0) {
-            setSavedReels([]);
-          } else {
-            const savedDocs = await Promise.all(savedIds.map((id) => getDoc(doc(db, 'reels', id))));
-            const loadedSavedReels = savedDocs
-              .filter((item) => item.exists())
-              .map((item) => ({ id: item.id, ...item.data() } as Reel));
+            const seen = new Set<string>();
+            const orderedIds = saveRows.map((r) => r.reelId).filter((id) => {
+              if (!id || seen.has(id)) return false;
+              seen.add(id);
+              return true;
+            });
+
+            const loadedSavedReels = (
+              await Promise.all(
+                orderedIds.map(async (id) => {
+                  const snap = await getDoc(doc(db, 'reels', id));
+                  return snap.exists() ? ({ id: snap.id, ...snap.data() } as Reel) : null;
+                })
+              )
+            ).filter((r): r is Reel => r !== null);
+
             setSavedReels(loadedSavedReels);
+          } catch (saveErr) {
+            console.error('Failed to load saved reels:', saveErr);
+            setSavedReels([]);
           }
         } else {
           setSavedReels([]);
         }
       } catch (err) {
         console.error('Error loading profile data:', err);
-        const targetId = isOwnProfile ? currentUser?.id : userId;
-        setReels(demoReels.filter((reel) => reel.creatorId === targetId));
+        setReels([]);
+        if (!isOwnProfile) setProfileUser(null);
       } finally {
         setLoading(false);
       }
     };
 
     load();
-  }, [currentUser, guestMode, isOwnProfile, userId]);
+  }, [currentUser, guestMode, userId, isOwnProfile]);
 
   const toggleFollow = async (targetUserId: string) => {
     if (guestMode || !currentUser) return;
@@ -241,21 +282,35 @@ export default function ProfilePage() {
 
     setUploadingAvatar(true);
     try {
-      const storageRef = ref(storage, `avatars/${currentUser.id}`);
-      await uploadBytes(storageRef, file);
-      const avatarUrl = await getDownloadURL(storageRef);
-
-      await updateDoc(doc(db, 'users', currentUser.id), {
-        avatarUrl,
-        updatedAt: new Date().toISOString()
-      });
-
-      window.location.reload();
+      try {
+        await usersApi.updateAvatar(file);
+      } catch (apiErr) {
+        console.warn('Avatar API upload failed, trying client Storage', apiErr);
+        const storageRef = ref(
+          storage,
+          `avatars/${currentUser.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
+        );
+        await uploadBytes(storageRef, file, { contentType: file.type || 'image/jpeg' });
+        const avatarUrl = await getDownloadURL(storageRef);
+        await updateDoc(doc(db, 'users', currentUser.id), {
+          avatarUrl,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      await refreshUser();
     } catch (err) {
       console.error('Failed to update avatar', err);
-      alert('Failed to update profile picture.');
+      let detail = 'Unknown error';
+      if (err instanceof Error) detail = err.message;
+      else if (err && typeof err === 'object' && 'code' in err) {
+        const e = err as { code: unknown; message?: unknown };
+        detail = String(e.code);
+        if (typeof e.message === 'string' && e.message) detail += `: ${e.message}`;
+      }
+      alert(`Failed to update profile picture. ${detail}`);
     } finally {
       setUploadingAvatar(false);
+      event.target.value = '';
     }
   };
 
@@ -328,10 +383,28 @@ export default function ProfilePage() {
     return <div className="min-h-screen bg-black pt-20"><LoadingSpinner /></div>;
   }
 
+  if (guestMode && isOwnProfile && !currentUser) {
+    return (
+      <div className="min-h-[100dvh] bg-black flex flex-col items-center justify-center text-white p-6 gap-4">
+        <p className="text-lg font-semibold text-center">Sign in to view your profile</p>
+        <button
+          type="button"
+          onClick={() => exitGuestMode()}
+          className="px-6 py-2.5 rounded-xl bg-white text-black text-[15px] font-semibold"
+        >
+          Sign in
+        </button>
+      </div>
+    );
+  }
+
   if (!displayUser) {
     return (
       <div className="min-h-[100dvh] bg-black flex flex-col items-center justify-center text-white p-6">
         <p className="text-lg font-semibold">Profile not found</p>
+        <p className="mt-2 text-sm text-white/50 text-center max-w-xs">
+          This user has no profile document in the database yet, or you do not have access.
+        </p>
       </div>
     );
   }
@@ -342,11 +415,11 @@ export default function ProfilePage() {
   const profilePending = displayUser.id ? followPendingIds.has(displayUser.id) : false;
 
   return (
-    <div className={`min-h-[100dvh] pb-24 ${themePreference === 'light' ? 'bg-[#f6f7fb] text-[#111827]' : 'bg-black text-white'}`}>
-      <div className={`flex items-center justify-between px-4 py-3 border-b ${themePreference === 'light' ? 'border-black/10' : 'border-white/10'}`}>
+    <div className={`min-h-[100dvh] pb-24 ${theme === 'light' ? 'bg-[#f6f7fb] text-[#111827]' : 'bg-black text-white'}`}>
+      <div className={`flex items-center justify-between px-4 py-3 border-b ${theme === 'light' ? 'border-black/10' : 'border-white/10'}`}>
         <div className="flex flex-col">
           <h1 className="text-xl font-bold">{getProfileHandle(displayUser)}</h1>
-          <p className={`text-xs ${themePreference === 'light' ? 'text-black/50' : 'text-white/50'}`}>{displayUser.name}</p>
+          <p className={`text-xs ${theme === 'light' ? 'text-black/50' : 'text-white/50'}`}>{displayUser.name}</p>
         </div>
         {isOwnProfile && (
           <button onClick={() => setShowSettings(true)} className="p-2 -mr-2">
@@ -388,36 +461,36 @@ export default function ProfilePage() {
           <div className="flex flex-1 justify-around ml-6 mr-2">
             <div className="text-center">
               <p className="text-lg font-bold">{postsCount}</p>
-              <p className={`text-[13px] ${themePreference === 'light' ? 'text-black/70' : 'text-white/80'}`}>posts</p>
+              <p className={`text-[13px] ${theme === 'light' ? 'text-black/70' : 'text-white/80'}`}>posts</p>
             </div>
             <button className="text-center active:opacity-50" onClick={loadFollowers}>
               <p className="text-lg font-bold">{followersCount}</p>
-              <p className={`text-[13px] ${themePreference === 'light' ? 'text-black/70' : 'text-white/80'}`}>followers</p>
+              <p className={`text-[13px] ${theme === 'light' ? 'text-black/70' : 'text-white/80'}`}>followers</p>
             </button>
             <button className="text-center active:opacity-50" onClick={loadFollowing}>
               <p className="text-lg font-bold">{followingCount}</p>
-              <p className={`text-[13px] ${themePreference === 'light' ? 'text-black/70' : 'text-white/80'}`}>following</p>
+              <p className={`text-[13px] ${theme === 'light' ? 'text-black/70' : 'text-white/80'}`}>following</p>
             </button>
           </div>
         </div>
 
         <div className="mt-4">
           <p className="font-bold text-[15px]">@{getProfileHandle(displayUser)}</p>
-          <p className={`text-[14px] mt-1 ${themePreference === 'light' ? 'text-black/70' : 'text-white/80'}`}>{displayUser.name}</p>
+          <p className={`text-[14px] mt-1 ${theme === 'light' ? 'text-black/70' : 'text-white/80'}`}>{displayUser.name}</p>
           {displayUser.brandName && (
-            <p className={`text-[14px] mt-1 ${themePreference === 'light' ? 'text-black/70' : 'text-white/90'}`}>
+            <p className={`text-[14px] mt-1 ${theme === 'light' ? 'text-black/70' : 'text-white/90'}`}>
               Building <span className="font-medium">{displayUser.brandName}</span>
             </p>
           )}
           {displayUser.country && (
-            <p className={`text-[14px] mt-1 ${themePreference === 'light' ? 'text-black/70' : 'text-white/90'}`}>{displayUser.country}</p>
+            <p className={`text-[14px] mt-1 ${theme === 'light' ? 'text-black/70' : 'text-white/90'}`}>{displayUser.country}</p>
           )}
           {displayUser.interests && displayUser.interests.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {displayUser.interests.map((interest) => (
                 <span
                   key={interest}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${themePreference === 'light' ? 'bg-black/5 text-black/70' : 'bg-white/10 text-white/80'}`}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${theme === 'light' ? 'bg-black/5 text-black/70' : 'bg-white/10 text-white/80'}`}
                 >
                   {interest}
                 </span>
@@ -428,20 +501,12 @@ export default function ProfilePage() {
 
         <div className="mt-4 flex gap-2">
           {isOwnProfile ? (
-            <>
-              <button
-                onClick={() => navigate('/create')}
-                className={`flex-1 font-semibold rounded-lg py-2 text-[14px] transition-colors ${themePreference === 'light' ? 'bg-black text-white hover:bg-black/90' : 'bg-white/10 hover:bg-white/20 text-white'}`}
-              >
-                Create reel
-              </button>
-              <button
-                onClick={() => window.alert('Share profile coming soon!')}
-                className={`flex-1 font-semibold rounded-lg py-2 text-[14px] transition-colors ${themePreference === 'light' ? 'bg-black/5 hover:bg-black/10 text-black' : 'bg-white/10 hover:bg-white/20 text-white'}`}
-              >
-                Share profile
-              </button>
-            </>
+            <button
+              onClick={() => navigate('/create')}
+              className={`w-full font-semibold rounded-lg py-2 text-[14px] transition-colors ${theme === 'light' ? 'bg-black text-white hover:bg-black/90' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+            >
+              Create reel
+            </button>
           ) : (
             <>
               <button
@@ -449,7 +514,7 @@ export default function ProfilePage() {
                 disabled={profilePending}
                 className={`flex-1 font-semibold rounded-lg py-2 text-[14px] transition-colors disabled:opacity-60 ${
                   profileIsFollowed
-                    ? themePreference === 'light'
+                    ? theme === 'light'
                       ? 'bg-black/5 text-black hover:bg-black/10'
                       : 'bg-white/10 hover:bg-white/20 text-white'
                     : 'bg-[#1877f2] hover:bg-[#1668d8] text-white'
@@ -459,7 +524,7 @@ export default function ProfilePage() {
               </button>
               <button
                 onClick={() => navigate('/')}
-                className={`flex-1 font-semibold rounded-lg py-2 text-[14px] transition-colors ${themePreference === 'light' ? 'bg-black/5 hover:bg-black/10 text-black' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+                className={`flex-1 font-semibold rounded-lg py-2 text-[14px] transition-colors ${theme === 'light' ? 'bg-black/5 hover:bg-black/10 text-black' : 'bg-white/10 hover:bg-white/20 text-white'}`}
               >
                 View reels
               </button>
@@ -468,31 +533,31 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className={`flex mt-2 border-t ${themePreference === 'light' ? 'border-black/10' : 'border-white/20'}`}>
+      <div className={`flex mt-2 border-t ${theme === 'light' ? 'border-black/10' : 'border-white/20'}`}>
         <button
           onClick={() => setActiveTab('my')}
-          className={`flex-1 flex justify-center items-center py-3 relative ${activeTab === 'my' ? '' : themePreference === 'light' ? 'text-black/40' : 'text-white/50'}`}
+          className={`flex-1 flex justify-center items-center py-3 relative ${activeTab === 'my' ? '' : theme === 'light' ? 'text-black/40' : 'text-white/50'}`}
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
           </svg>
-          {activeTab === 'my' && <div className={`absolute top-0 left-0 right-0 h-[2px] ${themePreference === 'light' ? 'bg-black' : 'bg-white'}`} />}
+          {activeTab === 'my' && <div className={`absolute top-0 left-0 right-0 h-[2px] ${theme === 'light' ? 'bg-black' : 'bg-white'}`} />}
         </button>
         {isOwnProfile && (
           <button
             onClick={() => setActiveTab('saved')}
-            className={`flex-1 flex justify-center items-center py-3 relative ${activeTab === 'saved' ? '' : themePreference === 'light' ? 'text-black/40' : 'text-white/50'}`}
+            className={`flex-1 flex justify-center items-center py-3 relative ${activeTab === 'saved' ? '' : theme === 'light' ? 'text-black/40' : 'text-white/50'}`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
             </svg>
-            {activeTab === 'saved' && <div className={`absolute top-0 left-0 right-0 h-[2px] ${themePreference === 'light' ? 'bg-black' : 'bg-white'}`} />}
+            {activeTab === 'saved' && <div className={`absolute top-0 left-0 right-0 h-[2px] ${theme === 'light' ? 'bg-black' : 'bg-white'}`} />}
           </button>
         )}
       </div>
 
       {displayReels.length === 0 ? (
-        <div className={`py-12 text-center ${themePreference === 'light' ? 'text-black/40' : 'text-white/50'}`}>
+        <div className={`py-12 text-center ${theme === 'light' ? 'text-black/40' : 'text-white/50'}`}>
           <p className="font-medium">{activeTab === 'saved' ? 'No saved reels yet' : 'No reels found'}</p>
         </div>
       ) : (
@@ -522,31 +587,13 @@ export default function ProfilePage() {
       )}
 
       {showSettings && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-sm" onClick={() => setShowSettings(false)}>
-          <div className="bg-[#1a1a1a] w-full rounded-t-3xl p-6 flex flex-col gap-4 animate-in slide-in-from-bottom-10" onClick={(event) => event.stopPropagation()}>
+        <>
+          <div className="fixed inset-x-0 top-0 bottom-[60px] z-40 bg-black/60 backdrop-blur-sm" onClick={() => setShowSettings(false)} />
+          <div className="fixed inset-x-0 bottom-[60px] z-40">
+            <div className="bg-[#1a1a1a] w-full rounded-t-3xl p-6 flex flex-col gap-4 animate-in slide-in-from-bottom-10 max-h-[70dvh] overflow-y-auto border-t border-white/10" onClick={(event) => event.stopPropagation()}>
             <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-2" />
-            <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-4">
-              <div>
-                <p className="text-sm font-semibold text-white">Appearance</p>
-                <p className="text-xs text-white/50">Switch between dark and light profile styling</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setThemePreference('dark')}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${themePreference === 'dark' ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}
-                >
-                  Dark
-                </button>
-                <button
-                  onClick={() => setThemePreference('light')}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${themePreference === 'light' ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}
-                >
-                  Light
-                </button>
-              </div>
-            </div>
             <button
-              className="w-full text-left py-3 text-red-500 text-lg font-bold flex items-center gap-3"
+              className="w-full text-left py-3 text-red-500 text-lg font-bold flex items-center gap-3 border-b border-white/10 pb-4"
               onClick={() => {
                 setShowSettings(false);
                 signOut();
@@ -557,8 +604,29 @@ export default function ProfilePage() {
               </svg>
               Sign out
             </button>
+              <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-4">
+              <div>
+                <p className="text-sm font-semibold text-white">Appearance</p>
+                <p className="text-xs text-white/50">Switch between dark and light profile styling</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setTheme('dark')}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${theme === 'dark' ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}
+                >
+                  Dark
+                </button>
+                <button
+                  onClick={() => setTheme('light')}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${theme === 'light' ? 'bg-white text-black' : 'bg-white/10 text-white/70'}`}
+                >
+                  Light
+                </button>
+              </div>
+              </div>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {renderUserListModal('Followers', followersList, showFollowers, () => setShowFollowers(false))}

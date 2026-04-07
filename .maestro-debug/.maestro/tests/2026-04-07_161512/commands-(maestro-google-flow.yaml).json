@@ -1,0 +1,605 @@
+[ {
+  "command" : {
+    "launchAppCommand" : {
+      "appId" : "https://reelbaazar.web.app",
+      "optional" : false
+    }
+  },
+  "metadata" : {
+    "status" : "COMPLETED",
+    "timestamp" : 1775558714143,
+    "duration" : 72,
+    "sequenceNumber" : 2,
+    "evaluatedCommand" : {
+      "launchAppCommand" : {
+        "appId" : "https://reelbaazar.web.app",
+        "optional" : false
+      }
+    }
+  }
+}, {
+  "command" : {
+    "defineVariablesCommand" : {
+      "env" : {
+        "MAESTRO_FILENAME" : "maestro-google-flow",
+        "MAESTRO_DEVICE_UDID" : "chromium",
+        "MAESTRO_SHARD_ID" : "1",
+        "MAESTRO_SHARD_INDEX" : "0"
+      },
+      "optional" : false
+    }
+  },
+  "metadata" : {
+    "status" : "COMPLETED",
+    "timestamp" : 1775558714140,
+    "duration" : 3,
+    "sequenceNumber" : 0,
+    "evaluatedCommand" : {
+      "defineVariablesCommand" : {
+        "env" : {
+          "MAESTRO_FILENAME" : "maestro-google-flow",
+          "MAESTRO_DEVICE_UDID" : "chromium",
+          "MAESTRO_SHARD_ID" : "1",
+          "MAESTRO_SHARD_INDEX" : "0"
+        },
+        "optional" : false
+      }
+    }
+  }
+}, {
+  "command" : {
+    "tapOnElement" : {
+      "selector" : {
+        "textRegex" : "Continue with Google",
+        "optional" : false
+      },
+      "retryIfNoChange" : false,
+      "waitUntilVisible" : false,
+      "longPress" : false,
+      "optional" : false
+    }
+  },
+  "metadata" : {
+    "status" : "COMPLETED",
+    "timestamp" : 1775558714585,
+    "duration" : 4679,
+    "sequenceNumber" : 4,
+    "evaluatedCommand" : {
+      "tapOnElement" : {
+        "selector" : {
+          "textRegex" : "Continue with Google",
+          "optional" : false
+        },
+        "retryIfNoChange" : false,
+        "waitUntilVisible" : false,
+        "longPress" : false,
+        "optional" : false
+      }
+    }
+  }
+}, {
+  "command" : {
+    "applyConfigurationCommand" : {
+      "config" : {
+        "appId" : "https://reelbaazar.web.app"
+      },
+      "optional" : false
+    }
+  },
+  "metadata" : {
+    "status" : "COMPLETED",
+    "timestamp" : 1775558714143,
+    "duration" : 0,
+    "sequenceNumber" : 1,
+    "evaluatedCommand" : {
+      "applyConfigurationCommand" : {
+        "config" : {
+          "appId" : "https://reelbaazar.web.app"
+        },
+        "optional" : false
+      }
+    }
+  }
+}, {
+  "command" : {
+    "assertConditionCommand" : {
+      "condition" : {
+        "visible" : {
+          "textRegex" : "Continue with Google",
+          "optional" : false
+        }
+      },
+      "optional" : false
+    }
+  },
+  "metadata" : {
+    "status" : "COMPLETED",
+    "timestamp" : 1775558714215,
+    "duration" : 370,
+    "sequenceNumber" : 3,
+    "evaluatedCommand" : {
+      "assertConditionCommand" : {
+        "condition" : {
+          "visible" : {
+            "textRegex" : "Continue with Google",
+            "optional" : false
+          }
+        },
+        "optional" : false
+      }
+    }
+  }
+}, {
+  "command" : {
+    "assertConditionCommand" : {
+      "condition" : {
+        "visible" : {
+          "textRegex" : "accounts.google.com",
+          "optional" : false
+        }
+      },
+      "timeout" : "15000",
+      "optional" : false
+    }
+  },
+  "metadata" : {
+    "status" : "FAILED",
+    "timestamp" : 1775558719264,
+    "duration" : 15940,
+    "error" : {
+      "message" : "Assertion is false: \"accounts.google.com\" is visible",
+      "hierarchyRoot" : {
+        "attributes" : {
+          "bounds" : "[0,0][785,596]",
+          "url" : "https://accounts.google.com/v3/signin/identifier?opparams=%253Fcontext_uri%253Dhttps%25253A%25252F%25252Freelbaazar.web.app&dsh=S959114228%3A1775558718165108&client_id=330787312319-2bi6h0ermi9tgft1mqm3hj8gil63rcuo.apps.googleusercontent.com&o2v=1&redirect_uri=https%3A%2F%2Freelbaazar.firebaseapp.com%2F__%2Fauth%2Fhandler&response_type=code&scope=openid+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+profile&service=lso&state=AMbdmDn3-2dubxCDN2tyFd42sw6m8WkUyGgHZghVx5HQpPWX7wq7O2awFuHljBMUJ7kcTIvfKcBh3fxQ_txJqCI7FIa55k1eX89FI7O6NRFXZNLQqfLsf28Xpks5JwlsX9G3xYYVcMRe7BtVBysAbDoGGe4AdTkatoL8aaO7ZXzayWlMMvRo2q-R4fO0el_yjIWbadsqs4Z-EJgJ5yVddUFz_zsfSK2yvw0GKVh35_yHLM3tutFxmz1u_iVwv5Lr29UEd0uEDd_oBrGOKV2SCpLpwcrvbFdgwJn3kRnAf1IXvNF1Tod5n43eM5tl714HzYxYoY4&flowName=GeneralOAuthLite&continue=https%3A%2F%2Faccounts.google.com%2Fsignin%2Foauth%2Flegacy%2Fconsent%3Fauthuser%3Dunknown%26part%3DAJi8hANya2y1vlaRVRxbNGSbTx-x9_Pj1iO6FCw1KZErMiqPtjKJOug3mdNQ1WjpFncvyrbUzxc55Pku7HP8MrBPfaJe_b8PDlohou-xnouXb2OH_Ln4-TIgUMzuDMJegG_KFgjLDVLFT-tQbFsgq9URcXiFqtYgC7aF-zla2g9HjKS_8eq21_Wpap5koFRf3o0V3JLoSvOzF0bSTsIRVMUY43IYmZH-awRGndheSVzmIEdXPXx5jgQEu8l3RBaNImKgLZXVs7S3-mGadRJxdwU_tg5qMm5VWIsIBaD368jrVw-dFJ0CqTalmw1JqMwEYtJggASxAYLzy-i8sn5aRIQdtqJcBylB13sBjGMcCb15XKMrN4VF_OGMnvtvReSJYjDEVSaDGeQI7o-Xj9ePJ-_Ab5VTT7X0tetlH5UX_rqvecX1wje21x3oylEfScbWbqBDxZgAHPNoDlnXI2HEZz4agnb_wk4HSZ456PcA1ldBv7iq8UNUujHPk_trmrdyu74pKfSG_QDPG_u5fZSZJ7j7HA5U6FWAUnmErlmcKOFivoGU6UihdpmraZfSM35i1KJe1IqJHmVEyBzWrb2FLWeNyBWvu4mhNJBI6oAWtZbsdyN_8tBxO9Fuy6Mw8t8x4Yhje8ftiX8M7p8uUq7NAz8RdgOvq3v7Jg%26flowName%3DGeneralOAuthFlow%26as%3DS959114228%253A1775558718165108%26client_id%3D330787312319-2bi6h0ermi9tgft1mqm3hj8gil63rcuo.apps.googleusercontent.com%23&app_domain=https%3A%2F%2Freelbaazar.firebaseapp.com&rart=ANgoxceILcwwjXTlVmnrsMntsRQ0ktfNZ2Hl2wkSrabFxAoNfl7WFasWcVwuUwOB5h5ciqXXKbuj1Z1WUsiTEfnRZHtfq9-rW_Gjy6CKnt865i0sJjdHEQY"
+        },
+        "children" : [ {
+          "attributes" : {
+            "bounds" : "[0,0][785,0]"
+          }
+        }, {
+          "attributes" : {
+            "bounds" : "[0,0][785,596]"
+          },
+          "children" : [ {
+            "attributes" : {
+              "bounds" : "[168,30][618,532]"
+            },
+            "children" : [ {
+              "attributes" : {
+                "bounds" : "[169,31][617,531]"
+              },
+              "children" : [ {
+                "attributes" : {
+                  "bounds" : "[209,79][577,407]"
+                },
+                "children" : [ {
+                  "attributes" : {
+                    "bounds" : "[209,79][577,103]"
+                  },
+                  "children" : [ {
+                    "attributes" : {
+                      "bounds" : "[209,79][577,103]"
+                    },
+                    "children" : [ {
+                      "attributes" : {
+                        "bounds" : "[169,31][617,67]"
+                      },
+                      "children" : [ {
+                        "attributes" : {
+                          "bounds" : "[185,42][199,56]"
+                        }
+                      }, {
+                        "attributes" : {
+                          "text" : "Sign in with Google",
+                          "bounds" : "[211,41][331,55]"
+                        }
+                      } ]
+                    } ]
+                  } ]
+                }, {
+                  "attributes" : {
+                    "bounds" : "[209,103][577,407]"
+                  },
+                  "children" : [ {
+                    "attributes" : {
+                      "bounds" : "[209,103][577,183]"
+                    },
+                    "children" : [ {
+                      "attributes" : {
+                        "bounds" : "[209,103][577,183]"
+                      },
+                      "children" : [ {
+                        "attributes" : {
+                          "text" : "Sign in",
+                          "bounds" : "[209,103][577,151]"
+                        }
+                      }, {
+                        "attributes" : {
+                          "text" : "to continue to ",
+                          "bounds" : "[209,151][577,183]"
+                        },
+                        "children" : [ {
+                          "attributes" : {
+                            "text" : "reelbaazar.firebaseapp.com",
+                            "bounds" : "[358,164][529,179]"
+                          }
+                        } ]
+                      } ]
+                    } ]
+                  }, {
+                    "attributes" : {
+                      "bounds" : "[209,183][577,407]"
+                    },
+                    "children" : [ {
+                      "attributes" : {
+                        "bounds" : "[209,183][577,303]"
+                      },
+                      "children" : [ {
+                        "attributes" : {
+                          "bounds" : "[209,215][577,303]"
+                        },
+                        "children" : [ {
+                          "attributes" : {
+                            "bounds" : "[185,215][601,303]"
+                          },
+                          "children" : [ {
+                            "attributes" : {
+                              "bounds" : "[209,215][577,271]"
+                            },
+                            "children" : [ {
+                              "attributes" : {
+                                "bounds" : "[209,215][577,271]"
+                              },
+                              "children" : [ {
+                                "attributes" : {
+                                  "bounds" : "[209,215][577,271]"
+                                },
+                                "children" : [ {
+                                  "attributes" : {
+                                    "bounds" : "[209,215][577,271]"
+                                  },
+                                  "children" : [ {
+                                    "attributes" : {
+                                      "bounds" : "[209,215][577,271]"
+                                    },
+                                    "children" : [ {
+                                      "attributes" : {
+                                        "bounds" : "[209,215][577,271]",
+                                        "resource-id" : "identifierId"
+                                      }
+                                    }, {
+                                      "attributes" : {
+                                        "bounds" : "[209,215][577,271]"
+                                      },
+                                      "children" : [ {
+                                        "attributes" : {
+                                          "bounds" : "[209,215][217,271]"
+                                        }
+                                      }, {
+                                        "attributes" : {
+                                          "text" : "Email or phone",
+                                          "bounds" : "[217,209][309,271]"
+                                        }
+                                      }, {
+                                        "attributes" : {
+                                          "bounds" : "[309,215][577,271]"
+                                        }
+                                      } ]
+                                    } ]
+                                  } ]
+                                } ]
+                              } ]
+                            } ]
+                          }, {
+                            "attributes" : {
+                              "bounds" : "[209,271][577,303]"
+                            },
+                            "children" : [ {
+                              "attributes" : {
+                                "text" : "Forgot email?",
+                                "bounds" : "[209,280][297,300]"
+                              }
+                            } ]
+                          }, {
+                            "attributes" : {
+                              "bounds" : "[209,303][209,303]"
+                            },
+                            "children" : [ {
+                              "attributes" : {
+                                "bounds" : "[209,303][577,303]",
+                                "resource-id" : "program"
+                              }
+                            } ]
+                          } ]
+                        } ]
+                      } ]
+                    }, {
+                      "attributes" : {
+                        "bounds" : "[209,335][209,335]"
+                      },
+                      "children" : [ {
+                        "attributes" : {
+                          "bounds" : "[209,335][577,335]"
+                        }
+                      } ]
+                    }, {
+                      "attributes" : {
+                        "bounds" : "[201,335][577,407]"
+                      },
+                      "children" : [ {
+                        "attributes" : {
+                          "bounds" : "[201,335][577,387]"
+                        },
+                        "children" : [ {
+                          "attributes" : {
+                            "bounds" : "[406,335][577,371]"
+                          },
+                          "children" : [ {
+                            "attributes" : {
+                              "text" : "Next",
+                              "bounds" : "[499,335][577,371]",
+                              "resource-id" : "identifierNext"
+                            }
+                          } ]
+                        }, {
+                          "attributes" : {
+                            "bounds" : "[201,335][406,371]"
+                          },
+                          "children" : [ {
+                            "attributes" : {
+                              "text" : "Create account",
+                              "bounds" : "[201,335][314,371]"
+                            }
+                          } ]
+                        } ]
+                      } ]
+                    } ]
+                  } ]
+                } ]
+              } ]
+            } ]
+          } ]
+        } ]
+      },
+      "debugMessage" : "Assertion '\"accounts.google.com\" is visible' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.\n\nPossible causes:\n- Element selector may be incorrect - check if there are similar elements with slightly different names/properties.\n- Element may be temporarily unavailable due to loading state\n- This could be a real regression that needs to be addressed",
+      "stackTrace" : [ {
+        "classLoaderName" : "app",
+        "methodName" : "assertConditionCommand",
+        "fileName" : "Orchestra.kt",
+        "lineNumber" : 433,
+        "className" : "maestro.orchestra.Orchestra",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "executeCommand",
+        "fileName" : "Orchestra.kt",
+        "lineNumber" : 353,
+        "className" : "maestro.orchestra.Orchestra",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "executeCommands",
+        "fileName" : "Orchestra.kt",
+        "lineNumber" : 274,
+        "className" : "maestro.orchestra.Orchestra",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runFlow",
+        "fileName" : "Orchestra.kt",
+        "lineNumber" : 190,
+        "className" : "maestro.orchestra.Orchestra",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runCommands",
+        "fileName" : "MaestroCommandRunner.kt",
+        "lineNumber" : 201,
+        "className" : "maestro.cli.runner.MaestroCommandRunner",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "invokeSuspend",
+        "fileName" : "TestRunner.kt",
+        "lineNumber" : 76,
+        "className" : "maestro.cli.runner.TestRunner$runSingle$result$1$1",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "resumeWith",
+        "fileName" : "ContinuationImpl.kt",
+        "lineNumber" : 34,
+        "className" : "kotlin.coroutines.jvm.internal.BaseContinuationImpl",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "run",
+        "fileName" : "DispatchedTask.kt",
+        "lineNumber" : 104,
+        "className" : "kotlinx.coroutines.DispatchedTask",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "processNextEvent",
+        "fileName" : "EventLoop.common.kt",
+        "lineNumber" : 277,
+        "className" : "kotlinx.coroutines.EventLoopImplBase",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "joinBlocking",
+        "fileName" : "Builders.kt",
+        "lineNumber" : 95,
+        "className" : "kotlinx.coroutines.BlockingCoroutine",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runBlocking",
+        "fileName" : "Builders.kt",
+        "lineNumber" : 69,
+        "className" : "kotlinx.coroutines.BuildersKt__BuildersKt",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runBlocking",
+        "lineNumber" : 1,
+        "className" : "kotlinx.coroutines.BuildersKt",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runBlocking$default",
+        "fileName" : "Builders.kt",
+        "lineNumber" : 48,
+        "className" : "kotlinx.coroutines.BuildersKt__BuildersKt",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runBlocking$default",
+        "lineNumber" : 1,
+        "className" : "kotlinx.coroutines.BuildersKt",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runSingle$lambda$0",
+        "fileName" : "TestRunner.kt",
+        "lineNumber" : 75,
+        "className" : "maestro.cli.runner.TestRunner",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runCatching-ta8aW1Q",
+        "fileName" : "TestRunner.kt",
+        "lineNumber" : 204,
+        "className" : "maestro.cli.runner.TestRunner",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runSingle",
+        "fileName" : "TestRunner.kt",
+        "lineNumber" : 66,
+        "className" : "maestro.cli.runner.TestRunner",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runSingleFlow",
+        "fileName" : "TestCommand.kt",
+        "lineNumber" : 561,
+        "className" : "maestro.cli.command.TestCommand",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runShardSuite$lambda$10",
+        "fileName" : "TestCommand.kt",
+        "lineNumber" : 529,
+        "className" : "maestro.cli.command.TestCommand",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "newSession",
+        "fileName" : "MaestroSessionManager.kt",
+        "lineNumber" : 132,
+        "className" : "maestro.cli.session.MaestroSessionManager",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "newSession$default",
+        "fileName" : "MaestroSessionManager.kt",
+        "lineNumber" : 66,
+        "className" : "maestro.cli.session.MaestroSessionManager",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runShardSuite",
+        "fileName" : "TestCommand.kt",
+        "lineNumber" : 476,
+        "className" : "maestro.cli.command.TestCommand",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "access$runShardSuite",
+        "fileName" : "TestCommand.kt",
+        "lineNumber" : 80,
+        "className" : "maestro.cli.command.TestCommand",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "invokeSuspend",
+        "fileName" : "TestCommand.kt",
+        "lineNumber" : 435,
+        "className" : "maestro.cli.command.TestCommand$handleSessions$1$results$1$1",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "resumeWith",
+        "fileName" : "ContinuationImpl.kt",
+        "lineNumber" : 34,
+        "className" : "kotlin.coroutines.jvm.internal.BaseContinuationImpl",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "run",
+        "fileName" : "DispatchedTask.kt",
+        "lineNumber" : 104,
+        "className" : "kotlinx.coroutines.DispatchedTask",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "run",
+        "fileName" : "LimitedDispatcher.kt",
+        "lineNumber" : 111,
+        "className" : "kotlinx.coroutines.internal.LimitedDispatcher$Worker",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "run",
+        "fileName" : "Tasks.kt",
+        "lineNumber" : 99,
+        "className" : "kotlinx.coroutines.scheduling.TaskImpl",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runSafely",
+        "fileName" : "CoroutineScheduler.kt",
+        "lineNumber" : 585,
+        "className" : "kotlinx.coroutines.scheduling.CoroutineScheduler",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "executeTask",
+        "fileName" : "CoroutineScheduler.kt",
+        "lineNumber" : 802,
+        "className" : "kotlinx.coroutines.scheduling.CoroutineScheduler$Worker",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "runWorker",
+        "fileName" : "CoroutineScheduler.kt",
+        "lineNumber" : 706,
+        "className" : "kotlinx.coroutines.scheduling.CoroutineScheduler$Worker",
+        "nativeMethod" : false
+      }, {
+        "classLoaderName" : "app",
+        "methodName" : "run",
+        "fileName" : "CoroutineScheduler.kt",
+        "lineNumber" : 693,
+        "className" : "kotlinx.coroutines.scheduling.CoroutineScheduler$Worker",
+        "nativeMethod" : false
+      } ],
+      "localizedMessage" : "Assertion is false: \"accounts.google.com\" is visible"
+    },
+    "sequenceNumber" : 5,
+    "evaluatedCommand" : {
+      "assertConditionCommand" : {
+        "condition" : {
+          "visible" : {
+            "textRegex" : "accounts.google.com",
+            "optional" : false
+          }
+        },
+        "timeout" : "15000",
+        "optional" : false
+      }
+    }
+  }
+} ]

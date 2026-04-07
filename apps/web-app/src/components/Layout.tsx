@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import OnboardingModal from './OnboardingModal';
+import { useTheme } from '../context/ThemeContext';
 
 const navItems = [
   { path: '/', icon: 'home', label: 'Home' },
@@ -8,8 +8,10 @@ const navItems = [
   { path: '/profile', icon: 'user', label: 'Profile' },
 ];
 
-function NavIcon({ name, active, avatarUrl }: { name: string; active: boolean; avatarUrl?: string | null }) {
-  const color = active ? 'text-white' : 'text-white/60';
+function NavIcon({ name, active, avatarUrl, theme }: { name: string; active: boolean; avatarUrl?: string | null; theme: 'dark' | 'light' }) {
+  const color = theme === 'light'
+    ? (active ? 'text-black' : 'text-black/60')
+    : (active ? 'text-white' : 'text-white/60');
   switch (name) {
     case 'home':
       return (
@@ -29,7 +31,7 @@ function NavIcon({ name, active, avatarUrl }: { name: string; active: boolean; a
           {avatarUrl ? (
             <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
           ) : (
-            <svg className={`h-full w-full bg-white/20 text-white p-1`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`h-full w-full p-1 ${theme === 'light' ? 'bg-black/10 text-black' : 'bg-white/20 text-white'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           )}
@@ -43,15 +45,15 @@ function NavIcon({ name, active, avatarUrl }: { name: string; active: boolean; a
 export default function Layout() {
   const location = useLocation();
   const { user } = useAuth();
+  const { theme } = useTheme();
 
   return (
-    <div className="rb-aurora min-h-[100dvh] h-[100dvh] flex flex-col overflow-hidden bg-black">
-      <OnboardingModal />
+    <div className={`rb-aurora min-h-[100dvh] h-[100dvh] flex flex-col overflow-hidden ${theme === 'light' ? 'bg-[#f6f7fb] text-black' : 'bg-black text-white'}`}>
       <main className="flex-1 w-full relative overflow-y-auto">
         <Outlet />
       </main>
 
-      <nav className="w-full z-50 bg-black shrink-0 border-t border-white/10">
+      <nav className={`w-full z-50 shrink-0 border-t ${theme === 'light' ? 'bg-white border-black/10' : 'bg-black border-white/10'}`}>
         <div className="mx-auto flex h-[60px] w-full max-w-md items-center justify-around px-2 pb-2">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path || (item.path === '/profile' && location.pathname.startsWith('/profile'));
@@ -64,9 +66,9 @@ export default function Layout() {
                   isActive ? 'bg-white/10' : ''
                 }`}
               >
-                <NavIcon name={item.icon} active={isActive} avatarUrl={user?.avatarUrl} />
+                <NavIcon name={item.icon} active={isActive} avatarUrl={user?.avatarUrl} theme={theme} />
                 {isActive && (
-                  <div className="absolute bottom-0 w-6 h-0.5 rounded-full bg-white" />
+                  <div className={`absolute bottom-0 w-6 h-0.5 rounded-full ${theme === 'light' ? 'bg-black' : 'bg-white'}`} />
                 )}
               </NavLink>
             );

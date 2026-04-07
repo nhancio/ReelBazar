@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ReelCard, LoadingSpinner, AuthModal } from '@reelbazaar/ui';
 import type { Reel } from '@reelbazaar/config';
 import { useAuth } from '../context/AuthContext';
-import { demoReels } from '../demoData';
 import {
   doc,
   getDoc,
@@ -12,13 +11,15 @@ import {
   updateDoc,
   increment,
 } from 'firebase/firestore';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithGoogle } from '../auth/googleSignIn';
 import { auth, db } from '../firebase';
+import { useTheme } from '../context/ThemeContext';
 
 export default function SingleReelPage() {
   const { reelId } = useParams<{ reelId: string }>();
   const { guestMode, user: currentUser, exitGuestMode, clearAuthError, refreshUser } = useAuth();
   const navigate = useNavigate();
+  const { theme } = useTheme();
 
   const [reel, setReel] = useState<Reel | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,14 +34,8 @@ export default function SingleReelPage() {
 
   const loadReel = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      if (guestMode) {
-        const found = demoReels.find((item) => item.id === reelId);
-        if (found) setReel(found);
-        else setError('Reel not found');
-        return;
-      }
-
       if (!reelId) {
         setError('Reel not found');
         return;
@@ -60,18 +55,14 @@ export default function SingleReelPage() {
         return;
       }
 
-      const found = demoReels.find((item) => item.id === reelId);
-      if (found) setReel(found);
-      else setError('Reel not found');
+      setError('Reel not found');
     } catch (err) {
       console.error('Error fetching reel from Firestore:', err);
-      const found = demoReels.find((item) => item.id === reelId);
-      if (found) setReel(found);
-      else setError('Failed to load reel');
+      setError('Failed to load reel');
     } finally {
       setLoading(false);
     }
-  }, [guestMode, reelId]);
+  }, [reelId]);
 
   useEffect(() => {
     loadReel();
@@ -114,8 +105,7 @@ export default function SingleReelPage() {
     clearAuthError();
     exitGuestMode();
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      await signInWithGoogle(auth);
       await refreshUser();
       setShowAuthModal(false);
     } catch (err) {
@@ -241,7 +231,7 @@ export default function SingleReelPage() {
 
   if (loading) {
     return (
-      <div className="min-h-[100dvh] bg-black flex items-center justify-center">
+      <div className={`min-h-[100dvh] flex items-center justify-center ${theme === 'light' ? 'bg-[#f6f7fb]' : 'bg-black'}`}>
         <LoadingSpinner />
       </div>
     );
@@ -249,7 +239,7 @@ export default function SingleReelPage() {
 
   if (error || !reel) {
     return (
-      <div className="min-h-[100dvh] bg-black flex flex-col items-center justify-center text-white p-6">
+      <div className={`min-h-[100dvh] flex flex-col items-center justify-center p-6 ${theme === 'light' ? 'bg-[#f6f7fb] text-black' : 'bg-black text-white'}`}>
         <p className="text-xl font-bold mb-4">{error || 'Reel not found'}</p>
         <button
           onClick={() => navigate(-1)}
@@ -262,7 +252,7 @@ export default function SingleReelPage() {
   }
 
   return (
-    <div className="relative h-full w-full bg-black">
+    <div className={`relative h-full w-full ${theme === 'light' ? 'bg-[#f6f7fb]' : 'bg-black'}`}>
       <button
         onClick={() => navigate(-1)}
         className="absolute top-6 left-4 z-50 p-2 bg-black/40 backdrop-blur-md rounded-full text-white"

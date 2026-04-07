@@ -6,7 +6,6 @@ interface ReelCardProps {
   isActive: boolean;
   onLike?: () => void;
   onSave?: () => void;
-  onComment?: () => void;
   onShare?: () => void;
   onFollow?: () => void;
   onProfileClick?: () => void;
@@ -22,9 +21,19 @@ interface ReelCardProps {
 
 const getDisplayName = (user?: Reel['creator']) => user?.username || user?.name || 'Unknown Creator';
 
-export function ReelCard({ reel, isActive, onLike, onSave, onComment, onShare, onFollow, onProfileClick, onProductClick, liked, saved, likeDisabled, saveDisabled, isFollowing, guestMode, onRequireAuth }: ReelCardProps) {
+export function ReelCard({ reel, isActive, onLike, onSave, onShare, onFollow, onProfileClick, onProductClick, liked, saved, likeDisabled, saveDisabled, isFollowing, guestMode, onRequireAuth }: ReelCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(false);
+  const [overlayBlocked, setOverlayBlocked] = useState(false);
+
+  useEffect(() => {
+    const handleOverlayPlayback = (event: Event) => {
+      const detail = (event as CustomEvent<{ blocked?: boolean }>).detail;
+      setOverlayBlocked(Boolean(detail?.blocked));
+    };
+    window.addEventListener('rb:overlay-playback', handleOverlayPlayback as EventListener);
+    return () => window.removeEventListener('rb:overlay-playback', handleOverlayPlayback as EventListener);
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -32,7 +41,7 @@ export function ReelCard({ reel, isActive, onLike, onSave, onComment, onShare, o
 
     const attemptPlay = async () => {
       try {
-        if (isActive && !document.hidden) {
+        if (isActive && !document.hidden && !overlayBlocked) {
           // Try to play with sound first
           video.muted = muted;
           await video.play();
@@ -43,7 +52,7 @@ export function ReelCard({ reel, isActive, onLike, onSave, onComment, onShare, o
       } catch (err) {
         console.warn('Autoplay with sound blocked, trying muted:', err);
         // If blocked, we might need to mute to allow autoplay
-        if (isActive && !document.hidden) {
+        if (isActive && !document.hidden && !overlayBlocked) {
           video.muted = true;
           setMuted(true);
           await video.play().catch(e => console.error('Muted autoplay also failed:', e));
@@ -54,7 +63,7 @@ export function ReelCard({ reel, isActive, onLike, onSave, onComment, onShare, o
     const handleVisibilityChange = () => {
       if (document.hidden) {
         video.pause();
-      } else if (isActive) {
+      } else if (isActive && !overlayBlocked) {
         attemptPlay();
       }
     };
@@ -65,7 +74,7 @@ export function ReelCard({ reel, isActive, onLike, onSave, onComment, onShare, o
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isActive, muted]);
+  }, [isActive, muted, overlayBlocked]);
 
   const handleToggleMute = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -175,16 +184,16 @@ export function ReelCard({ reel, isActive, onLike, onSave, onComment, onShare, o
         )}
       </div>
 
-      {/* Shop Button */}
+      {/* Shop Button — Instagram-style gradient */}
       <div className="absolute bottom-12 left-4 right-20">
         <button
           onClick={(e) => handleInteraction(e, onProductClick, true)}
-          className="flex w-full max-w-[280px] items-center justify-center gap-2 rounded-[16px] bg-white/20 px-4 py-3 text-sm font-semibold text-white shadow-lg backdrop-blur-xl border border-white/30 transition-transform hover:bg-white/30 active:scale-95"
+          className="flex w-full max-w-[280px] items-center justify-center gap-2 rounded-[16px] px-4 py-3 text-sm font-bold text-white shadow-lg border border-white/15 transition-transform active:scale-95 bg-[linear-gradient(45deg,#f09433_0%,#e6683c_25%,#dc2743_50%,#cc2366_75%,#bc1888_100%)]"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
           </svg>
-          View Product
+          View product
         </button>
       </div>
 

@@ -4,8 +4,6 @@ import { collaborationsApi } from '@reelbazaar/api';
 import { Avatar, UserTypeBadge, Button, LoadingSpinner } from '@reelbazaar/ui';
 import { useAuth } from '../context/AuthContext';
 import type { Collaboration } from '@reelbazaar/config';
-import { demoCollaborations } from '../demoData';
-
 export default function CollaborationsPage() {
   const { user, guestMode } = useAuth();
   const navigate = useNavigate();
@@ -18,8 +16,8 @@ export default function CollaborationsPage() {
     const load = async () => {
       try {
         if (guestMode) {
-          setSuggestions(demoCollaborations.filter((collab) => collab.status === 'suggested'));
-          setMyCollabs(demoCollaborations);
+          setSuggestions([]);
+          setMyCollabs([]);
           return;
         }
         const [suggestionsRes, collabsRes] = await Promise.all([
@@ -38,14 +36,7 @@ export default function CollaborationsPage() {
   }, [guestMode]);
 
   const handleRespond = async (id: string, status: 'accepted' | 'declined') => {
-    if (guestMode) {
-      const target = suggestions.find((collab) => collab.id === id);
-      setSuggestions((prev) => prev.filter((collab) => collab.id !== id));
-      if (status === 'accepted' && target) {
-        setMyCollabs((prev) => [...prev, { ...target, status: 'accepted' }]);
-      }
-      return;
-    }
+    if (guestMode) return;
     try {
       const { collaboration } = await collaborationsApi.respond(id, status);
       setSuggestions((prev) => prev.filter((c) => c.id !== id));
@@ -138,12 +129,9 @@ export default function CollaborationsPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => {
-                        const convId = [user!.id, other.id].sort().join('_');
-                        navigate(`/messages/${convId}`);
-                      }}
+                      onClick={() => navigate(`/profile/${other.id}`)}
                     >
-                      Chat
+                      View profile
                     </Button>
                   </div>
                 );

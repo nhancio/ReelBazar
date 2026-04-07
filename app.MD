@@ -52,8 +52,6 @@ reels/              → Fashion videos with metadata
 reelLikes/          → Like records (doc ID: userId_reelId)
 reelSaves/          → Save records (doc ID: userId_reelId)
 reelViews/          → View tracking (doc ID: userId_reelId)
-conversations/      → Chat conversations
-  └── messages/     → Subcollection of messages per conversation
 collaborations/     → Brand-influencer matches (doc ID: brandId_influencerId)
 ```
 
@@ -82,12 +80,6 @@ collaborations/     → Brand-influencer matches (doc ID: brandId_influencerId)
 - `GET /api/users/search?q=query` — Search users (client-side filtered, max 100)
 - `GET /api/users/:id` — Get user profile + reel count
 
-**Messaging**
-- `GET /api/messages/conversations` — List conversations (limit 50)
-- `GET /api/messages/:conversationId` — Messages with cursor pagination
-- `POST /api/messages` — Send message (auto-creates conversation)
-- `PATCH /api/messages/:conversationId/read` — Mark messages as read
-
 **Collaborations**
 - `GET /api/collaborations/suggestions` — AI-matched suggestions (top 10 by score)
 - `GET /api/collaborations` — User's collaborations
@@ -102,10 +94,8 @@ collaborations/     → Brand-influencer matches (doc ID: brandId_influencerId)
 | -------------------------- | ---------------- | -------------------------------------------------- |
 | `/`                        | HomePage         | Infinite vertical-scroll feed with category tabs   |
 | `/create`                  | CreateReelPage   | Video upload, product link, caption, category, tag |
-| `/messages`                | MessagesPage     | Conversation list                                  |
-| `/messages/:conversationId`| ChatPage         | Chat interface                                     |
 | `/profile`                 | ProfilePage      | Own profile, reels, stats, sign out                |
-| `/profile/:userId`         | ProfilePage      | Other user's profile with message button           |
+| `/profile/:userId`         | ProfilePage      | Other user's profile                               |
 | `/collaborations`          | CollaborationsPage| Suggested + active collaborations                 |
 
 ### Other Features
@@ -123,9 +113,8 @@ collaborations/     → Brand-influencer matches (doc ID: brandId_influencerId)
 | # | Bug | Location | Impact |
 |---|-----|----------|--------|
 | 1 | Empty `catch {}` blocks — like/save failures are completely silent | `apps/web-app/src/pages/HomePage.tsx:92,109` | Users get no feedback on failed actions |
-| 2 | `.catch(console.error)` — message load failures not shown to user | `apps/web-app/src/pages/ChatPage.tsx:28` | Chat appears empty with no error indication |
-| 3 | Unsafe `data()!` non-null assertions — no existence checks on Firestore docs | `backend/server/src/routes/reels.ts`, `messages.ts`, `auth.ts` | Server crashes on missing data |
-| 4 | Heavy use of `any` types across backend services | `backend/server/src/services/matching.ts`, `routes/reels.ts`, `routes/collaborations.ts` | Refactoring risk, runtime type errors |
+| 2 | Unsafe `data()!` non-null assertions — no existence checks on Firestore docs | `backend/server/src/routes/reels.ts`, `auth.ts` | Server crashes on missing data |
+| 3 | Heavy use of `any` types across backend services | `backend/server/src/services/matching.ts`, `routes/reels.ts`, `routes/collaborations.ts` | Refactoring risk, runtime type errors |
 
 ### Security
 
@@ -150,7 +139,7 @@ collaborations/     → Brand-influencer matches (doc ID: brandId_influencerId)
 | 11 | No input validation on backend (email format, URL format, empty fields) | Auth + Reel routes |
 | 12 | All seeded reels point to a likely non-existent demo video URL | `backend/server/src/seed.ts:127` |
 | 13 | `thumbnailUrl` always null — no thumbnail generation | All reel creation paths |
-| 14 | Bare `.catch()` calls silently swallowing errors | `ChatPage.tsx:31`, `HomePage.tsx:74` |
+| 14 | Bare `.catch()` calls silently swallowing errors | `HomePage.tsx` (and similar) |
 
 ### Code Quality
 
@@ -169,11 +158,10 @@ collaborations/     → Brand-influencer matches (doc ID: brandId_influencerId)
 | # | Feature | Description |
 |---|---------|-------------|
 | 1 | **Payment System** | No payment processing for collaborations. No Stripe/Razorpay integration. Influencers can't earn money despite value proposition |
-| 2 | **Real-time Messaging** | No WebSocket/Firestore listeners. Messages require manual refresh. Conversations don't auto-update |
-| 3 | **Push Notifications** | No notifications for new matches, messages, or collaboration updates |
-| 4 | **Comments on Reels** | Only likes/saves/views exist. No comment system |
-| 5 | **Follow/Following System** | No follow/unfollow. No follower counts on profiles |
-| 6 | **Video Processing** | No compression, transcoding, or thumbnail generation. Videos served as uploaded |
+| 2 | **Push Notifications** | No notifications for new matches or collaboration updates |
+| 3 | **Comments on Reels** | Only likes/saves/views exist. No comment system |
+| 4 | **Follow/Following System** | No follow/unfollow. No follower counts on profiles |
+| 5 | **Video Processing** | No compression, transcoding, or thumbnail generation. Videos served as uploaded |
 
 ### Medium Priority (Growth & Engagement)
 
@@ -183,10 +171,9 @@ collaborations/     → Brand-influencer matches (doc ID: brandId_influencerId)
 | 8 | **Hashtag/Trending System** | No hashtag support. No trending reels section |
 | 9 | **Reel Sharing** | Can share product links but not reels themselves |
 | 10 | **Advanced Filtering** | Can't filter by engagement, date, influencer stats, or follower count |
-| 11 | **Unread Message Count** | Conversations don't show unread badge/count |
-| 12 | **Campaign Management** | Collaborations only have accept/decline. No briefs, budgets, deliverables, or deadlines |
-| 13 | **Content Moderation** | No flagging, reporting, or approval workflows |
-| 14 | **Influencer Verification/Tiers** | No verification badges or tier-based matching |
+| 11 | **Campaign Management** | Collaborations only have accept/decline. No briefs, budgets, deliverables, or deadlines |
+| 12 | **Content Moderation** | No flagging, reporting, or approval workflows |
+| 13 | **Influencer Verification/Tiers** | No verification badges or tier-based matching |
 
 ### Lower Priority (Polish & Scale)
 
@@ -196,12 +183,11 @@ collaborations/     → Brand-influencer matches (doc ID: brandId_influencerId)
 | 16 | **Multi-language Support** | Hard-coded English only |
 | 17 | **Dark Mode Toggle** | Fixed dark theme, no switcher |
 | 18 | **Offline Sync** | Demo mode works offline, but prod requires internet. No offline queue |
-| 19 | **Message Search** | Can't search message history |
-| 20 | **Block/Report Users** | No block list or report mechanism |
-| 21 | **Contract/Agreement Management** | No templates or e-signing for collaborations |
-| 22 | **Brand Portfolio/Case Studies** | Brands can't showcase past work |
-| 23 | **Reel Series/Episodes** | No way to group reels into series |
-| 24 | **Affiliate/Referral System** | No referral codes or affiliate earnings |
+| 19 | **Block/Report Users** | No block list or report mechanism |
+| 20 | **Contract/Agreement Management** | No templates or e-signing for collaborations |
+| 21 | **Brand Portfolio/Case Studies** | Brands can't showcase past work |
+| 22 | **Reel Series/Episodes** | No way to group reels into series |
+| 23 | **Affiliate/Referral System** | No referral codes or affiliate earnings |
 
 ---
 
@@ -217,8 +203,7 @@ collaborations/     → Brand-influencer matches (doc ID: brandId_influencerId)
 
 1. **Fix error handling & validation** — Prevents crashes and silent failures
 2. **Secure credentials** — Remove hardcoded keys, fix .gitignore
-3. **Add real-time messaging** — Critical for brand-influencer communication
-4. **Implement notifications** — Drives engagement
-5. **Add payment system** — Enables the business model
-6. **Build analytics** — Business intelligence for brands
-7. **Video processing pipeline** — Thumbnails, compression, quality
+3. **Implement notifications** — Drives engagement
+4. **Add payment system** — Enables the business model
+5. **Build analytics** — Business intelligence for brands
+6. **Video processing pipeline** — Thumbnails, compression, quality

@@ -7,21 +7,64 @@ interface InstaPostCardProps {
   onSave?: () => void;
   onShare?: () => void;
   onProfileClick?: () => void;
+  /** If omitted, opens `reel.productLink` in a new tab when valid. */
+  onProductClick?: () => void;
   liked?: boolean;
   saved?: boolean;
   likeDisabled?: boolean;
   saveDisabled?: boolean;
   guestMode?: boolean;
   onRequireAuth?: () => void;
+  muted?: boolean;
+  onMutedChange?: (muted: boolean) => void;
 }
 
 const getDisplayName = (user?: Reel['creator']) => user?.username || user?.name || 'User';
 
-export function InstaPostCard({ reel, onLike, onSave, onShare, onProfileClick, liked, saved, likeDisabled, saveDisabled, guestMode, onRequireAuth }: InstaPostCardProps) {
+function isHttpUrl(s: string | undefined | null): s is string {
+  return Boolean(s && /^https?:\/\//i.test(s.trim()));
+}
+
+export function InstaPostCard({
+  reel,
+  onLike,
+  onSave,
+  onShare,
+  onProfileClick,
+  onProductClick,
+  liked,
+  saved,
+  likeDisabled,
+  saveDisabled,
+  guestMode,
+  onRequireAuth,
+  muted: controlledMuted,
+  onMutedChange,
+}: InstaPostCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [muted, setMuted] = useState(true);
+  const [internalMuted, setInternalMuted] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const [overlayBlocked, setOverlayBlocked] = useState(false);
+  const muted = controlledMuted ?? internalMuted;
+  const setMuted = (next: boolean) => {
+    if (onMutedChange) onMutedChange(next);
+    else setInternalMuted(next);
+  };
+
+  useEffect(() => {
+    setVideoFailed(false);
+  }, [reel.id, reel.videoUrl]);
+
+  useEffect(() => {
+    const handleOverlayPlayback = (event: Event) => {
+      const detail = (event as CustomEvent<{ blocked?: boolean }>).detail;
+      setOverlayBlocked(Boolean(detail?.blocked));
+    };
+    window.addEventListener('rb:overlay-playback', handleOverlayPlayback as EventListener);
+    return () => window.removeEventListener('rb:overlay-playback', handleOverlayPlayback as EventListener);
+  }, []);
 
   // Intersection Observer for auto-play
   useEffect(() => {
@@ -43,7 +86,7 @@ export function InstaPostCard({ reel, onLike, onSave, onShare, onProfileClick, l
     const video = videoRef.current;
     if (!video) return;
 
-    if (isVisible && !document.hidden) {
+    if (isVisible && !document.hidden && !overlayBlocked) {
       video.muted = muted;
       video.play().catch(() => {
         video.muted = true;
@@ -57,14 +100,14 @@ export function InstaPostCard({ reel, onLike, onSave, onShare, onProfileClick, l
     const handleVisibilityChange = () => {
       if (document.hidden) {
         video.pause();
-      } else if (isVisible) {
+      } else if (isVisible && !overlayBlocked) {
         video.play().catch(() => {});
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [isVisible, muted]);
+  }, [isVisible, muted, overlayBlocked]);
 
   const handleInteraction = (e: React.MouseEvent, action?: () => void, allowGuest?: boolean) => {
     e.stopPropagation();
@@ -90,16 +133,23 @@ export function InstaPostCard({ reel, onLike, onSave, onShare, onProfileClick, l
     if (onSave) onSave();
   };
 
-  const formatViews = (views: number) => {
-    if (views > 1000000) return (views / 1000000).toFixed(1) + 'M';
-    if (views > 1000) return (views / 1000).toFixed(1) + 'K';
-    return views.toString();
+  const handleProductClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onProductClick) {
+      onProductClick();
+      return;
+    }
+    if (isHttpUrl(reel.productLink)) {
+      window.open(reel.productLink.trim(), '_blank', 'noopener,noreferrer');
+    }
   };
+
+  const showProductCta = isHttpUrl(reel.productLink);
 
   return (
     <div ref={containerRef} className="w-full bg-black text-white border-b border-white/10 pb-3">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2.5">
+      <div className="flex items-center px-3 py-2.5">
         <div className="flex items-center gap-2.5 cursor-pointer" onClick={(e) => handleInteraction(e, onProfileClick, true)}>
           <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 p-[2px]">
             <div className="h-full w-full rounded-full border border-black bg-[#1a1a1a] overflow-hidden">
@@ -117,24 +167,34 @@ export function InstaPostCard({ reel, onLike, onSave, onShare, onProfileClick, l
             {reel.creator?.brandName && <span className="text-[11px] text-white/60">{reel.creator.brandName}</span>}
           </div>
         </div>
-        <button className="p-2">
-          <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 14.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5zm-7.5 0a2.5 2.5 0 110-5 2.5 2.5 0 010 5zm15 0a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" />
-          </svg>
-        </button>
       </div>
 
       {/* Media Content */}
       <div className="relative w-full aspect-[4/5] bg-black flex items-center justify-center overflow-hidden" onClick={() => setMuted(!muted)}>
-        <video
-          ref={videoRef}
-          src={reel.videoUrl}
-          className="w-full h-full object-cover"
-          loop
-          muted={muted}
-          playsInline
-          poster={reel.thumbnailUrl || undefined}
-        />
+        {reel.videoUrl ? (
+          <video
+            ref={videoRef}
+            key={reel.videoUrl}
+            src={reel.videoUrl}
+            className="w-full h-full object-cover"
+            loop
+            muted={muted}
+            playsInline
+            preload="metadata"
+            poster={reel.thumbnailUrl || undefined}
+            onError={() => setVideoFailed(true)}
+          />
+        ) : null}
+        {videoFailed || !reel.videoUrl ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black px-6 text-center">
+            <p className="text-sm text-white/80">
+              {!reel.videoUrl ? 'No video URL for this reel.' : 'This video could not be loaded (broken link, private file, or network issue).'}
+            </p>
+            {showProductCta && (
+              <p className="text-xs text-white/50">Use View product to open the link.</p>
+            )}
+          </div>
+        ) : null}
         {/* Sound Toggle Icon */}
         <div className="absolute bottom-3 right-3 h-7 w-7 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-md">
           {muted ? (
@@ -145,8 +205,24 @@ export function InstaPostCard({ reel, onLike, onSave, onShare, onProfileClick, l
         </div>
       </div>
 
+      {/* View product — above like row, Instagram-style gradient */}
+      {showProductCta ? (
+        <div className="px-3 pt-3 pb-1">
+          <button
+            type="button"
+            onClick={handleProductClick}
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white shadow-lg active:opacity-90 border border-white/10 bg-[linear-gradient(45deg,#f09433_0%,#e6683c_25%,#dc2743_50%,#cc2366_75%,#bc1888_100%)]"
+          >
+            <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            </svg>
+            View product
+          </button>
+        </div>
+      ) : null}
+
       {/* Action Bar */}
-      <div className="flex items-center justify-between px-3 pt-3 pb-2">
+      <div className="flex items-center justify-between px-3 pt-2 pb-2">
         <div className="flex items-center gap-4">
           <button onClick={handleLocalLike} disabled={likeDisabled} className="active:opacity-50 transition-opacity disabled:opacity-60">
             {liked ? (
@@ -154,9 +230,6 @@ export function InstaPostCard({ reel, onLike, onSave, onShare, onProfileClick, l
             ) : (
               <svg className="w-[26px] h-[26px] text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
             )}
-          </button>
-          <button className="active:opacity-50 transition-opacity" onClick={(e) => handleInteraction(e, undefined, true)}>
-            <svg className="w-6 h-6 text-white transform -scale-x-100" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
           </button>
           <button onClick={(e) => handleInteraction(e, onShare, true)} className="active:opacity-50 transition-opacity">
             <svg className="w-[22px] h-[22px] text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
@@ -180,11 +253,6 @@ export function InstaPostCard({ reel, onLike, onSave, onShare, onProfileClick, l
       <div className="px-3 text-[13px] leading-[18px]">
         <span className="font-semibold mr-1.5">{getDisplayName(reel.creator)}</span>
         <span>{reel.caption}</span>
-      </div>
-
-      {/* View Comments (mock) */}
-      <div className="px-3 mt-1.5">
-        <span className="text-[13px] text-white/50 cursor-pointer">View all {formatViews(reel.viewsCount)} comments</span>
       </div>
     </div>
   );

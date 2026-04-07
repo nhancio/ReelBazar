@@ -67,7 +67,7 @@ usersRouter.post('/me/avatar', authMiddleware, requireRegistered, upload.single(
       avatarUrl
     });
 
-    res.json({ avatarUrl });
+    res.json({ avatarUrl, url: avatarUrl });
   } catch (error: any) {
     console.error('Error uploading avatar:', error.message);
     res.status(500).json({ message: 'Internal server error' });

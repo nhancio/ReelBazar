@@ -41,8 +41,6 @@ reels/              → Fashion reels with product links
 reelLikes/          → Like records (doc ID: userId_reelId)
 reelSaves/          → Save records (doc ID: userId_reelId)
 reelViews/          → View records (doc ID: userId_reelId)
-conversations/      → Chat conversations
-  └── messages/     → Subcollection of messages
 collaborations/     → Brand-influencer matches (doc ID: brandId_influencerId)
 ```
 
@@ -157,12 +155,6 @@ npx react-native run-android
 ### Users
 - `GET /api/users/search?q=query` - Search users
 - `GET /api/users/:id` - Get user profile
-
-### Messages
-- `GET /api/messages/conversations` - Get conversations
-- `GET /api/messages/:conversationId` - Get messages
-- `POST /api/messages` - Send message
-- `PATCH /api/messages/:conversationId/read` - Mark read
 
 ### Collaborations
 - `GET /api/collaborations/suggestions` - AI-powered suggestions

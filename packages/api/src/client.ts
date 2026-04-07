@@ -2,10 +2,14 @@ import { API_BASE_URL } from '@reelbazaar/config';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
+const DEFAULT_FETCH_TIMEOUT_MS = 25_000;
+
 interface RequestOptions {
   headers?: Record<string, string>;
   body?: unknown;
   params?: Record<string, string>;
+  /** Override default timeout (ms). Pass 0 to disable. */
+  timeoutMs?: number;
 }
 
 let authToken: string | null = null;
@@ -36,11 +40,33 @@ async function request<T>(method: HttpMethod, path: string, options: RequestOpti
     headers['Authorization'] = `Bearer ${authToken}`;
   }
 
-  const response = await fetch(url.toString(), {
-    method,
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  const timeoutMs = options.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timeoutId =
+    timeoutMs > 0
+      ? globalThis.setTimeout(() => controller.abort(), timeoutMs)
+      : undefined;
+
+  let response: Response;
+  try {
+    response = await fetch(url.toString(), {
+      method,
+      headers,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (e: unknown) {
+    if (e instanceof Error && e.name === 'AbortError') {
+      throw new Error(
+        timeoutMs > 0
+          ? `Request timed out after ${timeoutMs / 1000}s. Check your connection or try again.`
+          : 'Request was cancelled.'
+      );
+    }
+    throw e instanceof Error ? e : new Error(String(e));
+  } finally {
+    if (timeoutId !== undefined) globalThis.clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }));

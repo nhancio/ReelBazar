@@ -17,10 +17,12 @@ ios/
 **/.env
 **/.env.*
 !**/.env.example
+!**/.env.production
 
 # Firebase Service Account
 serviceAccountKey.json
 *-firebase-adminsdk-*.json
 
-# Local Netlify folder
-.netlify
+# Deploy tooling
+.firebase/
+.vercel

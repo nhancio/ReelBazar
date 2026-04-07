@@ -1,17 +1,20 @@
 import { api } from './client';
-import type { User, UserType, Category, Gender } from '@reelbazaar/config';
+import type { User, Gender } from '@reelbazaar/config';
 
 interface RegisterPayload {
   firebaseUid: string;
   email: string | null;
   name: string;
+  username?: string;
   phone?: string;
   gender?: Gender;
   dob?: string;
   country?: string;
   websiteLink?: string;
   brandName?: string;
-  productCategories?: Category[];
+  productCategories?: string[];
+  interests?: string[];
+  themePreference?: 'dark' | 'light';
 }
 
 export const authApi = {

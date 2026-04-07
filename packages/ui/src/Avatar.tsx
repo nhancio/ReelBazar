@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 interface AvatarProps {
   src?: string | null;
@@ -12,15 +12,36 @@ const sizeMap = {
   lg: 'h-24 w-24 text-xl',
 };
 
-export function Avatar({ src, name, size = 'md' }: AvatarProps) {
-  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+const failedAvatarUrls = new Set<string>();
 
-  if (src) {
+export function Avatar({ src, name, size = 'md' }: AvatarProps) {
+  const initials = name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+  const normalizedSrc = useMemo(() => (src || '').trim(), [src]);
+  const [imgErrored, setImgErrored] = useState(false);
+
+  useEffect(() => {
+    setImgErrored(false);
+  }, [normalizedSrc]);
+
+  const shouldUseImage = Boolean(normalizedSrc) && !imgErrored && !failedAvatarUrls.has(normalizedSrc);
+
+  if (shouldUseImage) {
     return (
       <img
-        src={src}
+        src={normalizedSrc}
         alt={name}
         className={`${sizeMap[size]} rounded-full border-4 border-white object-cover shadow-[0_18px_34px_rgba(134,154,201,0.22)]`}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={() => {
+          if (normalizedSrc) failedAvatarUrls.add(normalizedSrc);
+          setImgErrored(true);
+        }}
       />
     );
   }

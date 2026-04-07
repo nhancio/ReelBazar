@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { InstaPostCard, AuthModal } from '@reelbazaar/ui';
 import { LoadingSpinner } from '@reelbazaar/ui';
-import { usersApi } from '@reelbazaar/api';
-import type { Reel } from '@reelbazaar/config';
+import { reelsApi, usersApi } from '@reelbazaar/api';
+import type { Reel, User } from '@reelbazaar/config';
 import { useAuth } from '../context/AuthContext';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithGoogle } from '../auth/googleSignIn';
+import { useTheme } from '../context/ThemeContext';
 import { 
   collection, 
   query, 
@@ -22,15 +23,16 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
-import { demoReels, demoUsers } from '../demoData';
 
 // Global cache to prevent lag when navigating between tabs
 let cachedReels: Reel[] = [];
 let cachedHasMore = true;
 let cachedLastDoc: any = null;
+let cachedApiCursor: string | undefined = undefined;
 
 export default function HomePage() {
   const { guestMode, exitGuestMode, clearAuthError, refreshUser, user: currentUser } = useAuth();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const [reels, setReels] = useState<Reel[]>(cachedReels);
   const [following, setFollowing] = useState<Set<string>>(new Set());
@@ -42,6 +44,7 @@ export default function HomePage() {
   const [hasMore, setHasMore] = useState(cachedHasMore);
   const [error, setError] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [reelMutedState, setReelMutedState] = useState<Record<string, boolean>>({});
 
   const loadUserState = useCallback(async () => {
     if (guestMode || !currentUser) {
@@ -71,7 +74,23 @@ export default function HomePage() {
   }, [loadUserState]);
 
   const loadReels = useCallback(async (reset = false) => {
+    const loadViaApi = async () => {
+      const response = await reelsApi.getFeed(undefined, reset ? undefined : cachedApiCursor);
+      const newReels = response.reels || [];
+      setReels((prev) => {
+        const next = reset ? newReels : [...prev, ...newReels.filter((nr) => !prev.some((pr) => pr.id === nr.id))];
+        cachedReels = next;
+        return next;
+      });
+      const more = Boolean(response.hasMore);
+      setHasMore(more);
+      cachedHasMore = more;
+      cachedApiCursor = response.nextCursor;
+      cachedLastDoc = null;
+    };
+
     try {
+      if (reset) cachedApiCursor = undefined;
       const reelsCol = collection(db, 'reels');
       let q = query(reelsCol, orderBy('createdAt', 'desc'), limit(10));
 
@@ -82,8 +101,8 @@ export default function HomePage() {
       const snapshot = await getDocs(q);
       
       if (snapshot.empty && reset) {
-        setReels(demoReels);
-        cachedReels = demoReels;
+        setReels([]);
+        cachedReels = [];
         setHasMore(false);
         cachedHasMore = false;
         setLoading(false);
@@ -118,16 +137,22 @@ export default function HomePage() {
       setHasMore(more);
       cachedHasMore = more;
       cachedLastDoc = snapshot.docs[snapshot.docs.length - 1];
+      cachedApiCursor = undefined;
     } catch (err) {
-      console.error('Failed to load reels from Firestore:', err);
-      if (cachedReels.length === 0) {
-         setReels(demoReels);
-         cachedReels = demoReels;
-         setHasMore(false);
-         cachedHasMore = false;
+      console.error('Failed to load reels from Firestore, trying API feed:', err);
+      try {
+        await loadViaApi();
+      } catch (apiErr) {
+        console.error('Failed to load reels from API fallback:', apiErr);
+        if (cachedReels.length === 0) {
+          setReels([]);
+          cachedReels = [];
+          setHasMore(false);
+          cachedHasMore = false;
+        }
+        setError('Failed to load reels.');
+        setTimeout(() => setError(null), 3000);
       }
-      setError('Failed to load reels.');
-      setTimeout(() => setError(null), 3000);
     } finally {
       setLoading(false);
     }
@@ -152,8 +177,7 @@ export default function HomePage() {
     clearAuthError();
     exitGuestMode();
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      await signInWithGoogle(auth);
       await refreshUser();
       setShowAuthModal(false);
     } catch (err: any) {
@@ -302,57 +326,59 @@ export default function HomePage() {
     }
   };
 
-  // Mock users for the Stories bar
-  const storyUsers = Object.values(demoUsers).slice(0, 5);
+  const profileUsers = useMemo(() => {
+    const out: User[] = [];
+    const seen = new Set<string>();
+    for (const reel of reels) {
+      const c = reel.creator;
+      const cid = reel.creatorId;
+      if (c && cid && !seen.has(cid)) {
+        seen.add(cid);
+        out.push(c);
+        if (out.length >= 8) break;
+      }
+    }
+    return out;
+  }, [reels]);
+
+  const setReelMuted = useCallback((reelId: string, muted: boolean) => {
+    setReelMutedState((prev) => ({ ...prev, [reelId]: muted }));
+  }, []);
 
   return (
-    <div className="relative h-full w-full bg-black overflow-y-auto hide-scrollbar">
+    <div className={`relative h-full w-full overflow-y-auto hide-scrollbar ${theme === 'light' ? 'bg-[#f6f7fb] text-black' : 'bg-black text-white'}`}>
       {/* Instagram Header */}
-      <div className="sticky top-0 z-40 bg-black flex items-center justify-between px-4 py-2.5 border-b border-white/10">
-        <h1 className="text-2xl font-bold text-white tracking-tight" style={{ fontFamily: 'cursive' }}>ReelBazaar</h1>
-        <div className="flex items-center gap-5">
-          <button>
-            <svg className="w-[26px] h-[26px] text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-          </button>
-          <button>
-            <svg className="w-[24px] h-[24px] text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M22 6l-10 7L2 6"/></svg>
-          </button>
-        </div>
+      <div className={`sticky top-0 z-40 flex items-center justify-between px-4 py-2.5 border-b ${theme === 'light' ? 'bg-white border-black/10' : 'bg-black border-white/10'}`}>
+        <h1 className={`text-2xl font-bold tracking-tight ${theme === 'light' ? 'text-black' : 'text-white'}`} style={{ fontFamily: 'cursive' }}>ReelBazaar</h1>
+        <button
+          type="button"
+          aria-label="Settings"
+          className={`p-2 -mr-2 rounded-lg transition-colors ${theme === 'light' ? 'hover:bg-black/10 active:bg-black/5' : 'hover:bg-white/10 active:bg-white/5'}`}
+          onClick={() => navigate('/profile', { state: { openSettings: true } })}
+        >
+            <svg className={`w-6 h-6 ${theme === 'light' ? 'text-black' : 'text-white'}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
       </div>
 
-      {/* Stories Bar */}
-      <div className="flex overflow-x-auto py-2.5 px-2 border-b border-white/10 hide-scrollbar shrink-0">
+      {/* Profiles Bar */}
+      <div className={`flex overflow-x-auto py-2.5 px-2 border-b hide-scrollbar shrink-0 ${theme === 'light' ? 'border-black/10' : 'border-white/10'}`}>
         <div className="flex items-center gap-3">
-          {/* Add Story Button */}
-          <div className="flex flex-col items-center gap-1 w-[72px] shrink-0">
-            <div className="relative h-16 w-16">
-              <div className="h-full w-full rounded-full border border-white/20 bg-[#1a1a1a] overflow-hidden">
-                {currentUser?.avatarUrl ? (
-                  <img src={currentUser.avatarUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center font-bold text-lg text-white">
-                    {(currentUser?.name || 'U').charAt(0).toUpperCase()}
-                  </div>
-                )}
-              </div>
-              <div className="absolute bottom-0 right-0 h-5 w-5 rounded-full bg-blue-500 border-2 border-black flex items-center justify-center">
-                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-              </div>
-            </div>
-            <span className="text-[11px] text-white/80 truncate w-full text-center tracking-tight">Your story</span>
-          </div>
-
-          {/* User Stories */}
-          {storyUsers.map((user, i) => (
+          {profileUsers.map((user) => (
             <div key={user.id} className="flex flex-col items-center gap-1 w-[72px] shrink-0 cursor-pointer" onClick={() => navigate(`/profile/${user.id}`)}>
-              <div className="h-16 w-16 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 p-[2.5px]">
-                <div className="h-full w-full rounded-full border-2 border-black bg-[#1a1a1a] overflow-hidden">
-                  <div className="flex h-full w-full items-center justify-center font-bold text-lg text-white">
-                    {user.name.charAt(0).toUpperCase()}
-                  </div>
+              <div className={`h-16 w-16 rounded-full p-[2.5px] ${theme === 'light' ? 'bg-gradient-to-tr from-slate-200 to-slate-400' : 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500'}`}>
+                <div className={`h-full w-full rounded-full border-2 overflow-hidden ${theme === 'light' ? 'border-white bg-white' : 'border-black bg-[#1a1a1a]'}`}>
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className={`flex h-full w-full items-center justify-center font-bold text-lg ${theme === 'light' ? 'text-black' : 'text-white'}`}>
+                      {(user.name || 'U').charAt(0).toUpperCase()}
+                    </div>
+                  )}
                 </div>
               </div>
-              <span className="text-[11px] text-white/90 truncate w-full text-center tracking-tight">{user.name.split(' ')[0]}</span>
+              <span className={`text-[11px] truncate w-full text-center tracking-tight ${theme === 'light' ? 'text-black/80' : 'text-white/90'}`}>{(user.name || 'User').split(' ')[0]}</span>
             </div>
           ))}
         </div>
@@ -369,6 +395,8 @@ export default function HomePage() {
             <InstaPostCard
               key={reel.id}
               reel={reel}
+              muted={reelMutedState[reel.id] ?? false}
+              onMutedChange={(muted) => setReelMuted(reel.id, muted)}
               liked={likedReels.has(reel.id)}
               saved={savedReels.has(reel.id)}
               likeDisabled={likePending.has(reel.id)}

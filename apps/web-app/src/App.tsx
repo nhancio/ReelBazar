@@ -9,9 +9,12 @@ import CreateReelPage from './pages/CreateReelPage';
 import ProfilePage from './pages/ProfilePage';
 import CollaborationsPage from './pages/CollaborationsPage';
 import SingleReelPage from './pages/SingleReelPage';
+import OnboardingPage from './pages/OnboardingPage';
 
 export default function App() {
-  const { firebaseUser, loading, isRegistered, guestMode } = useAuth();
+  const { firebaseUser, loading, isRegistered, guestMode, user } = useAuth();
+  const interests = user?.interests?.length ? user.interests : user?.productCategories || [];
+  const needsOnboarding = Boolean(firebaseUser && !guestMode && user && (!user.username?.trim() || interests.length === 0));
 
   if (loading) {
     return (
@@ -45,15 +48,16 @@ export default function App() {
   return (
     <ErrorBoundary>
       <Routes>
+        <Route path="/onboarding" element={needsOnboarding ? <OnboardingPage /> : <Navigate to="/" replace />} />
         <Route element={<Layout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/reel/:reelId" element={<SingleReelPage />} />
-          <Route path="/create" element={<CreateReelPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/profile/:userId" element={<ProfilePage />} />
-          <Route path="/collaborations" element={<CollaborationsPage />} />
+          <Route path="/" element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <HomePage />} />
+          <Route path="/reel/:reelId" element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <SingleReelPage />} />
+          <Route path="/create" element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <CreateReelPage />} />
+          <Route path="/profile" element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <ProfilePage />} />
+          <Route path="/profile/:userId" element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <ProfilePage />} />
+          <Route path="/collaborations" element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <CollaborationsPage />} />
         </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to={needsOnboarding ? '/onboarding' : '/'} replace />} />
       </Routes>
     </ErrorBoundary>
   );

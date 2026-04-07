@@ -3,7 +3,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet } from 'react-native';
 import { HomeScreen } from '../screens/HomeScreen';
 import { CreateReelScreen } from '../screens/CreateReelScreen';
-import { MessagesScreen } from '../screens/MessagesScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { useAuth } from '../context/AuthContext';
 
@@ -46,13 +45,6 @@ export function MainTabs() {
           }}
         />
       )}
-      <Tab.Screen
-        name="Messages"
-        component={MessagesScreen}
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon name="M" focused={focused} />,
-        }}
-      />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}

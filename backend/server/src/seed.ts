@@ -17,15 +17,6 @@ async function main() {
   await deleteCollection('collaborations');
   await deleteCollection('reels');
 
-  // Delete messages subcollections requires iterating conversations
-  const convs = await db().collection('conversations').get();
-  for (const conv of convs.docs) {
-    const msgs = await conv.ref.collection('messages').get();
-    const batch = db().batch();
-    msgs.docs.forEach((doc) => batch.delete(doc.ref));
-    if (msgs.size > 0) await batch.commit();
-  }
-  await deleteCollection('conversations');
   await deleteCollection('users');
 
   console.log('Creating seed data...');
@@ -124,7 +115,7 @@ async function main() {
 
   for (const reel of sampleReels) {
     await db().collection('reels').add({
-      videoUrl: 'https://storage.googleapis.com/demo-reelbazaar.appspot.com/sample-reel.mp4',
+      videoUrl: 'https://storage.googleapis.com/demo-reelbazaar.firebasestorage.app/sample-reel.mp4',
       thumbnailUrl: null,
       caption: reel.caption,
       productLink: reel.productLink,
@@ -138,36 +129,6 @@ async function main() {
       updatedAt: now,
     });
   }
-
-  // Create sample conversation & messages
-  const convId = [brand1Ref.id, inf1Ref.id].sort().join('_');
-  const convRef = db().collection('conversations').doc(convId);
-
-  const msg1 = {
-    senderId: brand1Ref.id,
-    receiverId: inf1Ref.id,
-    content: 'Hi Priya! We love your style. Would you be interested in collaborating on our summer collection?',
-    read: true,
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-  };
-
-  const msg2 = {
-    senderId: inf1Ref.id,
-    receiverId: brand1Ref.id,
-    content: 'Hey! That sounds amazing. I would love to know more about the collection.',
-    read: false,
-    createdAt: now,
-  };
-
-  await convRef.set({
-    participantIds: [brand1Ref.id, inf1Ref.id].sort(),
-    lastMessage: msg2,
-    createdAt: msg1.createdAt,
-    updatedAt: now,
-  });
-
-  await convRef.collection('messages').add(msg1);
-  await convRef.collection('messages').add(msg2);
 
   console.log('Seed data created successfully!');
   console.log(`  Brands: ${brand1Ref.id}, ${brand2Ref.id}, ${brand3Ref.id}`);

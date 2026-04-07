@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { auth } from '../firebase';
+import { auth, authPersistenceReady } from '../firebase';
+import { signInWithGoogle } from '../auth/googleSignIn';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function AuthPage() {
   const { enterGuestMode, exitGuestMode, authError, clearAuthError } = useAuth();
+  const { theme } = useTheme();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -14,8 +16,8 @@ export default function AuthPage() {
     setLoading(true);
     try {
       exitGuestMode();
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      await authPersistenceReady;
+      await signInWithGoogle(auth);
     } catch (err: any) {
       setError(err.message || 'Google sign-in failed');
       setLoading(false);
@@ -25,13 +27,13 @@ export default function AuthPage() {
   const displayError = error || authError;
 
   return (
-    <div className="flex flex-col min-h-[100dvh] w-full bg-white items-center px-6">
+    <div className={`flex flex-col min-h-[100dvh] w-full items-center px-6 ${theme === 'light' ? 'bg-white text-black' : 'bg-black text-white'}`}>
       <div className="flex-1 flex flex-col justify-center w-full max-w-[340px] pb-20 pt-12">
         <div className="flex flex-col items-center mb-16 text-center">
           <div className="mb-6 h-20 w-20 bg-gradient-to-tr from-[#f6bedf] via-[#90b5ff] to-[#6c8aea] rounded-3xl flex items-center justify-center shadow-[0_20px_40px_rgba(144,181,255,0.3)]">
             <span className="text-white text-4xl font-bold font-serif italic">R</span>
           </div>
-          <h1 className="text-4xl font-bold text-black tracking-tight" style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
+          <h1 className={`text-4xl font-bold tracking-tight ${theme === 'light' ? 'text-black' : 'text-white'}`} style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
             ReelBazaar
           </h1>
           <p className="mt-3 text-[16px] text-gray-400 font-semibold tracking-wide uppercase">scroll · tap · shop</p>
@@ -47,7 +49,7 @@ export default function AuthPage() {
           <button
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className={`w-full flex items-center justify-center gap-3 rounded-2xl bg-black py-5 text-[16px] font-bold text-white transition-all hover:bg-gray-900 active:scale-95 shadow-xl shadow-black/10 ${loading ? 'opacity-70' : ''}`}
+            className={`w-full flex items-center justify-center gap-3 rounded-2xl py-5 text-[16px] font-bold transition-all active:scale-95 shadow-xl ${theme === 'light' ? 'bg-black text-white hover:bg-gray-900 shadow-black/10' : 'bg-white text-black hover:bg-gray-100 shadow-white/10'} ${loading ? 'opacity-70' : ''}`}
           >
             {loading ? (
               <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -69,7 +71,7 @@ export default function AuthPage() {
 
           <button
             type="button"
-            className="w-full flex items-center justify-center gap-3 rounded-2xl bg-white border border-gray-200 py-5 text-[16px] font-bold text-black transition-all hover:bg-gray-50 active:scale-95 shadow-xl shadow-black/5"
+            className={`w-full flex items-center justify-center gap-3 rounded-2xl border py-5 text-[16px] font-bold transition-all active:scale-95 shadow-xl ${theme === 'light' ? 'bg-white border-gray-200 text-black hover:bg-gray-50 shadow-black/5' : 'bg-black border-white/20 text-white hover:bg-white/10 shadow-white/5'}`}
             onClick={() => enterGuestMode()}
           >
             Guest Mode

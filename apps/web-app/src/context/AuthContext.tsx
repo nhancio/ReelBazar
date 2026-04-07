@@ -1,19 +1,30 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { getRedirectResult, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import { auth, authPersistenceReady, db } from '../firebase';
 import { setAuthToken } from '@reelbazaar/api';
 import type { User, UserType } from '@reelbazaar/config';
-import { getDemoUser } from '../demoData';
+import { agentDebugLog } from '../debug/agentDebugLog';
 
 const GUEST_MODE_KEY = 'reelbazaar-guest-mode';
 const USER_CACHE_KEY = 'reelbazaar-user-cache';
+const NEW_USER_KEY = 'reelbazaar-new-user';
+const OAUTH_REDIRECT_PENDING_KEY = 'reelbazaar-oauth-redirect-pending';
+
+const clearOauthPending = () => {
+  try {
+    localStorage.removeItem(OAUTH_REDIRECT_PENDING_KEY);
+  } catch {
+    // Ignore storage errors.
+  }
+};
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null;
   user: User | null;
   loading: boolean;
   isRegistered: boolean;
+  isNewUser: boolean;
   guestMode: boolean;
   authError: string | null;
   register: (data: {
@@ -43,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return cached ? JSON.parse(cached) : null;
   });
   const [loading, setLoading] = useState(true);
+  const [isNewUser, setIsNewUser] = useState<boolean>(() => localStorage.getItem(NEW_USER_KEY) === 'true');
   const [guestMode, setGuestMode] = useState<boolean>(() => {
     if (auth.currentUser) {
       localStorage.removeItem(GUEST_MODE_KEY);
@@ -60,8 +72,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(`${GUEST_MODE_KEY}-role`, userType);
     setGuestMode(true);
     setFirebaseUser(null);
-    setAuthToken('demo-token');
-    setUser(getDemoUser(userType));
+    setAuthToken(null);
+    setUser(null);
     setLoading(false);
   }, []);
 
@@ -73,16 +85,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUser = useCallback(async (fbUserParam?: FirebaseUser | null) => {
     if (guestMode) return;
-    const currentFbUser = fbUserParam !== undefined ? fbUserParam : firebaseUser;
+    const currentFbUser = fbUserParam !== undefined ? fbUserParam : auth.currentUser;
     
     if (!currentFbUser) {
       setUser(null);
+      setIsNewUser(false);
       localStorage.removeItem(USER_CACHE_KEY);
+      localStorage.removeItem(NEW_USER_KEY);
       return;
     }
 
     try {
       const userDoc = await getDoc(doc(db, 'users', currentFbUser.uid));
+      // #region agent log
+      agentDebugLog({
+        runId: 'post-fix',
+        hypothesisId: 'H3',
+        location: 'AuthContext.tsx:refreshUser:afterGetDoc',
+        message: 'firestore user doc',
+        data: { uid: currentFbUser.uid, exists: userDoc.exists(), guestMode },
+      });
+      // #endregion
       
       if (userDoc.exists()) {
         const rawData = userDoc.data();
@@ -104,9 +127,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           interests: userData.interests,
           productCategories: rawData.productCategories,
         });
+        setIsNewUser(false);
+        localStorage.setItem(NEW_USER_KEY, 'false');
         setUser(userData);
         localStorage.setItem(USER_CACHE_KEY, JSON.stringify(userData));
         setAuthError(null);
+        // #region agent log
+        agentDebugLog({
+          runId: 'post-fix',
+          hypothesisId: 'H4',
+          location: 'AuthContext.tsx:refreshUser:docExists',
+          message: 'profile loaded',
+          data: {
+            isNewUserFlag: false,
+            username: userData.username,
+            interestsLen: (userData.interests || []).length,
+          },
+        });
+        // #endregion
       } else {
         // Auto-register
         const newUser: User = {
@@ -131,9 +169,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.warn('Could not auto-register user to Firestore (likely rules/CORS), continuing locally:', setErr);
         }
         
+        setIsNewUser(true);
+        localStorage.setItem(NEW_USER_KEY, 'true');
         setUser(newUser);
         localStorage.setItem(USER_CACHE_KEY, JSON.stringify(newUser));
         setAuthError(null);
+        // #region agent log
+        agentDebugLog({
+          runId: 'post-fix',
+          hypothesisId: 'H3',
+          location: 'AuthContext.tsx:refreshUser:newUserPath',
+          message: 'no firestore doc auto-register path',
+          data: { uid: currentFbUser.uid, isNewUserFlag: true },
+        });
+        // #endregion
       }
     } catch (error: any) {
       console.error('Error refreshing user from Firestore:', error);
@@ -151,9 +200,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         updatedAt: new Date().toISOString(),
       };
       setUser(fallbackUser);
+      setIsNewUser(false);
+      localStorage.setItem(NEW_USER_KEY, 'false');
       localStorage.setItem(USER_CACHE_KEY, JSON.stringify(fallbackUser));
+      // #region agent log
+      agentDebugLog({
+        runId: 'post-fix',
+        hypothesisId: 'H3',
+        location: 'AuthContext.tsx:refreshUser:catch',
+        message: 'firestore read failed fallback',
+        data: {
+          errName: error?.name,
+          errMessage: String(error?.message || '').slice(0, 200),
+        },
+      });
+      // #endregion
     }
-  }, [guestMode, firebaseUser]);
+  }, [guestMode]);
 
   useEffect(() => {
     if (guestMode && auth.currentUser) {
@@ -163,29 +226,83 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (guestMode) {
-      const storedRole = (localStorage.getItem(`${GUEST_MODE_KEY}-role`) as UserType | null) || 'influencer';
       setFirebaseUser(null);
-      setAuthToken('demo-token');
-      setUser(getDemoUser(storedRole));
+      setAuthToken(null);
+      setUser(null);
       setLoading(false);
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      setFirebaseUser(fbUser);
-      if (fbUser) {
-        const token = await fbUser.getIdToken();
-        setAuthToken(token);
-        await refreshUser(fbUser);
-      } else {
-        setAuthToken(null);
-        setUser(null);
-        localStorage.removeItem(USER_CACHE_KEY);
-      }
-      setLoading(false);
-    });
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
 
-    return unsubscribe;
+    const initAuth = async () => {
+      setLoading(true);
+      try {
+        let redirectHadUser = false;
+        await authPersistenceReady;
+        try {
+          const redirectResult = await getRedirectResult(auth);
+          if (redirectResult?.user) {
+            redirectHadUser = true;
+            setFirebaseUser(redirectResult.user);
+            const token = await redirectResult.user.getIdToken();
+            setAuthToken(token);
+            await refreshUser(redirectResult.user);
+            clearOauthPending();
+          }
+        } catch (e) {
+          console.warn('[auth] getRedirectResult', e);
+        }
+
+        if (cancelled) return;
+
+        unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+          try {
+            setFirebaseUser(fbUser);
+            if (fbUser) {
+              clearOauthPending();
+              const token = await fbUser.getIdToken();
+              setAuthToken(token);
+              await refreshUser(fbUser);
+            } else {
+              const oauthPending = localStorage.getItem(OAUTH_REDIRECT_PENDING_KEY) === 'true';
+              if (oauthPending && !redirectHadUser) {
+                // Redirect flow can resolve a moment later on mobile browsers.
+                setLoading(true);
+                return;
+              }
+              setAuthToken(null);
+              setUser(null);
+              setIsNewUser(false);
+              localStorage.removeItem(USER_CACHE_KEY);
+              localStorage.removeItem(NEW_USER_KEY);
+            }
+          } finally {
+            if (!cancelled) setLoading(false);
+          }
+        });
+
+        if (!redirectHadUser && localStorage.getItem(OAUTH_REDIRECT_PENDING_KEY) === 'true') {
+          window.setTimeout(() => {
+            if (cancelled) return;
+            if (!auth.currentUser) {
+              clearOauthPending();
+              setLoading(false);
+            }
+          }, 6000);
+        }
+      } catch {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void initAuth();
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, [guestMode, refreshUser]);
 
   const register = useCallback(
@@ -240,13 +357,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setFirebaseUser(null);
       setAuthToken(null);
       setUser(null);
+      setIsNewUser(false);
       setLoading(false);
+      localStorage.removeItem(NEW_USER_KEY);
       return;
     }
 
     await auth.signOut();
     setAuthToken(null);
     setUser(null);
+    setIsNewUser(false);
+    localStorage.removeItem(NEW_USER_KEY);
   }, [guestMode]);
 
   return (
@@ -256,6 +377,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         loading,
         isRegistered: !!user,
+        isNewUser,
         guestMode,
         authError,
         register,
