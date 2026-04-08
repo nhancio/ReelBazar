@@ -279,6 +279,7 @@ export default function SingleReelPage() {
           onFollow={reel.creatorId !== currentUser?.id ? handleFollow : undefined}
           onProfileClick={() => reel.creatorId && navigate(`/profile/${reel.creatorId}`)}
           onProductClick={() => window.open(reel.productLink, '_blank')}
+          theme={theme}
         />
       </div>
 

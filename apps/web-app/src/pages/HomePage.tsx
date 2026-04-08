@@ -409,6 +409,7 @@ export default function HomePage() {
               onProfileClick={() => {
                 if (reel.creatorId) navigate(`/profile/${reel.creatorId}`);
               }}
+              theme={theme}
             />
           ))
         )}
