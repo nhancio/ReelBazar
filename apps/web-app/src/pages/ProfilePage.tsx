@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Avatar, LoadingSpinner } from '@reelbazaar/ui';
+import { NavigationArrows } from '../components/NavigationArrows';
 import type { User, Reel } from '@reelbazaar/config';
 import {
   doc,
@@ -79,24 +80,46 @@ export default function ProfilePage() {
   }, [location.state, location.pathname, userId, currentUser, guestMode, navigate]);
 
   const loadUserList = useCallback(async (userIds: string[]) => {
+    if (!userIds.length) return [];
+    
     const users = await Promise.all(
       userIds.map(async (uid) => {
-        const userDoc = await getDoc(doc(db, 'users', uid));
-        return userDoc.exists() ? ({ id: userDoc.id, ...userDoc.data() } as User) : null;
+        try {
+          const userDoc = await getDoc(doc(db, 'users', uid));
+          if (userDoc.exists()) {
+            return { id: userDoc.id, ...userDoc.data() } as User;
+          } else {
+            console.warn(`User doc not found for UID: ${uid}`);
+            return null;
+          }
+        } catch (err) {
+          console.error(`Error fetching user ${uid}:`, err);
+          return null;
+        }
       })
     );
 
-    return users.filter(Boolean) as User[];
+    const filteredUsers = users.filter(Boolean) as User[];
+    console.log(`loadUserList: fetched ${filteredUsers.length} users from ${userIds.length} IDs`);
+    return filteredUsers;
   }, []);
 
   const loadFollowers = useCallback(async () => {
-    if (guestMode || !displayUser) return;
+    if (guestMode || !displayUser) {
+      console.warn('loadFollowers early return: guestMode=', guestMode, 'displayUser=', displayUser);
+      return;
+    }
     setLoadingUsers(true);
     setShowFollowers(true);
 
     try {
+      console.log('Loading followers for user:', displayUser.id);
       const snap = await getDocs(query(collection(db, 'follows'), where('followingId', '==', displayUser.id)));
-      const users = await loadUserList(snap.docs.map((item) => item.data().followerId));
+      console.log('Found', snap.docs.length, 'follow records');
+      const followerIds = snap.docs.map((item) => item.data().followerId);
+      console.log('Follower IDs:', followerIds);
+      const users = await loadUserList(followerIds);
+      console.log('Loaded users:', users.length);
       setFollowersList(users);
     } catch (err) {
       console.error('Failed to load followers:', err);
@@ -106,13 +129,21 @@ export default function ProfilePage() {
   }, [displayUser, guestMode, loadUserList]);
 
   const loadFollowing = useCallback(async () => {
-    if (guestMode || !displayUser) return;
+    if (guestMode || !displayUser) {
+      console.warn('loadFollowing early return: guestMode=', guestMode, 'displayUser=', displayUser);
+      return;
+    }
     setLoadingUsers(true);
     setShowFollowing(true);
 
     try {
+      console.log('Loading following for user:', displayUser.id);
       const snap = await getDocs(query(collection(db, 'follows'), where('followerId', '==', displayUser.id)));
-      const users = await loadUserList(snap.docs.map((item) => item.data().followingId));
+      console.log('Found', snap.docs.length, 'follow records');
+      const followingIds = snap.docs.map((item) => item.data().followingId);
+      console.log('Following IDs:', followingIds);
+      const users = await loadUserList(followingIds);
+      console.log('Loaded users:', users.length);
       setFollowingList(users);
     } catch (err) {
       console.error('Failed to load following:', err);
@@ -333,7 +364,10 @@ export default function ProfilePage() {
           {loadingUsers ? (
             <div className="pt-20"><LoadingSpinner /></div>
           ) : list.length === 0 ? (
-            <div className="pt-20 text-center text-white/50 text-sm">No users found</div>
+            <div className="pt-20 text-center text-white/50 text-sm">
+              <p>No users found</p>
+              <p className="text-xs mt-2">(Some users may have deleted their accounts)</p>
+            </div>
           ) : (
             <div className="flex flex-col">
               {list.map((user) => {
@@ -417,7 +451,8 @@ export default function ProfilePage() {
   return (
     <div className={`min-h-[100dvh] pb-24 ${theme === 'light' ? 'bg-[#f6f7fb] text-[#111827]' : 'bg-black text-white'}`}>
       <div className={`flex items-center justify-between px-4 py-3 border-b ${theme === 'light' ? 'border-black/10' : 'border-white/10'}`}>
-        <div className="flex flex-col">
+        <NavigationArrows />
+        <div className="flex flex-col flex-1 ml-3">
           <h1 className="text-xl font-bold">{getProfileHandle(displayUser)}</h1>
           <p className={`text-xs ${theme === 'light' ? 'text-black/50' : 'text-white/50'}`}>{displayUser.name}</p>
         </div>

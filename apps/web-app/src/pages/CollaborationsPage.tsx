@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { collaborationsApi } from '@reelbazaar/api';
 import { Avatar, UserTypeBadge, Button, LoadingSpinner } from '@reelbazaar/ui';
+import { NavigationArrows } from '../components/NavigationArrows';
 import { useAuth } from '../context/AuthContext';
 import type { Collaboration } from '@reelbazaar/config';
 export default function CollaborationsPage() {
@@ -54,9 +55,12 @@ export default function CollaborationsPage() {
 
   return (
     <div className="rb-page">
-      <div className="mb-5 px-1">
-        <p className="text-sm font-medium text-slate-500">Matching</p>
-        <h1 className="rb-title text-[2rem]">Collaborations</h1>
+      <div className="mb-5 px-1 flex items-center gap-3">
+        <NavigationArrows />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-slate-500">Matching</p>
+          <h1 className="rb-title text-[2rem]">Collaborations</h1>
+        </div>
       </div>
 
       <div className="mb-6 flex gap-2">

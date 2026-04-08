@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SUPPORTED_VIDEO_TYPES, MAX_FILE_SIZE } from '@reelbazaar/config';
+import { NavigationArrows } from '../components/NavigationArrows';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
@@ -118,18 +119,9 @@ export default function CreateReelPage() {
   return (
     <div className={`min-h-full w-full pb-28 ${theme === 'light' ? 'bg-[#f6f7fb] text-black' : 'bg-black text-white'}`}>
       {/* Instagram-style header */}
-      <header className={`sticky top-0 z-10 flex items-center justify-center border-b px-2 py-3 ${theme === 'light' ? 'border-black/10 bg-white' : 'border-white/10 bg-black'}`}>
-        <button
-          type="button"
-          aria-label="Go back"
-          onClick={() => navigate(-1)}
-          className={`absolute left-2 p-2 rounded-full ${theme === 'light' ? 'hover:bg-black/10 active:bg-black/5' : 'hover:bg-white/10 active:bg-white/5'}`}
-        >
-          <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h1 className="text-base font-semibold tracking-tight">New reel</h1>
+      <header className={`sticky top-0 z-10 flex items-center justify-center gap-3 border-b px-2 py-3 ${theme === 'light' ? 'border-black/10 bg-white' : 'border-white/10 bg-black'}`}>
+        <NavigationArrows />
+        <h1 className="text-base font-semibold tracking-tight flex-1">New reel</h1>
       </header>
 
       <form onSubmit={handleSubmit} className="mx-auto max-w-lg space-y-5 px-4 pt-4">

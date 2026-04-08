@@ -17,11 +17,12 @@ interface ReelCardProps {
   isFollowing?: boolean;
   guestMode?: boolean;
   onRequireAuth?: () => void;
+  theme?: 'light' | 'dark';
 }
 
 const getDisplayName = (user?: Reel['creator']) => user?.username || user?.name || 'Unknown Creator';
 
-export function ReelCard({ reel, isActive, onLike, onSave, onShare, onFollow, onProfileClick, onProductClick, liked, saved, likeDisabled, saveDisabled, isFollowing, guestMode, onRequireAuth }: ReelCardProps) {
+export function ReelCard({ reel, isActive, onLike, onSave, onShare, onFollow, onProfileClick, onProductClick, liked, saved, likeDisabled, saveDisabled, isFollowing, guestMode, onRequireAuth, theme = 'dark' }: ReelCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(false);
   const [overlayBlocked, setOverlayBlocked] = useState(false);
@@ -116,7 +117,7 @@ export function ReelCard({ reel, isActive, onLike, onSave, onShare, onFollow, on
   };
 
   return (
-    <div className="relative h-full w-full flex-shrink-0 snap-start overflow-hidden bg-black" onClick={handleToggleMute}>
+    <div className={`relative h-full w-full flex-shrink-0 snap-start overflow-hidden ${theme === 'light' ? 'bg-white' : 'bg-black'}`} onClick={handleToggleMute}>
       <video
         ref={videoRef}
         src={reel.videoUrl}
@@ -128,12 +129,16 @@ export function ReelCard({ reel, isActive, onLike, onSave, onShare, onFollow, on
         poster={reel.thumbnailUrl || undefined}
       />
 
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
+      <div className={`pointer-events-none absolute inset-0 ${theme === 'light' ? 'bg-gradient-to-t from-white/60 via-transparent to-white/10' : 'bg-gradient-to-t from-black/80 via-transparent to-black/20'}`} />
 
       {/* Mute/Unmute Button */}
       <button 
         onClick={handleToggleMute}
-        className="absolute right-4 top-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-white transition-transform hover:bg-black/60 active:scale-90 z-10"
+        className={`absolute right-4 top-20 flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-md border transition-transform hover:active:scale-90 z-10 ${
+          theme === 'light'
+            ? 'bg-white/40 border-slate-300/30 text-slate-800 hover:bg-white/60'
+            : 'bg-black/40 border-white/20 text-white hover:bg-black/60'
+        }`}
       >
         {muted ? (
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></svg>
@@ -157,9 +162,11 @@ export function ReelCard({ reel, isActive, onLike, onSave, onShare, onFollow, on
           </div>
           <div 
             onClick={(e) => handleInteraction(e, onProfileClick, true)}
-            className="flex flex-col drop-shadow-md cursor-pointer active:scale-95 transition-transform"
+            className={`flex flex-col drop-shadow-md cursor-pointer active:scale-95 transition-transform ${
+              theme === 'light' ? 'text-slate-800' : 'text-white'
+            }`}
           >
-            <span className="text-sm font-semibold text-white">
+            <span className={`text-sm font-semibold ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
               {getDisplayName(reel.creator)}
             </span>
           </div>
@@ -167,8 +174,12 @@ export function ReelCard({ reel, isActive, onLike, onSave, onShare, onFollow, on
             <button
               className={`ml-2 rounded-full border px-3 py-1 text-[11px] font-semibold backdrop-blur-sm transition ${
                 isFollowing
-                  ? 'border-white/20 bg-white/20 text-white hover:bg-white/30'
-                  : 'border-white/80 text-white hover:bg-white hover:text-black'
+                  ? theme === 'light'
+                    ? 'border-slate-300 bg-slate-200/60 text-slate-900 hover:bg-slate-300/80'
+                    : 'border-white/20 bg-white/20 text-white hover:bg-white/30'
+                  : theme === 'light'
+                    ? 'border-slate-400 text-slate-900 hover:bg-slate-100/80'
+                    : 'border-white/80 text-white hover:bg-white hover:text-black'
               }`}
               onClick={(e) => handleInteraction(e, onFollow)}
             >
@@ -178,7 +189,11 @@ export function ReelCard({ reel, isActive, onLike, onSave, onShare, onFollow, on
         </div>
 
         {reel.caption && (
-          <p className="line-clamp-2 text-sm text-white/90 drop-shadow-md">
+          <p className={`line-clamp-2 text-sm drop-shadow-md ${
+            theme === 'light'
+              ? 'text-slate-800'
+              : 'text-white/90'
+          }`}>
             {reel.caption}
           </p>
         )}
@@ -206,12 +221,16 @@ export function ReelCard({ reel, isActive, onLike, onSave, onShare, onFollow, on
                 <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
               </svg>
             ) : (
-              <svg className="h-8 w-8 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <svg className={`h-8 w-8 drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] ${
+                theme === 'light' ? 'text-slate-800' : 'text-white'
+              }`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
               </svg>
             )}
           </div>
-          <span className="text-xs font-semibold text-white drop-shadow-md">{reel.likesCount || 0}</span>
+          <span className={`text-xs font-semibold drop-shadow-md ${
+            theme === 'light' ? 'text-slate-800' : 'text-white'
+          }`}>{reel.likesCount || 0}</span>
         </button>
 
         <button onClick={handleLocalSave} disabled={saveDisabled} className="group flex flex-col items-center gap-1 transition-transform active:scale-90 disabled:opacity-60">
@@ -221,17 +240,23 @@ export function ReelCard({ reel, isActive, onLike, onSave, onShare, onFollow, on
                 <path fillRule="evenodd" d="M6.32 2.577a49.255 49.255 0 0111.36 0c1.497.174 2.57 1.46 2.57 2.93V21a.75.75 0 01-1.085.67L12 18.089l-7.165 3.583A.75.75 0 013.75 21V5.507c0-1.47 1.073-2.756 2.57-2.93z" clipRule="evenodd" />
               </svg>
             ) : (
-              <svg className="h-8 w-8 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <svg className={`h-8 w-8 drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] ${
+                theme === 'light' ? 'text-slate-800' : 'text-white'
+              }`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
               </svg>
             )}
           </div>
-          <span className="text-xs font-semibold text-white drop-shadow-md">{reel.savesCount || 0}</span>
+          <span className={`text-xs font-semibold drop-shadow-md ${
+            theme === 'light' ? 'text-slate-800' : 'text-white'
+          }`}>{reel.savesCount || 0}</span>
         </button>
 
         <button onClick={(e) => handleInteraction(e, onShare, true)} className="group flex flex-col items-center gap-1 transition-transform active:scale-90">
           <div className="flex h-10 w-10 items-center justify-center">
-            <svg className="h-8 w-8 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] transition-colors active:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className={`h-8 w-8 drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] transition-colors active:text-slate-300 ${
+              theme === 'light' ? 'text-slate-800' : 'text-white'
+            }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
             </svg>
           </div>
