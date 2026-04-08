@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Avatar, LoadingSpinner } from '@reelbazaar/ui';
+import { NavigationArrows } from '../components/NavigationArrows';
 import type { User, Reel } from '@reelbazaar/config';
 import {
   doc,
@@ -450,7 +451,8 @@ export default function ProfilePage() {
   return (
     <div className={`min-h-[100dvh] pb-24 ${theme === 'light' ? 'bg-[#f6f7fb] text-[#111827]' : 'bg-black text-white'}`}>
       <div className={`flex items-center justify-between px-4 py-3 border-b ${theme === 'light' ? 'border-black/10' : 'border-white/10'}`}>
-        <div className="flex flex-col">
+        <NavigationArrows />
+        <div className="flex flex-col flex-1 ml-3">
           <h1 className="text-xl font-bold">{getProfileHandle(displayUser)}</h1>
           <p className={`text-xs ${theme === 'light' ? 'text-black/50' : 'text-white/50'}`}>{displayUser.name}</p>
         </div>

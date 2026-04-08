@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ReelCard, LoadingSpinner, AuthModal } from '@reelbazaar/ui';
+import { NavigationArrows } from '../components/NavigationArrows';
 import type { Reel } from '@reelbazaar/config';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -253,14 +254,9 @@ export default function SingleReelPage() {
 
   return (
     <div className={`relative h-full w-full ${theme === 'light' ? 'bg-[#f6f7fb]' : 'bg-black'}`}>
-      <button
-        onClick={() => navigate(-1)}
-        className="absolute top-6 left-4 z-50 p-2 bg-black/40 backdrop-blur-md rounded-full text-white"
-      >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-        </svg>
-      </button>
+      <div className="absolute top-0 left-0 right-0 z-50 p-4">
+        <NavigationArrows />
+      </div>
 
       <div className="h-full w-full">
         <ReelCard
