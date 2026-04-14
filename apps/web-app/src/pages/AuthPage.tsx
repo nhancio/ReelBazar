@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { auth, authPersistenceReady } from '../firebase';
 import { signInWithGoogle } from '../auth/googleSignIn';
 import { useAuth } from '../context/AuthContext';
+import { APP_NAME } from '@reelbazaar/config';
 import { useTheme } from '../context/ThemeContext';
 
 export default function AuthPage() {
@@ -34,7 +35,7 @@ export default function AuthPage() {
             <span className="text-white text-4xl font-bold font-serif italic">R</span>
           </div>
           <h1 className={`text-4xl font-bold tracking-tight ${theme === 'light' ? 'text-black' : 'text-white'}`} style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
-            ReelBazaar
+            {APP_NAME}
           </h1>
           <p className="mt-3 text-[16px] text-gray-400 font-semibold tracking-wide uppercase">scroll · tap · shop</p>
         </div>

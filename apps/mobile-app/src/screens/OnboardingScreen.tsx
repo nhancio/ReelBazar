@@ -59,8 +59,8 @@ export function OnboardingScreen() {
   if (step === 'type') {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Welcome to ReelBazaar</Text>
-        <Text style={styles.subtitle}>How would you like to use ReelBazaar?</Text>
+        <Text style={styles.title}>Welcome to Rava</Text>
+        <Text style={styles.subtitle}>How would you like to use Rava?</Text>
 
         {USER_TYPES.map((type) => (
           <TouchableOpacity

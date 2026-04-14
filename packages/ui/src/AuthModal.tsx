@@ -1,4 +1,5 @@
 import React from 'react';
+import { APP_NAME } from '@reelbazaar/config';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -30,7 +31,7 @@ export function AuthModal({ isOpen, onClose, onSignIn }: AuthModalProps) {
 
         <h3 className="mb-2 text-2xl font-bold text-slate-800 tracking-tight">Sign In Required</h3>
         <p className="mb-8 text-sm font-medium text-slate-500">
-          Join ReelBazaar to follow creators, save your favorite looks, and interact with reels.
+          Join {APP_NAME} to follow creators, save your favorite looks, and interact with reels.
         </p>
 
         <button

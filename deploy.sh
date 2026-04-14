@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ReelBazaar — one command to build and publish everything.
+# Rava — one command to build and publish everything.
 #
 # Default (./deploy.sh):
 #   npm install → turbo build (web-app, landing, server) → verify artifacts
@@ -151,7 +151,7 @@ vercel_cmd() {
   fi
 }
 
-echo "==> ReelBazaar deploy — root: $ROOT"
+echo "==> Rava deploy — root: $ROOT"
 
 if [[ "$USE_CI" -eq 1 ]]; then
   echo "==> Installing dependencies (npm ci)..."

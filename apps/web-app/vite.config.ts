@@ -15,8 +15,8 @@ export default defineConfig({
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
-        name: 'ReelBazaar - Fashion Reels',
-        short_name: 'ReelBazaar',
+        name: 'Rava - Fashion Reels',
+        short_name: 'Rava',
         description: 'Shop What Influencers Wear',
         theme_color: '#ec4899',
         background_color: '#0f172a',

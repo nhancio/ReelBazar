@@ -4,9 +4,15 @@
   publish = "out"
 
 [[redirects]]
+  from = "/app"
+  to = "https://app.rava.one/"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/app/*"
-  to = "https://rb-app.nhancio.com/:splat"
-  status = 200
+  to = "https://app.rava.one/:splat"
+  status = 301
   force = true
 
 [[redirects]]

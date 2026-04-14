@@ -99,7 +99,7 @@ export function HomeScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.logo}>ReelBazaar</Text>
+        <Text style={styles.logo}>Rava</Text>
         <View style={styles.tabs}>
           {CATEGORIES.map((cat) => (
             <TouchableOpacity

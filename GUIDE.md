@@ -1,6 +1,6 @@
-# ReelBazaar - Running and Usage Guide
+# Rava - Running and Usage Guide
 
-Welcome to **ReelBazaar**, the ultimate platform for fashion influencers, brands, and trend-seekers. This guide will walk you through setting up the environment to run the app and how to navigate its features.
+Welcome to **Rava**, the ultimate platform for fashion influencers, brands, and trend-seekers. This guide will walk you through setting up the environment to run the app and how to navigate its features.
 
 ---
 
@@ -18,12 +18,12 @@ Ensure you have the following installed on your machine:
 Clone the repository and install all dependencies from the root directory:
 ```bash
 git clone <your-repo-url>
-cd ReelBazaar
+cd ReelBazzar
 npm install
 ```
 
 ### 🔑 2. Firebase Configuration
-ReelBazaar relies on Firebase for Authentication, Firestore, and Storage.
+Rava relies on Firebase for Authentication, Firestore, and Storage.
 
 #### **Backend Setup:**
 1. Go to the [Firebase Console](https://console.firebase.google.com/).
@@ -65,7 +65,7 @@ npm run db:seed
 
 ## 📱 Part 2: How to Use (User Guide)
 
-ReelBazaar supports three distinct user types, each with unique capabilities.
+Rava supports three distinct user types, each with unique capabilities.
 
 ### 🎭 Choose Your Persona
 1. **Viewer:** Browse the latest fashion trends, save your favorite reels, and shop directly from product links.

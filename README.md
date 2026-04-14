@@ -1,6 +1,6 @@
-# ReelBazaar - Fashion PR Reels Platform
+# Rava - Fashion PR Reels Platform
 
-A full-stack monorepo platform where influencers upload reels promoting fashion products, users scroll a fashion-only reels feed, and brands connect with influencers for collaborations.
+A full-stack monorepo platform (**Rava**) where influencers upload reels promoting fashion products, users scroll a fashion-only reels feed, and brands connect with influencers for collaborations.
 
 ## Tech Stack
 
@@ -18,7 +18,7 @@ A full-stack monorepo platform where influencers upload reels promoting fashion 
 ## Project Structure
 
 ```
-ReelBazaar/
+ReelBazzar/   # product name: Rava
 ├── apps/
 │   ├── web-app/          # PWA (React + Vite + Tailwind)
 │   ├── landing-page/     # Marketing site (Next.js)
@@ -59,7 +59,7 @@ collaborations/     → Brand-influencer matches (doc ID: brandId_influencerId)
 
 ```bash
 git clone <repo-url>
-cd ReelBazaar
+cd ReelBazzar
 npm install
 ```
 

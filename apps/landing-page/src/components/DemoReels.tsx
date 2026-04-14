@@ -35,7 +35,7 @@ export default function DemoReels() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold">Trending Reels</h2>
-          <p className="text-gray-400 mt-4">Preview what's hot on ReelBazaar right now.</p>
+          <p className="text-gray-400 mt-4">Preview what's hot on Rava right now.</p>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -1,4 +1,4 @@
-export const APP_NAME = 'ReelBazaar';
+export const APP_NAME = 'Rava';
 
 const getEnvVar = (key: string): string | undefined => {
   if (typeof process !== 'undefined' && process.env) {
@@ -11,6 +11,14 @@ const getEnvVar = (key: string): string | undefined => {
 };
 
 export const API_BASE_URL = getEnvVar('NEXT_PUBLIC_API_URL') || getEnvVar('VITE_API_URL') || 'https://reelbazar-backend.vercel.app/api';
+
+/** Public web app (SPA / Capacitor web assets). */
+export const APP_ORIGIN =
+  getEnvVar('NEXT_PUBLIC_APP_ORIGIN') || getEnvVar('VITE_APP_ORIGIN') || 'https://app.rava.one';
+
+/** Marketing / landing site. */
+export const LANDING_ORIGIN =
+  getEnvVar('NEXT_PUBLIC_LANDING_ORIGIN') || getEnvVar('VITE_LANDING_ORIGIN') || 'https://rava.one';
 
 export const CATEGORIES = ['Men', 'Women', 'Kids'] as const;
 export type Category = (typeof CATEGORIES)[number];

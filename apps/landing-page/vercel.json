@@ -1,4 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "installCommand": "cd ../.. && npm ci --no-audit --no-fund",
+  "buildCommand": "npm run build",
+  "redirects": [
+    { "source": "/app", "destination": "https://app.rava.one/", "permanent": true },
+    { "source": "/app/:path*", "destination": "https://app.rava.one/:path*", "permanent": true }
+  ]
 }

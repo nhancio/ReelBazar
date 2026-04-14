@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { User } from '@reelbazaar/config';
+import { APP_NAME, type User } from '@reelbazaar/config';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '@reelbazaar/ui';
 import { authApi } from '@reelbazaar/api';
@@ -208,7 +208,7 @@ export default function OnboardingModal() {
   return (
     <div data-rb-onboarding-open="true" className="fixed inset-0 z-[100] flex items-center justify-center bg-black px-4" onClick={(e) => e.stopPropagation()}>
       <div className="w-full max-w-sm rounded-[32px] bg-[#121212] border border-white/10 p-8 animate-in zoom-in-95 duration-200 shadow-2xl">
-        <h2 className="text-2xl font-bold text-white mb-2">Welcome to ReelBazaar! 👋</h2>
+        <h2 className="text-2xl font-bold text-white mb-2">Welcome to {APP_NAME}! 👋</h2>
         <p className="text-sm text-white/50 mb-8">Let's set up your profile quickly.</p>
         
         <form onSubmit={handleSubmit} className="space-y-6">

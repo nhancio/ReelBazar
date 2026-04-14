@@ -1,4 +1,4 @@
-url: https://rb-app.nhancio.com
+url: https://app.rava.one
 ---
 - launchApp
 - assertVisible: "Guest Mode"

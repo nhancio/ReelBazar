@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { InstaPostCard, AuthModal } from '@reelbazaar/ui';
 import { LoadingSpinner } from '@reelbazaar/ui';
 import { reelsApi, usersApi } from '@reelbazaar/api';
-import type { Reel, User } from '@reelbazaar/config';
+import { APP_NAME, type Reel, type User } from '@reelbazaar/config';
 import { useAuth } from '../context/AuthContext';
 import { signInWithGoogle } from '../auth/googleSignIn';
 import { useTheme } from '../context/ThemeContext';
@@ -314,7 +314,7 @@ export default function HomePage() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Check out this reel on ReelBazaar!',
+          title: `Check out this reel on ${APP_NAME}!`,
           url: url,
         });
       } catch (err) {
@@ -349,7 +349,7 @@ export default function HomePage() {
     <div className={`relative h-full w-full overflow-y-auto hide-scrollbar ${theme === 'light' ? 'bg-[#f6f7fb] text-black' : 'bg-black text-white'}`}>
       {/* Instagram Header */}
       <div className={`sticky top-0 z-40 flex items-center justify-between px-4 py-2.5 border-b ${theme === 'light' ? 'bg-white border-black/10' : 'bg-black border-white/10'}`}>
-        <h1 className={`text-2xl font-bold tracking-tight ${theme === 'light' ? 'text-black' : 'text-white'}`} style={{ fontFamily: 'cursive' }}>ReelBazaar</h1>
+        <h1 className={`text-2xl font-bold tracking-tight ${theme === 'light' ? 'text-black' : 'text-white'}`} style={{ fontFamily: 'cursive' }}>{APP_NAME}</h1>
         <button
           type="button"
           aria-label="Settings"

@@ -25,4 +25,5 @@ serviceAccountKey.json
 
 # Deploy tooling
 .firebase/
+# Vercel CLI (`vercel link`, `vercel pull`): project.json + .env.*.local — never commit
 .vercel

@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.reelbazaar.app',
-  appName: 'ReelBazaar',
+  appName: 'Rava',
   webDir: 'dist',
   server: {
     androidScheme: 'https',

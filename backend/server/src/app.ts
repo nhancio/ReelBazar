@@ -8,6 +8,7 @@ import { reelsRouter } from './routes/reels';
 import { usersRouter } from './routes/users';
 import { collaborationsRouter } from './routes/collaborations';
 import { uploadRouter } from './routes/upload';
+import { contactRouter } from './routes/contact';
 
 initFirebaseAdmin();
 
@@ -67,6 +68,7 @@ app.use('/api/reels', reelsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/collaborations', collaborationsRouter);
 app.use('/api/upload', uploadRouter);
+app.use('/api/contact', contactRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

@@ -39,7 +39,7 @@ export function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.content}>
-        <Text style={styles.logo}>ReelBazaar</Text>
+        <Text style={styles.logo}>Rava</Text>
         <Text style={styles.subtitle}>scroll, tap, shop</Text>
 
         <View style={styles.form}>

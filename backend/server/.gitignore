@@ -1,1 +1,2 @@
+# Vercel CLI: linked project + `vercel pull` secrets (.env.production.local) — never commit
 .vercel

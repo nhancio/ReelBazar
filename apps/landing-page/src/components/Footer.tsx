@@ -4,7 +4,7 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
         <div>
           <span className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-600 bg-clip-text text-transparent">
-            ReelBazaar
+            Rava
           </span>
           <p className="text-gray-500 text-sm mt-1">Shop What Influencers Wear</p>
         </div>
@@ -16,7 +16,7 @@ export default function Footer() {
         </div>
 
         <p className="text-gray-600 text-sm">
-          &copy; {new Date().getFullYear()} ReelBazaar. All rights reserved.
+          &copy; {new Date().getFullYear()} Rava. All rights reserved.
         </p>
       </div>
     </footer>

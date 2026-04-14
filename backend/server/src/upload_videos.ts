@@ -32,7 +32,7 @@ async function seedVideos() {
   
   console.log(`Assigning videos to creatorId: ${creatorId}`);
 
-  const baseUrl = 'https://rb-app.nhancio.com/videos';
+  const baseUrl = 'https://app.rava.one/videos';
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
@@ -50,7 +50,7 @@ async function seedVideos() {
       productLink: link,
       category: ['Men', 'Women', 'Kids'][Math.floor(Math.random() * 3)],
       caption: `Check out this amazing find! ✨`,
-      brandTag: 'ReelBazaar Select',
+      brandTag: 'Rava Select',
       creatorId: creatorId,
       likesCount: Math.floor(Math.random() * 500) + 100,
       viewsCount: Math.floor(Math.random() * 10000) + 2000,

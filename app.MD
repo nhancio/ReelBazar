@@ -1,8 +1,8 @@
-# ReelBazzar - Application Documentation
+# Rava - Application Documentation
 
-## What is ReelBazzar?
+## What is Rava?
 
-ReelBazzar is a **full-stack fashion e-commerce platform** connecting three user types:
+Rava is a **full-stack fashion e-commerce platform** connecting three user types:
 
 - **Influencers** — Create and upload short fashion reels (TikTok/Instagram Reels-style videos) promoting products
 - **Viewers** — Browse a fashion-only feed, like/save reels, and shop products directly
@@ -17,7 +17,7 @@ Core value proposition: AI-powered matching between brands and influencers, with
 ### Monorepo Structure
 
 ```
-ReelBazzar/
+ReelBazzar/   # product: Rava
 ├── apps/
 │   ├── web-app/              # React + Vite + Tailwind PWA (main frontend)
 │   ├── landing-page/         # Next.js marketing site

@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import { APP_NAME } from '@reelbazaar/config';
 import { LoadingSpinner } from '@reelbazaar/ui';
 import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
@@ -20,7 +21,7 @@ export default function App() {
     return (
       <div className="flex flex-col min-h-[100dvh] w-full bg-white items-center justify-center px-6">
         <LoadingSpinner size="lg" />
-        <p className="mt-4 text-[13px] font-semibold text-gray-500">Loading ReelBazaar...</p>
+        <p className="mt-4 text-[13px] font-semibold text-gray-500">Loading {APP_NAME}...</p>
       </div>
     );
   }

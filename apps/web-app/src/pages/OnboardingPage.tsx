@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { Button } from '@reelbazaar/ui';
+import { APP_NAME } from '@reelbazaar/config';
 import { authApi } from '@reelbazaar/api';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -114,7 +115,7 @@ export default function OnboardingPage() {
   return (
     <div className={`min-h-[100dvh] w-full px-4 py-8 flex items-center justify-center ${theme === 'light' ? 'bg-[#f6f7fb]' : 'bg-black'}`}>
       <div className={`w-full max-w-sm rounded-[32px] p-8 shadow-2xl ${theme === 'light' ? 'bg-white border border-black/10 text-black' : 'bg-[#121212] border border-white/10 text-white'}`}>
-        <h2 className="text-2xl font-bold mb-2">Welcome to ReelBazaar! 👋</h2>
+        <h2 className="text-2xl font-bold mb-2">Welcome to {APP_NAME}! 👋</h2>
         <p className={`text-sm mb-8 ${theme === 'light' ? 'text-black/60' : 'text-white/50'}`}>Let's set up your profile quickly.</p>
 
         <form onSubmit={handleSubmit} className="space-y-6">

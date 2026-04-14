@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ReelCard, LoadingSpinner, AuthModal } from '@reelbazaar/ui';
 import { NavigationArrows } from '../components/NavigationArrows';
-import type { Reel } from '@reelbazaar/config';
+import { APP_NAME, type Reel } from '@reelbazaar/config';
 import { useAuth } from '../context/AuthContext';
 import {
   doc,
@@ -219,7 +219,7 @@ export default function SingleReelPage() {
     const url = `${window.location.origin}/reel/${reel.id}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'Check out this reel on ReelBazaar!', url });
+        await navigator.share({ title: `Check out this reel on ${APP_NAME}!`, url });
       } catch (err) {
         console.error('Failed to share reel:', err);
       }
