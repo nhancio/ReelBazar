@@ -9,7 +9,7 @@ const config: Config = {
       colors: {
         brand: {
           pink: '#ec4899',
-          purple: '#8b5cf6',
+          rose: '#be185d',
         },
       },
     },

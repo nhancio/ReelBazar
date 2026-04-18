@@ -1,0 +1,7 @@
+User-Agent: *
+Allow: /
+Disallow: /_next/
+Disallow: /api/
+
+Host: https://rava.one
+Sitemap: https://rava.one/sitemap.xml

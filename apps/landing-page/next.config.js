@@ -2,7 +2,8 @@
 const nextConfig = {
   reactStrictMode: true,
   output: "export",
-  transpilePackages: ["@reelbazaar/config"],
+  poweredByHeader: false,
+  compress: true,
 };
 
 module.exports = nextConfig;
