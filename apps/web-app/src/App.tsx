@@ -11,6 +11,7 @@ import ProfilePage from './pages/ProfilePage';
 import CollaborationsPage from './pages/CollaborationsPage';
 import SingleReelPage from './pages/SingleReelPage';
 import OnboardingPage from './pages/OnboardingPage';
+import DiscoverPage from './pages/DiscoverPage';
 
 export default function App() {
   const { firebaseUser, loading, isRegistered, guestMode, user } = useAuth();
@@ -56,6 +57,7 @@ export default function App() {
           <Route path="/create" element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <CreateReelPage />} />
           <Route path="/profile" element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <ProfilePage />} />
           <Route path="/profile/:userId" element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <ProfilePage />} />
+          <Route path="/discover" element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <DiscoverPage />} />
           <Route path="/collaborations" element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <CollaborationsPage />} />
         </Route>
         <Route path="*" element={<Navigate to={needsOnboarding ? '/onboarding' : '/'} replace />} />

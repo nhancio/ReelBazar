@@ -13,6 +13,23 @@ import { contactRouter } from './routes/contact';
 initFirebaseAdmin();
 
 const app = express();
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
+
+const allowedOrigins = new Set(
+  (process.env.ALLOWED_ORIGINS ??
+    [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:4000',
+      'http://localhost:5173',
+      'https://app.rava.one',
+      'https://rava.one',
+    ].join(','))
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+);
 
 function resolveMonorepoRoot(): string {
   let dir = __dirname;
@@ -33,7 +50,27 @@ function resolveMonorepoRoot(): string {
   return path.resolve(__dirname, '../../..');
 }
 
-app.use(cors());
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
+  next();
+});
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.has(origin)) {
+        return callback(null, true);
+      }
+      callback(new Error('Origin not allowed by CORS'));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 
 /** Dev-only: append Cursor debug NDJSON (web app proxies /api here). */
 if (process.env.NODE_ENV !== 'production') {
@@ -61,17 +98,32 @@ if (process.env.NODE_ENV !== 'production') {
   );
 }
 
-app.use(express.json());
+app.use(express.json({ limit: '256kb' }));
+app.use(express.urlencoded({ extended: false, limit: '256kb' }));
 
-app.use('/api/auth', authRouter);
-app.use('/api/reels', reelsRouter);
-app.use('/api/users', usersRouter);
-app.use('/api/collaborations', collaborationsRouter);
-app.use('/api/upload', uploadRouter);
-app.use('/api/contact', contactRouter);
+const apiRouter = express.Router();
 
-app.get('/api/health', (_req, res) => {
+apiRouter.use('/auth', authRouter);
+apiRouter.use('/reels', reelsRouter);
+apiRouter.use('/users', usersRouter);
+apiRouter.use('/collaborations', collaborationsRouter);
+apiRouter.use('/upload', uploadRouter);
+apiRouter.use('/contact', contactRouter);
+
+apiRouter.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.use('/api/v1', apiRouter);
+app.use('/api', apiRouter);
+
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  if (err.message === 'Origin not allowed by CORS') {
+    return res.status(403).json({ message: err.message });
+  }
+
+  console.error('Unhandled application error:', err);
+  res.status(500).json({ message: 'Internal server error' });
 });
 
 export default app;

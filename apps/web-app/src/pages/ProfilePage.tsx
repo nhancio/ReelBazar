@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Avatar, LoadingSpinner } from '@reelbazaar/ui';
 import { NavigationArrows } from '../components/NavigationArrows';
+import BrowseUsersModal from '../components/BrowseUsersModal';
 import type { User, Reel } from '@reelbazaar/config';
 import {
   doc,
@@ -41,6 +42,19 @@ function reelCreatedAtMs(createdAt: unknown): number {
   return 0;
 }
 
+/** First frame for grid previews: iOS needs playsInline + often a poster or a tiny seek. */
+function reelGridVideoSrc(videoUrl: string, hasPoster: boolean): string {
+  if (!videoUrl || hasPoster) return videoUrl;
+  if (/#t=/i.test(videoUrl)) return videoUrl;
+  try {
+    const u = new URL(videoUrl, typeof window !== 'undefined' ? window.location.href : 'https://local.invalid');
+    u.hash = 't=0.001';
+    return u.href;
+  } catch {
+    return `${videoUrl}#t=0.001`;
+  }
+}
+
 export default function ProfilePage() {
   const { userId } = useParams<{ userId: string }>();
   const { user: currentUser, signOut, guestMode, refreshUser, exitGuestMode } = useAuth();
@@ -66,6 +80,7 @@ export default function ProfilePage() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [followPendingIds, setFollowPendingIds] = useState<Set<string>>(new Set());
+  const [browseType, setBrowseType] = useState<'Creator' | 'Brand' | null>(null);
 
   const isOwnProfile = !userId || userId === currentUser?.id;
   const displayUser = isOwnProfile ? currentUser : profileUser;
@@ -510,7 +525,20 @@ export default function ProfilePage() {
         </div>
 
         <div className="mt-4">
-          <p className="font-bold text-[15px]">@{getProfileHandle(displayUser)}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-bold text-[15px]">@{getProfileHandle(displayUser)}</p>
+            {(displayUser.persona || 'Creator') && (
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                displayUser.persona === 'Brand'
+                  ? 'bg-pink-500/20 text-pink-400'
+                  : displayUser.persona === 'User'
+                    ? 'bg-blue-500/20 text-blue-400'
+                    : 'bg-purple-500/20 text-purple-400'
+              }`}>
+                {displayUser.persona || 'Creator'}
+              </span>
+            )}
+          </div>
           <p className={`text-[14px] mt-1 ${theme === 'light' ? 'text-black/70' : 'text-white/80'}`}>{displayUser.name}</p>
           {displayUser.brandName && (
             <p className={`text-[14px] mt-1 ${theme === 'light' ? 'text-black/70' : 'text-white/90'}`}>
@@ -566,6 +594,35 @@ export default function ProfilePage() {
             </>
           )}
         </div>
+
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={() => setBrowseType('Creator')}
+            className={`flex-1 flex items-center justify-center gap-2 font-semibold rounded-xl py-2.5 text-[13px] transition-all border ${
+              theme === 'light'
+                ? 'border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100'
+                : 'border-purple-500/30 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            Creators
+          </button>
+          <button
+            onClick={() => setBrowseType('Brand')}
+            className={`flex-1 flex items-center justify-center gap-2 font-semibold rounded-xl py-2.5 text-[13px] transition-all border ${
+              theme === 'light'
+                ? 'border-pink-200 bg-pink-50 text-pink-700 hover:bg-pink-100'
+                : 'border-pink-500/30 bg-pink-500/10 text-pink-400 hover:bg-pink-500/20'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            Brands
+          </button>
+        </div>
       </div>
 
       <div className={`flex mt-2 border-t ${theme === 'light' ? 'border-black/10' : 'border-white/20'}`}>
@@ -604,10 +661,23 @@ export default function ProfilePage() {
               onClick={() => navigate(`/reel/${reel.id}`)}
             >
               <video
-                src={reel.videoUrl}
+                src={reelGridVideoSrc(reel.videoUrl, Boolean(reel.thumbnailUrl?.trim()))}
                 className="w-full h-full object-cover"
                 muted
-                preload="metadata"
+                playsInline
+                preload={reel.thumbnailUrl?.trim() ? 'none' : 'auto'}
+                poster={reel.thumbnailUrl?.trim() || undefined}
+                onLoadedData={(e) => {
+                  if (reel.thumbnailUrl?.trim()) return;
+                  const v = e.currentTarget;
+                  try {
+                    if (v.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+                      v.currentTime = 0.001;
+                    }
+                  } catch {
+                    /* decode/seek can fail before metadata on some browsers */
+                  }
+                }}
               />
               <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/30 px-1.5 py-0.5 rounded backdrop-blur-sm">
                 <svg className="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -666,6 +736,13 @@ export default function ProfilePage() {
 
       {renderUserListModal('Followers', followersList, showFollowers, () => setShowFollowers(false))}
       {renderUserListModal('Following', followingList, showFollowing, () => setShowFollowing(false))}
+
+      {browseType && (
+        <BrowseUsersModal
+          type={browseType}
+          onClose={() => setBrowseType(null)}
+        />
+      )}
     </div>
   );
 }

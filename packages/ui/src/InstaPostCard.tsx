@@ -9,6 +9,8 @@ interface InstaPostCardProps {
   onProfileClick?: () => void;
   /** If omitted, opens `reel.productLink` in a new tab when valid. */
   onProductClick?: () => void;
+  onView?: () => void;
+  onProductLinkClick?: () => void;
   liked?: boolean;
   saved?: boolean;
   likeDisabled?: boolean;
@@ -33,6 +35,8 @@ export function InstaPostCard({
   onShare,
   onProfileClick,
   onProductClick,
+  onView,
+  onProductLinkClick,
   liked,
   saved,
   likeDisabled,
@@ -68,13 +72,20 @@ export function InstaPostCard({
     return () => window.removeEventListener('rb:overlay-playback', handleOverlayPlayback as EventListener);
   }, []);
 
-  // Intersection Observer for auto-play
+  const viewTracked = useRef(false);
+  useEffect(() => { viewTracked.current = false; }, [reel.id]);
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        setIsVisible(entry.isIntersecting);
+        const vis = entry.isIntersecting;
+        setIsVisible(vis);
+        if (vis && !viewTracked.current) {
+          viewTracked.current = true;
+          onView?.();
+        }
       },
-      { threshold: 0.6 } // Play when 60% visible
+      { threshold: 0.6 }
     );
 
     if (containerRef.current) {
@@ -82,7 +93,7 @@ export function InstaPostCard({
     }
 
     return () => observer.disconnect();
-  }, []);
+  }, [onView, reel.id]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -137,6 +148,7 @@ export function InstaPostCard({
 
   const handleProductClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    onProductLinkClick?.();
     if (onProductClick) {
       onProductClick();
       return;
@@ -282,9 +294,17 @@ export function InstaPostCard({
         </button>
       </div>
 
-      {/* Likes */}
-      <div className={`px-3 mb-1 ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+      {/* Likes & Views */}
+      <div className={`px-3 mb-1 flex items-center gap-2 ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
         <span className="text-[13px] font-semibold">{(reel.likesCount || 0).toLocaleString()} likes</span>
+        <span className={`text-[13px] ${theme === 'light' ? 'text-slate-400' : 'text-white/30'}`}>|</span>
+        <span className={`text-[13px] font-semibold flex items-center gap-1 ${theme === 'light' ? 'text-slate-600' : 'text-white/70'}`}>
+          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+          </svg>
+          {(reel.viewsCount || 0).toLocaleString()} views
+        </span>
       </div>
 
       {/* Caption */}

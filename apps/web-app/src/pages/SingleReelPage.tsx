@@ -274,6 +274,10 @@ export default function SingleReelPage() {
           onShare={handleShare}
           onFollow={reel.creatorId !== currentUser?.id ? handleFollow : undefined}
           onProfileClick={() => reel.creatorId && navigate(`/profile/${reel.creatorId}`)}
+          onProductLinkClick={() => {
+            updateDoc(doc(db, 'reels', reel.id), { clicksCount: increment(1) }).catch(() => {});
+            setReel(prev => prev ? { ...prev, clicksCount: (prev.clicksCount || 0) + 1 } : prev);
+          }}
           onProductClick={() => window.open(reel.productLink, '_blank')}
           theme={theme}
         />

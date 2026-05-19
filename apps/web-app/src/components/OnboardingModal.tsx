@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { APP_NAME, type User } from '@reelbazaar/config';
+import { APP_NAME, PERSONAS, type User, type Persona } from '@reelbazaar/config';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '@reelbazaar/ui';
 import { authApi } from '@reelbazaar/api';
@@ -8,6 +8,12 @@ import { db } from '../firebase';
 import { agentDebugLog } from '../debug/agentDebugLog';
 
 const OPTIONS = ['Electronics', 'Fashion', 'Beauty', 'Lifestyle'];
+
+const PERSONA_INFO: Record<Persona, { icon: string; desc: string }> = {
+  Creator: { icon: '🎬', desc: 'Create reels & grow your audience' },
+  Brand: { icon: '🏢', desc: 'Showcase products & find creators' },
+  User: { icon: '👤', desc: 'Discover & shop trending products' },
+};
 
 function isProfileComplete(user: User): boolean {
   const interests = user.interests?.length ? user.interests : user.productCategories || [];
@@ -28,6 +34,7 @@ export default function OnboardingModal() {
   );
 
   const [username, setUsername] = useState(user?.username || (user?.name ? user.name.replace(/\s+/g, '').toLowerCase() : ''));
+  const [selectedPersona, setSelectedPersona] = useState<Persona>(user?.persona || 'Creator');
   const [selectedInterests, setSelectedInterests] = useState<string[]>(existingInterests);
   const [loading, setLoading] = useState(false);
 
@@ -35,6 +42,7 @@ export default function OnboardingModal() {
     if (!shouldShow || !user) return;
     setUsername(user.username || (user.name ? user.name.replace(/\s+/g, '').toLowerCase() : ''));
     setSelectedInterests(existingInterests);
+    if (user.persona) setSelectedPersona(user.persona);
   }, [shouldShow, user?.id]);
 
   useEffect(() => {
@@ -99,6 +107,7 @@ export default function OnboardingModal() {
         name: sanitizedUsername,
         interests: selectedInterests,
         productCategories: selectedInterests,
+        persona: selectedPersona,
         updatedAt: new Date().toISOString()
       };
 
@@ -119,6 +128,7 @@ export default function OnboardingModal() {
           name: payload.name,
           interests: payload.interests,
           productCategories: payload.productCategories,
+          persona: payload.persona,
         });
       } catch (apiErr: unknown) {
         const msg = apiErr instanceof Error ? apiErr.message : String(apiErr);
@@ -139,6 +149,7 @@ export default function OnboardingModal() {
           username: payload.username,
           interests: payload.interests,
           productCategories: payload.productCategories,
+          persona: payload.persona,
         });
       }
       console.info('[onboarding] submit:backendSuccess', backendResponse);
@@ -223,6 +234,39 @@ export default function OnboardingModal() {
               required
               autoFocus
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-white/40 mb-3 ml-1">Select your persona</label>
+            <div className="flex flex-col gap-2">
+              {PERSONAS.map((p) => {
+                const isSelected = selectedPersona === p;
+                const info = PERSONA_INFO[p];
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedPersona(p); }}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-all border-2 ${
+                      isSelected
+                        ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500 shadow-lg shadow-purple-500/10'
+                        : 'bg-white/5 border-white/5 hover:border-white/20'
+                    }`}
+                  >
+                    <span className="text-2xl">{info.icon}</span>
+                    <div className="flex-1">
+                      <p className={`text-sm font-bold ${isSelected ? 'text-white' : 'text-white/70'}`}>{p}</p>
+                      <p className={`text-xs ${isSelected ? 'text-white/60' : 'text-white/40'}`}>{info.desc}</p>
+                    </div>
+                    {isSelected && (
+                      <svg className="w-5 h-5 text-purple-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div>

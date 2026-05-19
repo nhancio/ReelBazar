@@ -2,12 +2,20 @@ import { Router, Request, Response } from 'express';
 import { db } from '../utils/firebase';
 import { authMiddleware, requireRegistered } from '../middleware/auth';
 import { generateCollaborationSuggestions } from '../services/matching';
+import { createRateLimit } from '../middleware/rateLimit';
+import { ValidationError, normalizeDocumentId } from '../utils/validation';
 
 export const collaborationsRouter = Router();
 collaborationsRouter.use(authMiddleware, requireRegistered);
+const suggestionsRateLimit = createRateLimit({
+  keyPrefix: 'collab-suggestions',
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: 'Too many suggestion requests. Please try again later.',
+});
 
 // Get AI-suggested collaborations
-collaborationsRouter.get('/suggestions', async (req: Request, res: Response) => {
+collaborationsRouter.get('/suggestions', suggestionsRateLimit, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
 
@@ -76,7 +84,19 @@ collaborationsRouter.patch('/:id', async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Status must be accepted or declined' });
     }
 
-    const docRef = db().collection('collaborations').doc(req.params.id);
+    const docRef = db().collection('collaborations').doc(normalizeDocumentId(req.params.id, 'Collaboration id'));
+    const currentUserId = req.user!.id;
+    const existingDoc = await docRef.get();
+    const existingData = existingDoc.data();
+
+    if (!existingDoc.exists || !existingData) {
+      return res.status(404).json({ message: 'Collaboration not found' });
+    }
+
+    if (existingData.brandId !== currentUserId && existingData.influencerId !== currentUserId) {
+      return res.status(403).json({ message: 'Not authorized to update this collaboration' });
+    }
+
     await docRef.update({ status, updatedAt: new Date().toISOString() });
 
     const doc = await docRef.get();
@@ -101,6 +121,8 @@ collaborationsRouter.patch('/:id', async (req: Request, res: Response) => {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error updating collaboration:', message);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(error instanceof ValidationError ? 400 : 500).json({
+      message: error instanceof ValidationError ? message : 'Internal server error',
+    });
   }
 });

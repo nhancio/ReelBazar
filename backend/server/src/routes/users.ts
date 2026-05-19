@@ -3,6 +3,15 @@ import { db, admin, storage } from '../utils/firebase';
 import { authMiddleware, requireRegistered } from '../middleware/auth';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
+import { createRateLimit } from '../middleware/rateLimit';
+import { ALLOWED_IMAGE_TYPES, assertAllowedMimeType, assertFileSignature, safeObjectName } from '../utils/uploadSecurity';
+import {
+  ValidationError,
+  normalizeDocumentId,
+  normalizeString,
+  normalizeStringArray,
+  normalizeThemePreference,
+} from '../utils/validation';
 
 const FieldValue = admin.firestore.FieldValue;
 
@@ -10,23 +19,33 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit for images
   fileFilter: (_req, file, cb) => {
-    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-    cb(null, allowed.includes(file.mimetype));
+    cb(null, ALLOWED_IMAGE_TYPES.has(file.mimetype));
   },
 });
 
 export const usersRouter = Router();
+const avatarRateLimit = createRateLimit({
+  keyPrefix: 'users-avatar',
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  message: 'Too many avatar upload attempts. Please try again later.',
+});
 
 usersRouter.put('/me', authMiddleware, requireRegistered, async (req: Request, res: Response) => {
   try {
     const updates = req.body;
     // Basic validation
     const allowedFields = ['name', 'username', 'brandName', 'productCategories', 'interests', 'themePreference'];
-    const updateData: Record<string, any> = {};
+    const updateData: Record<string, unknown> = { updatedAt: new Date().toISOString() };
     
     for (const field of allowedFields) {
       if (updates[field] !== undefined) {
-        updateData[field] = updates[field];
+        if (field === 'name') updateData[field] = normalizeString(updates[field], { minLength: 2, maxLength: 80 });
+        if (field === 'username') updateData[field] = normalizeString(updates[field], { minLength: 2, maxLength: 40, allowEmpty: true });
+        if (field === 'brandName') updateData[field] = normalizeString(updates[field], { maxLength: 120, allowEmpty: true });
+        if (field === 'productCategories') updateData[field] = normalizeStringArray(updates[field], { maxItems: 10, maxLength: 40 });
+        if (field === 'interests') updateData[field] = normalizeStringArray(updates[field], { maxItems: 20, maxLength: 60 });
+        if (field === 'themePreference') updateData[field] = normalizeThemePreference(updates[field]);
       }
     }
 
@@ -42,22 +61,31 @@ usersRouter.put('/me', authMiddleware, requireRegistered, async (req: Request, r
     res.json({ user: { id: doc.id, ...doc.data() } });
   } catch (error: any) {
     console.error('Error updating profile:', error.message);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(error instanceof ValidationError ? 400 : 500).json({
+      message: error instanceof ValidationError ? error.message : 'Internal server error',
+    });
   }
 });
 
-usersRouter.post('/me/avatar', authMiddleware, requireRegistered, upload.single('file'), async (req: Request, res: Response) => {
+usersRouter.post('/me/avatar', avatarRateLimit, authMiddleware, requireRegistered, upload.single('file'), async (req: Request, res: Response) => {
   if (!req.file) {
     return res.status(400).json({ message: 'Image file is required' });
   }
 
   try {
+    assertAllowedMimeType(req.file.mimetype, ALLOWED_IMAGE_TYPES, 'image');
+    assertFileSignature(req.file.buffer, req.file.mimetype, 'Image');
+
     const bucket = storage();
-    const filename = `avatars/${req.user!.id}-${uuidv4()}`;
+    const filename = safeObjectName('avatars', `${req.user!.id}-${uuidv4()}`, req.file.originalname);
     const file = bucket.file(filename);
 
     await file.save(req.file.buffer, {
-      metadata: { contentType: req.file.mimetype },
+      resumable: false,
+      metadata: {
+        contentType: req.file.mimetype,
+        cacheControl: 'public, max-age=31536000, immutable',
+      },
     });
 
     await file.makePublic();
@@ -70,7 +98,9 @@ usersRouter.post('/me/avatar', authMiddleware, requireRegistered, upload.single(
     res.json({ avatarUrl, url: avatarUrl });
   } catch (error: any) {
     console.error('Error uploading avatar:', error.message);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(error instanceof ValidationError ? 400 : 500).json({
+      message: error instanceof ValidationError ? error.message : 'Internal server error',
+    });
   }
 });
 
@@ -89,7 +119,7 @@ usersRouter.get('/me/following', authMiddleware, requireRegistered, async (req: 
 
 usersRouter.post('/:id/follow', authMiddleware, requireRegistered, async (req: Request, res: Response) => {
   try {
-    const targetUserId = req.params.id;
+    const targetUserId = normalizeDocumentId(req.params.id, 'User id');
     const currentUserId = req.user!.id;
 
     if (targetUserId === currentUserId) {
@@ -148,11 +178,7 @@ usersRouter.get('/search', async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Search query is required' });
     }
 
-    const queryLower = q.toLowerCase().trim();
-
-    if (queryLower.length < 2) {
-      return res.status(400).json({ message: 'Search query must be at least 2 characters' });
-    }
+    const queryLower = normalizeString(q, { minLength: 2, maxLength: 80 })!.toLowerCase();
 
     // Firestore doesn't support full-text search natively.
     // We search by name prefix and also fetch brands to filter client-side.
@@ -161,12 +187,12 @@ usersRouter.get('/search', async (req: Request, res: Response) => {
     const users = snapshot.docs
       .map((doc) => {
         const data = doc.data();
-        return { id: doc.id, name: data.name, email: data.email, avatarUrl: data.avatarUrl, brandName: data.brandName };
+        return { id: doc.id, name: data.name, avatarUrl: data.avatarUrl, brandName: data.brandName, username: data.username };
       })
       .filter((u) =>
         u.name?.toLowerCase().includes(queryLower) ||
         u.brandName?.toLowerCase().includes(queryLower) ||
-        u.email?.toLowerCase().includes(queryLower)
+        u.username?.toLowerCase().includes(queryLower)
       )
       .slice(0, 20);
 
@@ -174,13 +200,16 @@ usersRouter.get('/search', async (req: Request, res: Response) => {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error searching users:', message);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(error instanceof ValidationError ? 400 : 500).json({
+      message: error instanceof ValidationError ? message : 'Internal server error',
+    });
   }
 });
 
 usersRouter.get('/:id', async (req: Request, res: Response) => {
   try {
-    const doc = await db().collection('users').doc(req.params.id).get();
+    const userId = normalizeDocumentId(req.params.id, 'User id');
+    const doc = await db().collection('users').doc(userId).get();
 
     if (!doc.exists) return res.status(404).json({ message: 'User not found' });
 
@@ -195,10 +224,6 @@ usersRouter.get('/:id', async (req: Request, res: Response) => {
         id: doc.id,
         name: data.name,
         username: data.username,
-        email: data.email,
-        phone: data.phone,
-        gender: data.gender,
-        age: data.age,
         brandName: data.brandName,
         productCategories: data.productCategories,
         interests: data.interests,
@@ -213,6 +238,8 @@ usersRouter.get('/:id', async (req: Request, res: Response) => {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error fetching user:', message);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(error instanceof ValidationError ? 400 : 500).json({
+      message: error instanceof ValidationError ? message : 'Internal server error',
+    });
   }
 });

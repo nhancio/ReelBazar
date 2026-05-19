@@ -10,7 +10,7 @@ const getEnvVar = (key: string): string | undefined => {
   return undefined;
 };
 
-export const API_BASE_URL = getEnvVar('NEXT_PUBLIC_API_URL') || getEnvVar('VITE_API_URL') || 'https://reelbazar-backend.vercel.app/api';
+export const API_BASE_URL = getEnvVar('NEXT_PUBLIC_API_URL') || getEnvVar('VITE_API_URL') || 'https://reelbazar-backend.vercel.app/api/v1';
 
 /** Public web app (SPA / Capacitor web assets). */
 export const APP_ORIGIN =
@@ -32,6 +32,9 @@ export const USER_TYPE_LABELS: Record<UserType, string> = {
   brand: 'Promote Your Products',
 };
 
+export const PERSONAS = ['Creator', 'Brand', 'User'] as const;
+export type Persona = (typeof PERSONAS)[number];
+
 export const GENDER_OPTIONS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'] as const;
 export type Gender = (typeof GENDER_OPTIONS)[number];
 
@@ -44,6 +47,7 @@ export interface User {
   name: string;
   username?: string | null;
   userType?: UserType;
+  persona?: Persona;
   phone?: string | null;
   gender?: Gender | null;
   dob?: string | null;
@@ -73,9 +77,22 @@ export interface Reel {
   brandTag?: string | null;
   likesCount: number;
   viewsCount: number;
+  clicksCount: number;
   savesCount: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface BrandProduct {
+  id: string;
+  brandId: string;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  productLink: string;
+  price?: string;
+  category?: string;
+  createdAt?: string;
 }
 
 export interface Collaboration {

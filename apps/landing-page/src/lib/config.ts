@@ -6,7 +6,7 @@ const getEnvVar = (key: string): string | undefined => {
 };
 
 export const API_BASE_URL =
-  getEnvVar("NEXT_PUBLIC_API_URL") || "https://reelbazar-backend.vercel.app/api";
+  getEnvVar("NEXT_PUBLIC_API_URL") || "https://reelbazar-backend.vercel.app/api/v1";
 
 export const LANDING_ORIGIN =
   getEnvVar("NEXT_PUBLIC_LANDING_ORIGIN") || "https://rava.one";

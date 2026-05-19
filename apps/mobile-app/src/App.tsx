@@ -8,7 +8,7 @@ import { OnboardingScreen } from './screens/OnboardingScreen';
 import { MainTabs } from './navigation/MainTabs';
 import { AuthContext } from './context/AuthContext';
 
-const API_BASE_URL = 'http://localhost:4000/api';
+const API_BASE_URL = 'http://localhost:4000/api/v1';
 
 export default function App() {
   const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { InstaPostCard, AuthModal } from '@reelbazaar/ui';
 import { LoadingSpinner } from '@reelbazaar/ui';
@@ -345,6 +345,19 @@ export default function HomePage() {
     setReelMutedState((prev) => ({ ...prev, [reelId]: muted }));
   }, []);
 
+  const viewedReelsRef = useRef(new Set<string>());
+  const trackView = useCallback((reelId: string) => {
+    if (viewedReelsRef.current.has(reelId)) return;
+    viewedReelsRef.current.add(reelId);
+    updateDoc(doc(db, 'reels', reelId), { viewsCount: increment(1) }).catch(() => {});
+    setReels(prev => prev.map(r => r.id === reelId ? { ...r, viewsCount: (r.viewsCount || 0) + 1 } : r));
+  }, []);
+
+  const trackProductClick = useCallback((reelId: string) => {
+    updateDoc(doc(db, 'reels', reelId), { clicksCount: increment(1) }).catch(() => {});
+    setReels(prev => prev.map(r => r.id === reelId ? { ...r, clicksCount: (r.clicksCount || 0) + 1 } : r));
+  }, []);
+
   return (
     <div className={`relative h-full w-full overflow-y-auto hide-scrollbar ${theme === 'light' ? 'bg-[#f6f7fb] text-black' : 'bg-black text-white'}`}>
       {/* Instagram Header */}
@@ -403,6 +416,8 @@ export default function HomePage() {
               saveDisabled={savePending.has(reel.id)}
               guestMode={guestMode}
               onRequireAuth={handleRequireAuth}
+              onView={() => trackView(reel.id)}
+              onProductLinkClick={() => trackProductClick(reel.id)}
               onLike={() => handleLike(reel.id)}
               onSave={() => handleSave(reel.id)}
               onShare={() => handleShare(reel.id)}

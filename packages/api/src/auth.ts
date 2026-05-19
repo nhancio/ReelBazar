@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { User, Gender } from '@reelbazaar/config';
+import type { User, Gender, Persona } from '@reelbazaar/config';
 
 interface RegisterPayload {
   firebaseUid: string;
@@ -15,6 +15,7 @@ interface RegisterPayload {
   productCategories?: string[];
   interests?: string[];
   themePreference?: 'dark' | 'light';
+  persona?: Persona;
 }
 
 export const authApi = {

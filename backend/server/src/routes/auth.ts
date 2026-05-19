@@ -1,32 +1,44 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../utils/firebase';
 import { authMiddleware } from '../middleware/auth';
+import { createRateLimit } from '../middleware/rateLimit';
+import {
+  ValidationError,
+  normalizeOptionalEmail,
+  normalizeOptionalUrl,
+  normalizeString,
+  normalizeStringArray,
+  normalizeThemePreference,
+} from '../utils/validation';
 
 export const authRouter = Router();
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const URL_REGEX = /^https?:\/\/.+/;
+const registerRateLimit = createRateLimit({
+  keyPrefix: 'auth-register',
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'Too many registration attempts. Please try again later.',
+});
 
 // Register new user
-authRouter.post('/register', authMiddleware, async (req: Request, res: Response) => {
+authRouter.post('/register', registerRateLimit, authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { name, username, email, phone, gender, dob, country, websiteLink, brandName, productCategories, interests, themePreference } = req.body;
-
-    if (!name) {
-      return res.status(400).json({ message: 'Name is required' });
-    }
-
-    if (typeof name !== 'string' || name.trim().length < 2) {
-      return res.status(400).json({ message: 'Name must be at least 2 characters' });
-    }
-
-    if (email && !EMAIL_REGEX.test(email)) {
-      return res.status(400).json({ message: 'Invalid email format' });
-    }
-
-    if (websiteLink && !URL_REGEX.test(websiteLink)) {
-      return res.status(400).json({ message: 'Website link must be a valid URL' });
-    }
+    const { name, username, email, phone, gender, dob, country, websiteLink, brandName, productCategories, interests, themePreference, persona } = req.body;
+    const safeName = normalizeString(name, { minLength: 2, maxLength: 80 });
+    const safeUsername =
+      normalizeString(username, { minLength: 2, maxLength: 40, allowEmpty: true }) ??
+      safeName!.replace(/\s+/g, '').toLowerCase();
+    const safeEmail = normalizeOptionalEmail(email);
+    const safeWebsiteLink = normalizeOptionalUrl(websiteLink);
+    const safePhone = normalizeString(phone, { maxLength: 30, allowEmpty: true });
+    const safeGender = normalizeString(gender, { maxLength: 32, allowEmpty: true });
+    const safeDob = normalizeString(dob, { maxLength: 32, allowEmpty: true });
+    const safeCountry = normalizeString(country, { maxLength: 80, allowEmpty: true });
+    const safeBrandName = normalizeString(brandName, { maxLength: 120, allowEmpty: true });
+    const safeProductCategories = normalizeStringArray(productCategories ?? interests, { maxItems: 10, maxLength: 40 });
+    const safeInterests = normalizeStringArray(interests ?? productCategories, { maxItems: 20, maxLength: 60 });
+    const safeThemePreference = normalizeThemePreference(themePreference) ?? 'dark';
+    const validPersonas = ['Creator', 'Brand', 'User'];
+    const safePersona = validPersonas.includes(persona) ? persona : 'Creator';
 
     // Check if already registered
     const usersRef = db().collection('users');
@@ -47,21 +59,24 @@ authRouter.post('/register', authMiddleware, async (req: Request, res: Response)
     const now = new Date().toISOString();
     const userData = {
       firebaseUid: req.user!.firebaseUid,
-      name: name.trim(),
-      username: username || name.trim().replace(/\s+/g, '').toLowerCase(),
-      email: email || null,
-      phone: phone || null,
-      gender: gender || null,
-      dob: dob || null,
-      country: country || null,
-      websiteLink: websiteLink || null,
-      brandName: brandName || null,
-      productCategories: productCategories || interests || [],
-      interests: interests || productCategories || [],
-      themePreference: themePreference || 'dark',
+      name: safeName,
+      username: safeUsername,
+      email: safeEmail,
+      phone: safePhone,
+      gender: safeGender,
+      dob: safeDob,
+      country: safeCountry,
+      websiteLink: safeWebsiteLink,
+      brandName: safeBrandName,
+      productCategories: safeProductCategories,
+      interests: safeInterests,
+      persona: safePersona,
+      themePreference: safeThemePreference,
       avatarUrl: null,
       createdAt: now,
       updatedAt: now,
+      followersCount: 0,
+      followingCount: 0,
     };
 
     // Use firebaseUid as document ID for faster lookup
@@ -71,7 +86,9 @@ authRouter.post('/register', authMiddleware, async (req: Request, res: Response)
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error registering user:', message);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(error instanceof ValidationError ? 400 : 500).json({
+      message: error instanceof ValidationError ? message : 'Internal server error',
+    });
   }
 });
 
@@ -102,34 +119,26 @@ authRouter.patch('/me', authMiddleware, async (req: Request, res: Response) => {
       return res.status(403).json({ message: 'User not registered' });
     }
 
-    const { name, username, email, phone, gender, dob, country, websiteLink, brandName, productCategories, interests, themePreference, avatarUrl } = req.body;
-
-    if (email !== undefined && email !== null && !EMAIL_REGEX.test(email)) {
-      return res.status(400).json({ message: 'Invalid email format' });
-    }
-
-    if (websiteLink !== undefined && websiteLink !== null && !URL_REGEX.test(websiteLink)) {
-      return res.status(400).json({ message: 'Website link must be a valid URL' });
-    }
-
-    if (name !== undefined && (typeof name !== 'string' || name.trim().length < 2)) {
-      return res.status(400).json({ message: 'Name must be at least 2 characters' });
-    }
+    const { name, username, email, phone, gender, dob, country, websiteLink, brandName, productCategories, interests, themePreference, avatarUrl, persona } = req.body;
 
     const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
-    if (name !== undefined) updates.name = name.trim();
-    if (username !== undefined) updates.username = username;
-    if (email !== undefined) updates.email = email;
-    if (phone !== undefined) updates.phone = phone;
-    if (gender !== undefined) updates.gender = gender;
-    if (dob !== undefined) updates.dob = dob;
-    if (country !== undefined) updates.country = country;
-    if (websiteLink !== undefined) updates.websiteLink = websiteLink;
-    if (brandName !== undefined) updates.brandName = brandName;
-    if (productCategories !== undefined) updates.productCategories = productCategories;
-    if (interests !== undefined) updates.interests = interests;
-    if (themePreference !== undefined) updates.themePreference = themePreference;
-    if (avatarUrl !== undefined) updates.avatarUrl = avatarUrl;
+    if (name !== undefined) updates.name = normalizeString(name, { minLength: 2, maxLength: 80 });
+    if (username !== undefined) updates.username = normalizeString(username, { minLength: 2, maxLength: 40, allowEmpty: true });
+    if (email !== undefined) updates.email = normalizeOptionalEmail(email);
+    if (phone !== undefined) updates.phone = normalizeString(phone, { maxLength: 30, allowEmpty: true });
+    if (gender !== undefined) updates.gender = normalizeString(gender, { maxLength: 32, allowEmpty: true });
+    if (dob !== undefined) updates.dob = normalizeString(dob, { maxLength: 32, allowEmpty: true });
+    if (country !== undefined) updates.country = normalizeString(country, { maxLength: 80, allowEmpty: true });
+    if (websiteLink !== undefined) updates.websiteLink = normalizeOptionalUrl(websiteLink);
+    if (brandName !== undefined) updates.brandName = normalizeString(brandName, { maxLength: 120, allowEmpty: true });
+    if (productCategories !== undefined) updates.productCategories = normalizeStringArray(productCategories, { maxItems: 10, maxLength: 40 });
+    if (interests !== undefined) updates.interests = normalizeStringArray(interests, { maxItems: 20, maxLength: 60 });
+    if (themePreference !== undefined) updates.themePreference = normalizeThemePreference(themePreference);
+    if (avatarUrl !== undefined) updates.avatarUrl = normalizeOptionalUrl(avatarUrl);
+    if (persona !== undefined) {
+      const validPersonas = ['Creator', 'Brand', 'User'];
+      if (validPersonas.includes(persona)) updates.persona = persona;
+    }
 
     console.log('[authRouter.patch:/me] updateProfile request', {
       userId: req.user.id,
@@ -143,6 +152,8 @@ authRouter.patch('/me', authMiddleware, async (req: Request, res: Response) => {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error updating profile:', message);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(error instanceof ValidationError ? 400 : 500).json({
+      message: error instanceof ValidationError ? message : 'Internal server error',
+    });
   }
 });

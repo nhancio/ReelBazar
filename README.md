@@ -138,31 +138,31 @@ npx react-native run-android
 ## API Endpoints
 
 ### Auth
-- `POST /api/auth/register` - Register new user
-- `GET /api/auth/me` - Get current user
-- `PATCH /api/auth/me` - Update profile
+- `POST /api/v1/auth/register` - Register new user
+- `GET /api/v1/auth/me` - Get current user
+- `PATCH /api/v1/auth/me` - Update profile
 
 ### Reels
-- `GET /api/reels` - Get feed (`?category=Men&cursor=...&limit=10`)
-- `GET /api/reels/:id` - Get single reel
-- `GET /api/reels/user/:userId` - Get user's reels
-- `POST /api/reels/upload` - Upload reel (multipart → Firebase Storage)
-- `POST /api/reels/:id/like` - Toggle like
-- `POST /api/reels/:id/save` - Toggle save
-- `POST /api/reels/:id/view` - Record view
-- `DELETE /api/reels/:id` - Delete reel (also deletes from Storage)
+- `GET /api/v1/reels` - Get feed (`?category=Men&cursor=...&limit=10`)
+- `GET /api/v1/reels/:id` - Get single reel
+- `GET /api/v1/reels/user/:userId` - Get user's reels
+- `POST /api/v1/reels/upload` - Upload reel (multipart → Firebase Storage)
+- `POST /api/v1/reels/:id/like` - Toggle like
+- `POST /api/v1/reels/:id/save` - Toggle save
+- `POST /api/v1/reels/:id/view` - Record view
+- `DELETE /api/v1/reels/:id` - Delete reel (also deletes from Storage)
 
 ### Users
-- `GET /api/users/search?q=query` - Search users
-- `GET /api/users/:id` - Get user profile
+- `GET /api/v1/users/search?q=query` - Search users
+- `GET /api/v1/users/:id` - Get user profile
 
 ### Collaborations
-- `GET /api/collaborations/suggestions` - AI-powered suggestions
-- `GET /api/collaborations` - Get my collaborations
-- `PATCH /api/collaborations/:id` - Accept/decline
+- `GET /api/v1/collaborations/suggestions` - AI-powered suggestions
+- `GET /api/v1/collaborations` - Get my collaborations
+- `PATCH /api/v1/collaborations/:id` - Accept/decline
 
 ### Upload
-- `POST /api/upload/avatar` - Upload avatar to Firebase Storage
+- `POST /api/v1/upload/avatar` - Upload avatar to Firebase Storage
 
 ## User Types
 
