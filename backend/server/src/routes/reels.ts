@@ -243,12 +243,13 @@ reelsRouter.post('/upload', uploadRateLimit, authMiddleware, requireRegistered, 
       return res.status(400).json({ message: 'Video file is required' });
     }
 
-    const { productLink, category, caption, brandTag } = req.body;
+    const { productLink, category, caption, brandTag, brandId } = req.body;
 
     const safeProductLink = normalizeOptionalUrl(productLink);
     const safeCategory = normalizeString(category, { maxLength: 20 });
     const safeCaption = normalizeString(caption, { maxLength: 500, allowEmpty: true, preserveNewlines: true });
     const safeBrandTag = normalizeString(brandTag, { maxLength: 80, allowEmpty: true });
+    const safeBrandId = brandId ? normalizeDocumentId(brandId, 'Brand id') : null;
 
     if (!safeProductLink || !safeCategory) {
       return res.status(400).json({ message: 'productLink and category are required' });
@@ -285,6 +286,7 @@ reelsRouter.post('/upload', uploadRateLimit, authMiddleware, requireRegistered, 
       category: safeCategory,
       caption: safeCaption,
       brandTag: safeBrandTag,
+      brandId: safeBrandId,
       creatorId: req.user!.id,
       likesCount: 0,
       viewsCount: 0,

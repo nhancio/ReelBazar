@@ -51,7 +51,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [user, setUser] = useState<User | null>(() => {
     const cached = localStorage.getItem(USER_CACHE_KEY);
-    return cached ? JSON.parse(cached) : null;
+    if (!cached) return null;
+    try {
+      return JSON.parse(cached);
+    } catch {
+      localStorage.removeItem(USER_CACHE_KEY);
+      return null;
+    }
   });
   const [loading, setLoading] = useState(true);
   const [isNewUser, setIsNewUser] = useState<boolean>(() => localStorage.getItem(NEW_USER_KEY) === 'true');

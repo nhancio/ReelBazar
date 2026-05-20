@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SUPPORTED_VIDEO_TYPES, MAX_FILE_SIZE } from '@reelbazaar/config';
+import { SUPPORTED_VIDEO_TYPES, MAX_FILE_SIZE, type User } from '@reelbazaar/config';
 import { NavigationArrows } from '../components/NavigationArrows';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -8,6 +8,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, storage } from '../firebase';
 import { v4 as uuidv4 } from 'uuid';
+import { collaborationsApi } from '@reelbazaar/api';
 
 export default function CreateReelPage() {
   const { guestMode, user } = useAuth();
@@ -19,9 +20,25 @@ export default function CreateReelPage() {
   const [productLink, setProductLink] = useState('');
   const [caption, setCaption] = useState('');
   const [brandTag, setBrandTag] = useState('');
+  const [brandId, setBrandId] = useState('');
+  const [dealBrands, setDealBrands] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const loadDealBrands = async () => {
+      if (!user || guestMode) return;
+      try {
+        const response = await collaborationsApi.getDealBrands();
+        setDealBrands(response.brands);
+      } catch (err) {
+        console.error('Failed to load deal brands:', err);
+        setDealBrands([]);
+      }
+    };
+    loadDealBrands();
+  }, [guestMode, user]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
@@ -85,6 +102,7 @@ export default function CreateReelPage() {
         productLink,
         caption: caption || null,
         brandTag: brandTag || null,
+        brandId: brandId || null,
         creatorId: auth.currentUser?.uid ?? user.id,
         likesCount: 0,
         viewsCount: 0,
@@ -216,10 +234,32 @@ export default function CreateReelPage() {
 
         <div>
           <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-white/45">Brand tag</label>
+          {dealBrands.length > 0 && (
+            <select
+              value={brandId}
+              onChange={(e) => {
+                const selectedBrandId = e.target.value;
+                setBrandId(selectedBrandId);
+                const selected = dealBrands.find((brand) => brand.id === selectedBrandId);
+                if (selected) setBrandTag(selected.brandName || selected.name);
+              }}
+              className={`${fieldClass} mb-2`}
+            >
+              <option value="">Select a deal brand</option>
+              {dealBrands.map((brand) => (
+                <option key={brand.id} value={brand.id}>
+                  {brand.brandName || brand.name}
+                </option>
+              ))}
+            </select>
+          )}
           <input
             type="text"
             value={brandTag}
-            onChange={(e) => setBrandTag(e.target.value)}
+            onChange={(e) => {
+              setBrandTag(e.target.value);
+              setBrandId('');
+            }}
             placeholder="@brand"
             className={fieldClass}
           />

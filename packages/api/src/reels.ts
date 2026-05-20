@@ -6,6 +6,7 @@ interface CreateReelPayload {
   category: Category;
   caption?: string;
   brandTag?: string;
+  brandId?: string;
 }
 
 interface ReelsResponse {
@@ -43,6 +44,7 @@ export const reelsApi = {
       category: data.category,
       ...(data.caption && { caption: data.caption }),
       ...(data.brandTag && { brandTag: data.brandTag }),
+      ...(data.brandId && { brandId: data.brandId }),
     }, onProgress),
 
   like: (id: string) =>

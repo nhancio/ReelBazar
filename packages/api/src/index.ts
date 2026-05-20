@@ -3,3 +3,10 @@ export { authApi } from './auth';
 export { reelsApi } from './reels';
 export { usersApi } from './users';
 export { collaborationsApi } from './collaborations';
+export type {
+  BrandMatch,
+  InfluencerMatch,
+  BrandSearchPayload,
+  ProductListingPayload,
+  DealPayload,
+} from './collaborations';

@@ -3,7 +3,6 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Avatar, LoadingSpinner } from '@reelbazaar/ui';
 import { NavigationArrows } from '../components/NavigationArrows';
-import BrowseUsersModal from '../components/BrowseUsersModal';
 import type { User, Reel } from '@reelbazaar/config';
 import {
   doc,
@@ -80,7 +79,6 @@ export default function ProfilePage() {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [followPendingIds, setFollowPendingIds] = useState<Set<string>>(new Set());
-  const [browseType, setBrowseType] = useState<'Creator' | 'Brand' | null>(null);
 
   const isOwnProfile = !userId || userId === currentUser?.id;
   const displayUser = isOwnProfile ? currentUser : profileUser;
@@ -597,7 +595,7 @@ export default function ProfilePage() {
 
         <div className="mt-3 flex gap-2">
           <button
-            onClick={() => setBrowseType('Creator')}
+            onClick={() => navigate('/matches/influencers')}
             className={`flex-1 flex items-center justify-center gap-2 font-semibold rounded-xl py-2.5 text-[13px] transition-all border ${
               theme === 'light'
                 ? 'border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100'
@@ -610,7 +608,7 @@ export default function ProfilePage() {
             Creators
           </button>
           <button
-            onClick={() => setBrowseType('Brand')}
+            onClick={() => navigate('/matches/brands')}
             className={`flex-1 flex items-center justify-center gap-2 font-semibold rounded-xl py-2.5 text-[13px] transition-all border ${
               theme === 'light'
                 ? 'border-pink-200 bg-pink-50 text-pink-700 hover:bg-pink-100'
@@ -623,6 +621,19 @@ export default function ProfilePage() {
             Brands
           </button>
         </div>
+
+        {isOwnProfile && (displayUser.persona === 'Brand' || displayUser.userType === 'brand' || displayUser.brandName) && (
+          <button
+            onClick={() => navigate('/brand/performance')}
+            className={`mt-2 w-full rounded-xl border py-2.5 text-[13px] font-semibold transition-colors ${
+              theme === 'light'
+                ? 'border-black/10 bg-white text-black hover:bg-black/5'
+                : 'border-white/10 bg-white/10 text-white hover:bg-white/15'
+            }`}
+          >
+            See how your products are doing
+          </button>
+        )}
       </div>
 
       <div className={`flex mt-2 border-t ${theme === 'light' ? 'border-black/10' : 'border-white/20'}`}>
@@ -736,13 +747,6 @@ export default function ProfilePage() {
 
       {renderUserListModal('Followers', followersList, showFollowers, () => setShowFollowers(false))}
       {renderUserListModal('Following', followingList, showFollowing, () => setShowFollowing(false))}
-
-      {browseType && (
-        <BrowseUsersModal
-          type={browseType}
-          onClose={() => setBrowseType(null)}
-        />
-      )}
     </div>
   );
 }
