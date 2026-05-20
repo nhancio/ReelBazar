@@ -54,6 +54,9 @@ export const reelsApi = {
   view: (id: string) =>
     api.post<void>(`/reels/${id}/view`),
 
+  share: (id: string) =>
+    api.post<{ counted: boolean; sharesCount?: number }>(`/reels/${id}/share`),
+
   delete: (id: string) =>
     api.delete<void>(`/reels/${id}`),
 };

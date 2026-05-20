@@ -288,6 +288,7 @@ reelsRouter.post('/upload', uploadRateLimit, authMiddleware, requireRegistered, 
       creatorId: req.user!.id,
       likesCount: 0,
       viewsCount: 0,
+      sharesCount: 0,
       savesCount: 0,
       createdAt: now,
       updatedAt: now,
@@ -360,6 +361,50 @@ reelsRouter.post('/:id/save', authMiddleware, requireRegistered, async (req: Req
       savesCount: FieldValue.increment(1),
     });
     res.json({ saved: true });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(error instanceof ValidationError ? 400 : 500).json({
+      message: error instanceof ValidationError ? message : 'Internal server error',
+    });
+  }
+});
+
+// Record share
+reelsRouter.post('/:id/share', authMiddleware, requireRegistered, async (req: Request, res: Response) => {
+  try {
+    const reelId = normalizeDocumentId(req.params.id, 'Reel id');
+    const userId = req.user!.id;
+    const shareId = `${userId}_${reelId}`;
+    const now = new Date().toISOString();
+
+    const reelRef = db().collection('reels').doc(reelId);
+    const shareRef = db().collection('reelShares').doc(shareId);
+
+    const result = await db().runTransaction(async (transaction) => {
+      const [reelDoc, shareDoc] = await Promise.all([
+        transaction.get(reelRef),
+        transaction.get(shareRef),
+      ]);
+
+      if (!reelDoc.exists) {
+        throw new ValidationError('Reel not found');
+      }
+
+      const currentShares = Number(reelDoc.data()?.sharesCount || 0);
+      if (shareDoc.exists) {
+        return { counted: false, sharesCount: currentShares };
+      }
+
+      transaction.set(shareRef, { userId, reelId, createdAt: now, lastSharedAt: now });
+      transaction.update(reelRef, {
+        sharesCount: FieldValue.increment(1),
+        updatedAt: now,
+      });
+
+      return { counted: true, sharesCount: currentShares + 1 };
+    });
+
+    res.json(result);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(error instanceof ValidationError ? 400 : 500).json({

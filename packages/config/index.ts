@@ -77,6 +77,7 @@ export interface Reel {
   brandTag?: string | null;
   likesCount: number;
   viewsCount: number;
+  sharesCount: number;
   clicksCount: number;
   savesCount: number;
   createdAt: string;

@@ -88,6 +88,7 @@ export default function CreateReelPage() {
         creatorId: auth.currentUser?.uid ?? user.id,
         likesCount: 0,
         viewsCount: 0,
+        sharesCount: 0,
         savesCount: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
