@@ -6,7 +6,7 @@ import { APP_NAME } from '@reelbazaar/config';
 import { useTheme } from '../context/ThemeContext';
 
 export default function AuthPage() {
-  const { enterGuestMode, exitGuestMode, authError, clearAuthError } = useAuth();
+  const { exitGuestMode, authError, clearAuthError } = useAuth();
   const { theme } = useTheme();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -68,14 +68,6 @@ export default function AuthPage() {
                 Continue with Google
               </>
             )}
-          </button>
-
-          <button
-            type="button"
-            className={`w-full flex items-center justify-center gap-3 rounded-2xl border py-5 text-[16px] font-bold transition-all active:scale-95 shadow-xl ${theme === 'light' ? 'bg-white border-gray-200 text-black hover:bg-gray-50 shadow-black/5' : 'bg-black border-white/20 text-white hover:bg-white/10 shadow-white/5'}`}
-            onClick={() => enterGuestMode()}
-          >
-            Guest Mode
           </button>
         </div>
       </div>
