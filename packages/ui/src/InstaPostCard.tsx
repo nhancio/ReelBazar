@@ -305,6 +305,10 @@ export function InstaPostCard({
           </svg>
           {(reel.viewsCount || 0).toLocaleString()} views
         </span>
+        <span className={`text-[13px] ${theme === 'light' ? 'text-slate-400' : 'text-white/30'}`}>|</span>
+        <span className={`text-[13px] font-semibold ${theme === 'light' ? 'text-slate-600' : 'text-white/70'}`}>
+          {(reel.sharesCount || 0).toLocaleString()} shares
+        </span>
       </div>
 
       {/* Caption */}

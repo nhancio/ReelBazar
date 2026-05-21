@@ -79,6 +79,7 @@ async function main() {
   const likes = await deleteRelated('reelLikes', toDelete, apply);
   const saves = await deleteRelated('reelSaves', toDelete, apply);
   const views = await deleteRelated('reelViews', toDelete, apply);
+  const shares = await deleteRelated('reelShares', toDelete, apply);
 
   if (apply && toDelete.length > 0) {
     for (const ids of chunk(toDelete, 450)) {
@@ -91,6 +92,7 @@ async function main() {
   console.log(`reelLikes ${apply ? 'deleted' : 'would delete'}: ${likes}`);
   console.log(`reelSaves ${apply ? 'deleted' : 'would delete'}: ${saves}`);
   console.log(`reelViews ${apply ? 'deleted' : 'would delete'}: ${views}`);
+  console.log(`reelShares ${apply ? 'deleted' : 'would delete'}: ${shares}`);
   console.log(`reels ${apply ? 'deleted' : 'would delete'}: ${toDelete.length}`);
 }
 
@@ -98,4 +100,3 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
-

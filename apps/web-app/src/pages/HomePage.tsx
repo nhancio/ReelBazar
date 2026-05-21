@@ -23,6 +23,7 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
+import { recordReelShare } from '../utils/reelShares';
 
 // Global cache to prevent lag when navigating between tabs
 let cachedReels: Reel[] = [];
@@ -40,6 +41,7 @@ export default function HomePage() {
   const [savedReels, setSavedReels] = useState<Set<string>>(new Set());
   const [likePending, setLikePending] = useState<Set<string>>(new Set());
   const [savePending, setSavePending] = useState<Set<string>>(new Set());
+  const [sharePending, setSharePending] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(cachedReels.length === 0);
   const [hasMore, setHasMore] = useState(cachedHasMore);
   const [error, setError] = useState<string | null>(null);
@@ -310,19 +312,41 @@ export default function HomePage() {
   };
 
   const handleShare = async (reelId: string) => {
+    if (guestMode || !currentUser) return handleRequireAuth();
+    if (sharePending.has(reelId)) return;
+
     const url = `${window.location.origin}/reel/${reelId}`;
-    if (navigator.share) {
-      try {
+    setSharePending((prev) => new Set(prev).add(reelId));
+
+    try {
+      if (navigator.share) {
         await navigator.share({
           title: `Check out this reel on ${APP_NAME}!`,
           url: url,
         });
-      } catch (err) {
-        console.error('Failed to share:', err);
+      } else {
+        await navigator.clipboard.writeText(url);
+        window.alert('Link copied to clipboard!');
       }
-    } else {
-      navigator.clipboard.writeText(url);
-      window.alert('Link copied to clipboard!');
+
+      const counted = await recordReelShare(reelId, currentUser.id);
+      if (counted) {
+        setReels((prev) =>
+          prev.map((reel) =>
+            reel.id === reelId
+              ? { ...reel, sharesCount: (reel.sharesCount || 0) + 1 }
+              : reel
+          )
+        );
+      }
+    } catch (err) {
+      console.error('Failed to share:', err);
+    } finally {
+      setSharePending((prev) => {
+        const next = new Set(prev);
+        next.delete(reelId);
+        return next;
+      });
     }
   };
 

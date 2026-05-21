@@ -51,30 +51,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [user, setUser] = useState<User | null>(() => {
     const cached = localStorage.getItem(USER_CACHE_KEY);
-    return cached ? JSON.parse(cached) : null;
+    if (!cached) return null;
+    try {
+      return JSON.parse(cached);
+    } catch {
+      localStorage.removeItem(USER_CACHE_KEY);
+      return null;
+    }
   });
   const [loading, setLoading] = useState(true);
   const [isNewUser, setIsNewUser] = useState<boolean>(() => localStorage.getItem(NEW_USER_KEY) === 'true');
   const [guestMode, setGuestMode] = useState<boolean>(() => {
-    if (auth.currentUser) {
-      localStorage.removeItem(GUEST_MODE_KEY);
-      localStorage.removeItem(`${GUEST_MODE_KEY}-role`);
-      return false;
-    }
-    return localStorage.getItem(GUEST_MODE_KEY) === 'true';
+    localStorage.removeItem(GUEST_MODE_KEY);
+    localStorage.removeItem(`${GUEST_MODE_KEY}-role`);
+    return false;
   });
   const [authError, setAuthError] = useState<string | null>(null);
 
   const clearAuthError = useCallback(() => setAuthError(null), []);
 
-  const enterGuestMode = useCallback((userType: UserType = 'influencer') => {
-    localStorage.setItem(GUEST_MODE_KEY, 'true');
-    localStorage.setItem(`${GUEST_MODE_KEY}-role`, userType);
-    setGuestMode(true);
-    setFirebaseUser(null);
-    setAuthToken(null);
-    setUser(null);
-    setLoading(false);
+  const enterGuestMode = useCallback((_userType: UserType = 'influencer') => {
+    localStorage.removeItem(GUEST_MODE_KEY);
+    localStorage.removeItem(`${GUEST_MODE_KEY}-role`);
+    setGuestMode(false);
   }, []);
 
   const exitGuestMode = useCallback(() => {

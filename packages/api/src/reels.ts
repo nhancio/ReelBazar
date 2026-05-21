@@ -6,6 +6,7 @@ interface CreateReelPayload {
   category: Category;
   caption?: string;
   brandTag?: string;
+  brandId?: string;
 }
 
 interface ReelsResponse {
@@ -43,6 +44,7 @@ export const reelsApi = {
       category: data.category,
       ...(data.caption && { caption: data.caption }),
       ...(data.brandTag && { brandTag: data.brandTag }),
+      ...(data.brandId && { brandId: data.brandId }),
     }, onProgress),
 
   like: (id: string) =>
@@ -53,6 +55,9 @@ export const reelsApi = {
 
   view: (id: string) =>
     api.post<void>(`/reels/${id}/view`),
+
+  share: (id: string) =>
+    api.post<{ counted: boolean; sharesCount?: number }>(`/reels/${id}/share`),
 
   delete: (id: string) =>
     api.delete<void>(`/reels/${id}`),

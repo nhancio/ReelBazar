@@ -54,6 +54,7 @@ async function seedVideos() {
       creatorId: creatorId,
       likesCount: Math.floor(Math.random() * 500) + 100,
       viewsCount: Math.floor(Math.random() * 10000) + 2000,
+      sharesCount: 0,
       savesCount: Math.floor(Math.random() * 100) + 20,
       createdAt: now,
       updatedAt: now,

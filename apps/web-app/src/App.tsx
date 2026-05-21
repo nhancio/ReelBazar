@@ -12,6 +12,9 @@ import CollaborationsPage from './pages/CollaborationsPage';
 import SingleReelPage from './pages/SingleReelPage';
 import OnboardingPage from './pages/OnboardingPage';
 import DiscoverPage from './pages/DiscoverPage';
+import BrandMatchesPage from './pages/BrandMatchesPage';
+import InfluencerSearchPage from './pages/InfluencerSearchPage';
+import BrandPerformancePage from './pages/BrandPerformancePage';
 
 export default function App() {
   const { firebaseUser, loading, isRegistered, guestMode, user } = useAuth();
@@ -59,6 +62,9 @@ export default function App() {
           <Route path="/profile/:userId" element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <ProfilePage />} />
           <Route path="/discover" element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <DiscoverPage />} />
           <Route path="/collaborations" element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <CollaborationsPage />} />
+          <Route path="/matches/brands" element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <BrandMatchesPage />} />
+          <Route path="/matches/influencers" element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <InfluencerSearchPage />} />
+          <Route path="/brand/performance" element={needsOnboarding ? <Navigate to="/onboarding" replace /> : <BrandPerformancePage />} />
         </Route>
         <Route path="*" element={<Navigate to={needsOnboarding ? '/onboarding' : '/'} replace />} />
       </Routes>

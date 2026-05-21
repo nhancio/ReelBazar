@@ -75,8 +75,10 @@ export interface Reel {
   creatorId: string;
   creator?: User;
   brandTag?: string | null;
+  brandId?: string | null;
   likesCount: number;
   viewsCount: number;
+  sharesCount: number;
   clicksCount: number;
   savesCount: number;
   createdAt: string;
@@ -93,6 +95,27 @@ export interface BrandProduct {
   price?: string;
   category?: string;
   createdAt?: string;
+}
+
+export interface BrandMatchPreference {
+  id?: string;
+  userId: string;
+  gender: Gender | 'Any';
+  ageGroup: AgeGroup | 'Any';
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ProductListing {
+  id: string;
+  brandId: string;
+  imageUrl: string;
+  gender: Gender | 'Any';
+  ageGroup: AgeGroup | 'Any';
+  productName?: string | null;
+  productLink?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Collaboration {

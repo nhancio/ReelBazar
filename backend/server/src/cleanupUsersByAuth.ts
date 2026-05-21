@@ -79,6 +79,7 @@ async function main() {
   const likes = await deleteByFieldIn('reelLikes', 'userId', usersToDelete, apply);
   const saves = await deleteByFieldIn('reelSaves', 'userId', usersToDelete, apply);
   const views = await deleteByFieldIn('reelViews', 'userId', usersToDelete, apply);
+  const shares = await deleteByFieldIn('reelShares', 'userId', usersToDelete, apply);
   const collabBrand = await deleteByFieldIn('collaborations', 'brandId', usersToDelete, apply);
   const collabInfluencer = await deleteByFieldIn('collaborations', 'influencerId', usersToDelete, apply);
 
@@ -95,6 +96,7 @@ async function main() {
   console.log(`reelLikes ${apply ? 'deleted' : 'would delete'}: ${likes}`);
   console.log(`reelSaves ${apply ? 'deleted' : 'would delete'}: ${saves}`);
   console.log(`reelViews ${apply ? 'deleted' : 'would delete'}: ${views}`);
+  console.log(`reelShares ${apply ? 'deleted' : 'would delete'}: ${shares}`);
   console.log(`collaborations (brandId) ${apply ? 'deleted' : 'would delete'}: ${collabBrand}`);
   console.log(`collaborations (influencerId) ${apply ? 'deleted' : 'would delete'}: ${collabInfluencer}`);
   console.log(`users ${apply ? 'deleted' : 'would delete'}: ${usersToDelete.length}`);
@@ -104,4 +106,3 @@ main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
-

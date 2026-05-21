@@ -124,6 +124,7 @@ async function main() {
       creatorId: reel.creatorId,
       likesCount: reel.likes,
       viewsCount: reel.views,
+      sharesCount: 0,
       savesCount: reel.saves,
       createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
       updatedAt: now,

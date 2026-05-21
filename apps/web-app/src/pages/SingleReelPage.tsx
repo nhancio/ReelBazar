@@ -15,6 +15,7 @@ import {
 import { signInWithGoogle } from '../auth/googleSignIn';
 import { auth, db } from '../firebase';
 import { useTheme } from '../context/ThemeContext';
+import { recordReelShare } from '../utils/reelShares';
 
 export default function SingleReelPage() {
   const { reelId } = useParams<{ reelId: string }>();
@@ -31,6 +32,7 @@ export default function SingleReelPage() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [likePending, setLikePending] = useState(false);
   const [savePending, setSavePending] = useState(false);
+  const [sharePending, setSharePending] = useState(false);
   const [followPending, setFollowPending] = useState(false);
 
   const loadReel = useCallback(async () => {
@@ -216,18 +218,29 @@ export default function SingleReelPage() {
 
   const handleShare = async () => {
     if (!reel) return;
-    const url = `${window.location.origin}/reel/${reel.id}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: `Check out this reel on ${APP_NAME}!`, url });
-      } catch (err) {
-        console.error('Failed to share reel:', err);
-      }
-      return;
-    }
+    if (guestMode || !currentUser) return handleRequireAuth();
+    if (sharePending) return;
 
-    await navigator.clipboard.writeText(url);
-    window.alert('Link copied to clipboard!');
+    const url = `${window.location.origin}/reel/${reel.id}`;
+    setSharePending(true);
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `Check out this reel on ${APP_NAME}!`, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        window.alert('Link copied to clipboard!');
+      }
+
+      const counted = await recordReelShare(reel.id, currentUser.id);
+      if (counted) {
+        setReel((prev) => prev ? { ...prev, sharesCount: (prev.sharesCount || 0) + 1 } : prev);
+      }
+    } catch (err) {
+      console.error('Failed to share reel:', err);
+    } finally {
+      setSharePending(false);
+    }
   };
 
   if (loading) {

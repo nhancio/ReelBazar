@@ -12,10 +12,16 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
+import { collaborationsApi } from '@reelbazaar/api';
 
 interface ChatModalProps {
   otherUser: User;
   onClose: () => void;
+  dealContext?: {
+    brandId: string;
+    influencerId: string;
+    productListingId?: string;
+  };
 }
 
 interface Message {
@@ -29,11 +35,12 @@ function getConversationId(uid1: string, uid2: string): string {
   return [uid1, uid2].sort().join('_');
 }
 
-export default function ChatModal({ otherUser, onClose }: ChatModalProps) {
+export default function ChatModal({ otherUser, onClose, dealContext }: ChatModalProps) {
   const { user: currentUser } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [dealPending, setDealPending] = useState<'accepted' | 'declined' | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -112,6 +119,22 @@ export default function ChatModal({ otherUser, onClose }: ChatModalProps) {
     }
   };
 
+  const handleDeal = async (status: 'accepted' | 'declined') => {
+    if (!currentUser || !conversationId || !dealContext || dealPending) return;
+    setDealPending(status);
+    try {
+      await collaborationsApi.setDeal({
+        ...dealContext,
+        status,
+        conversationId,
+      });
+    } catch (err) {
+      console.error('Failed to update deal status:', err);
+    } finally {
+      setDealPending(null);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[70] flex flex-col bg-black text-white animate-in slide-in-from-right">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 shrink-0">
@@ -173,6 +196,29 @@ export default function ChatModal({ otherUser, onClose }: ChatModalProps) {
         })}
         <div ref={messagesEndRef} />
       </div>
+
+      {dealContext && (
+        <div className="shrink-0 px-4 pb-2">
+          <div className="mx-auto flex w-full max-w-xs items-center gap-2 rounded-full border border-white/10 bg-black/80 p-1.5 shadow-2xl backdrop-blur-sm">
+            <button
+              type="button"
+              disabled={Boolean(dealPending)}
+              onClick={() => handleDeal('accepted')}
+              className="flex-1 rounded-full bg-emerald-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+            >
+              {dealPending === 'accepted' ? 'Saving...' : 'Deal'}
+            </button>
+            <button
+              type="button"
+              disabled={Boolean(dealPending)}
+              onClick={() => handleDeal('declined')}
+              className="flex-1 rounded-full bg-white/10 px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+            >
+              {dealPending === 'declined' ? 'Saving...' : 'No Deal'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="shrink-0 px-4 py-3 border-t border-white/10 bg-black/80 backdrop-blur-sm">
         <div className="flex items-center gap-2">
