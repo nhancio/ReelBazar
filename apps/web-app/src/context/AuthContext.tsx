@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { getRedirectResult, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, authPersistenceReady, db } from '../firebase';
-import { setAuthToken } from '@reelbazaar/api';
+import { setAuthToken, streaksApi } from '@reelbazaar/api';
 import type { User, UserType } from '@reelbazaar/config';
 import { agentDebugLog } from '../debug/agentDebugLog';
 
@@ -131,6 +131,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(userData);
         localStorage.setItem(USER_CACHE_KEY, JSON.stringify(userData));
         setAuthError(null);
+        // Fire-and-forget streak check-in on every login
+        streaksApi.checkin().then((result) => {
+          setUser((prev) => prev ? {
+            ...prev,
+            streakCount: result.streakCount,
+            longestStreak: result.longestStreak,
+            lastCheckinDate: result.lastCheckinDate,
+          } : prev);
+        }).catch(() => { /* non-critical */ });
         // #region agent log
         agentDebugLog({
           runId: 'post-fix',

@@ -28,7 +28,7 @@ export default function AuthPage() {
   const displayError = error || authError;
 
   return (
-    <div className={`flex flex-col min-h-[100dvh] w-full items-center px-6 ${theme === 'light' ? 'bg-white text-black' : 'bg-black text-white'}`}>
+    <div className={`flex flex-col min-h-[var(--app-h)] w-full items-center px-6 ${theme === 'light' ? 'bg-white text-black' : 'bg-black text-white'}`}>
       <div className="flex-1 flex flex-col justify-center w-full max-w-[340px] pb-20 pt-12">
         <div className="flex flex-col items-center mb-16 text-center">
           <div className="mb-6 h-20 w-20 bg-gradient-to-tr from-[#f6bedf] via-[#90b5ff] to-[#6c8aea] rounded-3xl flex items-center justify-center shadow-[0_20px_40px_rgba(144,181,255,0.3)]">

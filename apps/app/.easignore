@@ -1,0 +1,28 @@
+# Cache & logs
+.expo/
+.cache/
+.DS_Store
+*.log
+npm-debug.*
+*.tsbuildinfo
+
+# Node modules
+node_modules/
+
+# Generated native directories
+android/
+ios/
+
+# Build artifacts
+dist/
+build/
+web-build/
+artifacts/
+coverage/
+
+# Keep required config files if present locally
+!google-services.json
+!GoogleService-Info.plist
+!google-play-service-account.json
+!app.config.js
+!eas.json

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { db } from '../utils/firebase';
 import { createRateLimit } from '../middleware/rateLimit';
 import { ValidationError, normalizeOptionalEmail, normalizeString } from '../utils/validation';
 
@@ -10,7 +11,7 @@ const contactRateLimit = createRateLimit({
   message: 'Too many contact form submissions. Please try again later.',
 });
 
-contactRouter.post('/', contactRateLimit, (req, res) => {
+contactRouter.post('/', contactRateLimit, async (req, res) => {
   try {
     const { name, email, message } = req.body as {
       name?: string;
@@ -26,7 +27,13 @@ contactRouter.post('/', contactRateLimit, (req, res) => {
       return res.status(400).json({ error: 'Name, email, and message are required.' });
     }
 
-    console.log('[contact]', { name: n, email: em, message: msg.slice(0, 500) });
+    await db().collection('contactMessages').add({
+      name: n,
+      email: em,
+      message: msg,
+      createdAt: new Date().toISOString(),
+      resolved: false,
+    });
 
     res.status(201).json({ ok: true });
   } catch (error) {

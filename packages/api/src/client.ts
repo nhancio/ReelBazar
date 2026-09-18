@@ -14,6 +14,28 @@ interface RequestOptions {
 
 let authToken: string | null = null;
 
+function buildUrl(path: string): URL {
+  const base = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+  const target = `${base}${path}`;
+
+  if (/^https?:\/\//i.test(target)) {
+    return new URL(target);
+  }
+
+  // A relative base only resolves against a page origin. On iOS/Android there is no
+  // document, so the default '/api/v1' would silently resolve to http://localhost and every
+  // request would fail with a confusing network error. Fail loudly with the actual fix.
+  if (typeof window === 'undefined' || !window.location?.origin) {
+    throw new Error(
+      `API_BASE_URL is relative ("${API_BASE_URL}") but this platform has no page origin to ` +
+        'resolve it against. Set EXPO_PUBLIC_API_URL to an absolute URL (e.g. ' +
+        'https://app.rava.one/api/v1) in apps/app/.env.'
+    );
+  }
+
+  return new URL(target, window.location.origin);
+}
+
 export function setAuthToken(token: string | null) {
   authToken = token;
 }
@@ -23,7 +45,7 @@ export function getAuthToken(): string | null {
 }
 
 async function request<T>(method: HttpMethod, path: string, options: RequestOptions = {}): Promise<T> {
-  const url = new URL(`${API_BASE_URL}${path}`);
+  const url = buildUrl(path);
 
   if (options.params) {
     Object.entries(options.params).forEach(([key, value]) => {
@@ -85,18 +107,33 @@ export const api = {
   delete: <T>(path: string, options?: RequestOptions) => request<T>('DELETE', path, options),
 };
 
+/**
+ * A file picked on iOS/Android. React Native has no `File`/`Blob` for on-disk media, so
+ * FormData accepts this `{ uri, name, type }` shape instead and streams from the path.
+ */
+export interface NativeUploadSource {
+  uri: string;
+  name: string;
+  type: string;
+}
+
+/** Whatever the current platform's file picker hands back. */
+export type UploadSource = File | NativeUploadSource;
+
 export async function uploadFile(
-  path: string, 
-  file: File, 
+  path: string,
+  file: UploadSource,
   additionalFields?: Record<string, string>,
   onProgress?: (percent: number) => void
 ): Promise<{ url: string }> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    const url = `${API_BASE_URL}${path}`;
+    const url = buildUrl(path).toString();
     const formData = new FormData();
-    
-    formData.append('file', file);
+
+    // `File` goes through untouched on web; the native descriptor is passed as-is, which
+    // React Native's FormData understands but TypeScript's DOM lib does not.
+    formData.append('file', file as unknown as Blob);
     if (additionalFields) {
       Object.entries(additionalFields).forEach(([key, value]) => {
         formData.append(key, value);

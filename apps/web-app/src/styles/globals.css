@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Height of the app canvas.
+   On a phone the canvas IS the viewport. On desktop the app renders inside a simulated
+   430x932 phone, so `100dvh` there means the whole browser window — taller than the frame,
+   which pushed every bottom-anchored overlay (product CTA, action rail, nav) out of sight.
+   Screens use `min-h-[var(--app-h)]` instead of `100dvh` so they size to the canvas they are
+   actually in. Keep the desktop value in sync with the #root height rule below. */
+:root {
+  --app-h: 100dvh;
+}
+
 @layer base {
   body {
     @apply antialiased overflow-hidden;
@@ -39,6 +49,15 @@
       border: 8px solid #1e293b;
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(255,255,255,0.1);
       overflow: hidden;
+      /* Mirrors the height/max-height pair above so children sizing to --app-h fit exactly. */
+      --app-h: min(90vh, 932px);
+      /* Makes #root the containing block for `position: fixed` descendants, so every
+         overlay in the app — settings sheet, comments drawer, toasts, auth modal — resolves
+         against the simulated phone instead of the browser viewport. Without this they span
+         the full window on desktop and their backdrop-blur dims the whole page.
+         Paint containment does this per spec and, unlike a `transform` hack, does not
+         resample text or break the overlays' own backdrop-filter. */
+      contain: layout paint;
     }
   }
 }
@@ -67,7 +86,7 @@
   }
 
   .rb-page {
-    @apply relative min-h-[100dvh] pb-24;
+    @apply relative min-h-[var(--app-h)] pb-24;
   }
 
   /* Glassy Card */
@@ -98,6 +117,14 @@
   .rb-chip-active {
     @apply border-transparent bg-gradient-to-r from-[#8fb7ff] to-[#718ce8] text-white shadow-md shadow-blue-500/20 hover:from-[#7daaff] hover:to-[#5e7ade];
   }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.2s ease-out forwards;
 }
 
 /* Base Form Elements */

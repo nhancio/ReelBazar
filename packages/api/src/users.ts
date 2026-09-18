@@ -1,4 +1,4 @@
-import { api, uploadFile } from './client';
+import { api, uploadFile, type UploadSource } from './client';
 import type { User } from '@reelbazaar/config';
 
 export const usersApi = {
@@ -14,7 +14,7 @@ export const usersApi = {
   getFollowing: () =>
     api.get<{ followingIds: string[] }>('/users/me/following'),
 
-  updateAvatar: async (file: File) => {
+  updateAvatar: async (file: UploadSource) => {
     const body = await uploadFile('/users/me/avatar', file);
     const avatarUrl =
       (body as { avatarUrl?: string; url?: string }).avatarUrl ??
@@ -22,6 +22,13 @@ export const usersApi = {
     if (!avatarUrl) throw new Error('Upload succeeded but no avatar URL returned');
     return { avatarUrl };
   },
+
+  /**
+   * Permanently deletes the signed-in account: profile, reels and their video files, likes,
+   * saves, view history, comments, follows, and the Firebase Auth user. Irreversible.
+   * Both stores require this to be reachable from inside the app.
+   */
+  deleteAccount: () => api.delete<void>('/users/me'),
 
   updateProfile: (data: { name?: string; username?: string; productCategories?: string[]; interests?: string[]; themePreference?: 'dark' | 'light' }) =>
     api.put<{ user: User }>('/users/me', { body: data }),

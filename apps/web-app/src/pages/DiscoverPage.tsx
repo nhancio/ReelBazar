@@ -186,7 +186,7 @@ export default function DiscoverPage() {
               {brandProducts.map(product => (
                 <a
                   key={product.id}
-                  href={product.productLink}
+                  href={product.productLink || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden hover:bg-white/10 transition-colors"
@@ -217,7 +217,7 @@ export default function DiscoverPage() {
   };
 
   return (
-    <div className={`min-h-[100dvh] pb-24 ${isDark ? 'bg-black text-white' : 'bg-[#f6f7fb] text-[#111827]'}`}>
+    <div className={`min-h-[var(--app-h)] pb-24 ${isDark ? 'bg-black text-white' : 'bg-[#f6f7fb] text-[#111827]'}`}>
       <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-white/10' : 'border-black/10'}`}>
         <NavigationArrows />
         <h1 className="text-xl font-bold ml-3 flex-1">Discover</h1>

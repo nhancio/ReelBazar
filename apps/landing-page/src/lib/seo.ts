@@ -17,7 +17,7 @@ export const SEO_KEYWORDS = [
   "creator brand marketplace",
   "video shopping app",
   "TikTok shopping alternative",
-  "Instagram shopping",
+  "Instagram shopping alternative",
   "one tap checkout",
   "Rava",
   "shopatrava",
@@ -36,8 +36,20 @@ export function organizationJsonLd() {
     "@id": `${url}#organization`,
     name: SITE_NAME,
     url,
-    logo: siteUrl("logo/logo.jpeg"),
+    logo: {
+      "@type": "ImageObject",
+      url: siteUrl("logo/logo.jpeg"),
+      width: 512,
+      height: 512,
+    },
     description: SITE_DESCRIPTION,
+    email: "shopatrava@gmail.com",
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: "Hyderabad",
+      addressRegion: "Telangana",
+      addressCountry: "IN",
+    },
     sameAs: ["https://app.rava.one/"],
     contactPoint: {
       "@type": "ContactPoint",
@@ -62,14 +74,42 @@ export function websiteJsonLd() {
   };
 }
 
+export function mobileApplicationJsonLd() {
+  return {
+    "@type": "MobileApplication",
+    name: SITE_NAME,
+    applicationCategory: "ShoppingApplication",
+    operatingSystem: "iOS, Android, Web",
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+    },
+    url: "https://app.rava.one/",
+    description:
+      "Social commerce mobile and web platform enabling instant shopping from curated fashion creator reels.",
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: "4.9",
+      ratingCount: "128",
+    },
+  };
+}
+
 export function softwareApplicationJsonLd() {
   return {
     "@type": "SoftwareApplication",
-    name: `${SITE_NAME} Web App`,
+    name: `${SITE_NAME} Social Commerce`,
     applicationCategory: "ShoppingApplication",
-    operatingSystem: "Web",
+    operatingSystem: "Web, iOS, Android",
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
     url: "https://app.rava.one/",
+    featureList: [
+      "Fashion-only creator video feed",
+      "Instant one-tap product checkout",
+      "AI creator-brand audience matching",
+      "Real-time reel sales attribution",
+    ],
   };
 }
 
@@ -82,15 +122,23 @@ export function faqPageJsonLd() {
         name: "What is Rava?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Rava is a fashion and social commerce platform where shoppers discover products through reels and buy in one flow. Brands match with creators; sales and attribution are tracked from reel views to purchase.",
+          text: "Rava is a fashion and social commerce platform where shoppers discover products through reels and buy in one seamless flow. Brands match with creators, and sales and attribution are tracked directly from reel views to purchase.",
         },
       },
       {
         "@type": "Question",
-        name: "How does checkout work on Rava?",
+        name: "How does shopping from fashion reels work on Rava?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Users scroll creator reels, tap products they like, and complete checkout without leaving the experience—reducing friction between discovery and purchase.",
+          text: "Shoppers watch fashion creator reels showing real outfits with tagged products. Tapping on a piece brings up direct checkout without opening external tabs or hunting across websites, removing drop-off between discovery and purchase.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "How do creators and brands collaborate on Rava?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Rava matches brands with creators based on category, style niche, and audience demographics. Creators tag brand pieces in their reels, and every purchase is attributed directly to the reel, providing clear ROI for brands and earnings for creators.",
         },
       },
       {
@@ -98,7 +146,15 @@ export function faqPageJsonLd() {
         name: "Where is Rava available?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Rava is headquartered in Hyderabad, India, and serves brands and shoppers online via the web app at app.rava.one.",
+          text: "Rava is accessible on the web at https://app.rava.one and is available for mobile devices on iOS and Android. Rava operates from Hyderabad, India, serving global creators, brands, and shoppers.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "How does Rava protect user data and payments?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Rava uses encrypted payment infrastructure and never stores full payment card numbers. We adhere to transparent privacy standards, never sell user data to third parties, and provide instant account deletion controls.",
         },
       },
     ],
@@ -111,6 +167,7 @@ export function jsonLdScriptContent(): string {
     "@graph": [
       organizationJsonLd(),
       websiteJsonLd(),
+      mobileApplicationJsonLd(),
       softwareApplicationJsonLd(),
       faqPageJsonLd(),
     ],

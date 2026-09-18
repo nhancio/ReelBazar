@@ -1,0 +1,62 @@
+# Version control & tooling cache
+.git/
+.github/
+.turbo/
+.cache/
+.cursor/
+.claude/
+.maestro-debug/
+.DS_Store
+*.log
+npm-debug.*
+*.tsbuildinfo
+
+# Node dependencies (EAS runner runs npm install in cloud)
+node_modules/
+**/node_modules/
+
+# Non-mobile workspaces and web assets in monorepo
+apps/web-app/
+apps/landing-page/
+apps/mobile-app/
+backend/
+public/
+sample_data/
+Plugin*/
+
+# Build outputs & exports
+dist/
+**/dist/
+build/
+**/build/
+out/
+**/out/
+.next/
+**/.next/
+.expo/
+**/.expo/
+web-build/
+**/web-build/
+coverage/
+**/coverage/
+artifacts/
+**/artifacts/
+
+# Project docs & deployment tooling
+.firebase/
+**/.firebase/
+.vercel/
+**/.vercel/
+docs/
+terminals/
+agent-transcripts/
+
+# Managed Expo prebuild directories
+apps/app/android/
+apps/app/ios/
+
+# Include required config files if present
+!apps/app/google-services.json
+!apps/app/GoogleService-Info.plist
+!apps/app/google-play-service-account.json
+!apps/app/.env.example

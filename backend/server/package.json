@@ -2,9 +2,11 @@
   "name": "server",
   "version": "1.0.0",
   "private": true,
+  "main": "dist/firebase.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
     "start": "node dist/index.js",
     "db:seed": "tsx src/seed.ts",
     "db:cleanup-reels": "tsx src/cleanupReelsByStorage.ts",
@@ -17,8 +19,9 @@
     "dotenv": "^17.3.1",
     "express": "^4.18.2",
     "firebase-admin": "^12.0.0",
+    "firebase-functions": "^7.2.5",
     "multer": "^1.4.5-lts.1",
-    "serverless-http": "^4.0.0",
+    "razorpay": "^2.9.8",
     "uuid": "^9.0.0"
   },
   "devDependencies": {

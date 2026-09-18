@@ -23,7 +23,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="flex flex-col min-h-[100dvh] w-full bg-white items-center justify-center px-6">
+      <div className="flex flex-col min-h-[var(--app-h)] w-full bg-white items-center justify-center px-6">
         <LoadingSpinner size="lg" />
         <p className="mt-4 text-[13px] font-semibold text-gray-500">Loading {APP_NAME}...</p>
       </div>
@@ -42,7 +42,7 @@ export default function App() {
   // Logged in but not registered (waiting for auto-registration)
   if (!isRegistered && !guestMode) {
     return (
-      <div className="flex flex-col min-h-[100dvh] w-full bg-white items-center justify-center px-6">
+      <div className="flex flex-col min-h-[var(--app-h)] w-full bg-white items-center justify-center px-6">
         <LoadingSpinner size="lg" />
         <p className="mt-4 text-[13px] font-semibold text-gray-500">Setting up your profile...</p>
       </div>

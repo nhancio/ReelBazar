@@ -5,8 +5,10 @@ import { LoadingSpinner } from '@reelbazaar/ui';
 import { reelsApi, usersApi } from '@reelbazaar/api';
 import { APP_NAME, type Reel, type User } from '@reelbazaar/config';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { signInWithGoogle } from '../auth/googleSignIn';
 import { useTheme } from '../context/ThemeContext';
+import CommentsDrawer from '../components/CommentsDrawer';
 import { 
   collection, 
   query, 
@@ -34,7 +36,9 @@ let cachedApiCursor: string | undefined = undefined;
 export default function HomePage() {
   const { guestMode, exitGuestMode, clearAuthError, refreshUser, user: currentUser } = useAuth();
   const { theme } = useTheme();
+  const { showToast } = useToast();
   const navigate = useNavigate();
+  const [openCommentsReelId, setOpenCommentsReelId] = useState<string | null>(null);
   const [reels, setReels] = useState<Reel[]>(cachedReels);
   const [following, setFollowing] = useState<Set<string>>(new Set());
   const [likedReels, setLikedReels] = useState<Set<string>>(new Set());
@@ -227,6 +231,7 @@ export default function HomePage() {
       }
     } catch (err) {
       console.error('Failed to like reel:', err);
+      showToast('Failed to update like', 'error');
       setLikedReels((prev) => {
         const next = new Set(prev);
         if (wasLiked) next.add(reelId);
@@ -289,6 +294,7 @@ export default function HomePage() {
       }
     } catch (err) {
       console.error('Failed to save reel:', err);
+      showToast('Failed to update save', 'error');
       setSavedReels((prev) => {
         const next = new Set(prev);
         if (wasSaved) next.add(reelId);
@@ -319,25 +325,38 @@ export default function HomePage() {
     setSharePending((prev) => new Set(prev).add(reelId));
 
     try {
+      let shared = false;
       if (navigator.share) {
-        await navigator.share({
-          title: `Check out this reel on ${APP_NAME}!`,
-          url: url,
-        });
+        try {
+          await navigator.share({
+            title: `Check out this reel on ${APP_NAME}!`,
+            url,
+          });
+          shared = true;
+        } catch {
+          // user cancelled share dialog
+        }
       } else {
-        await navigator.clipboard.writeText(url);
-        window.alert('Link copied to clipboard!');
+        try {
+          await navigator.clipboard.writeText(url);
+          showToast('Link copied to clipboard!', 'success');
+          shared = true;
+        } catch {
+          showToast('Could not copy link', 'error');
+        }
       }
 
-      const counted = await recordReelShare(reelId, currentUser.id);
-      if (counted) {
-        setReels((prev) =>
-          prev.map((reel) =>
-            reel.id === reelId
-              ? { ...reel, sharesCount: (reel.sharesCount || 0) + 1 }
-              : reel
-          )
-        );
+      if (shared) {
+        const counted = await recordReelShare(reelId, currentUser.id).catch(() => false);
+        if (counted) {
+          setReels((prev) =>
+            prev.map((reel) =>
+              reel.id === reelId
+                ? { ...reel, sharesCount: (reel.sharesCount || 0) + 1 }
+                : reel
+            )
+          );
+        }
       }
     } catch (err) {
       console.error('Failed to share:', err);
@@ -386,7 +405,17 @@ export default function HomePage() {
     <div className={`relative h-full w-full overflow-y-auto hide-scrollbar ${theme === 'light' ? 'bg-[#f6f7fb] text-black' : 'bg-black text-white'}`}>
       {/* Instagram Header */}
       <div className={`sticky top-0 z-40 flex items-center justify-between px-4 py-2.5 border-b ${theme === 'light' ? 'bg-white border-black/10' : 'bg-black border-white/10'}`}>
-        <h1 className={`text-2xl font-bold tracking-tight ${theme === 'light' ? 'text-black' : 'text-white'}`} style={{ fontFamily: 'cursive' }}>{APP_NAME}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className={`text-2xl font-bold tracking-tight ${theme === 'light' ? 'text-black' : 'text-white'}`} style={{ fontFamily: 'cursive' }}>{APP_NAME}</h1>
+          {currentUser?.streakCount && currentUser.streakCount > 0 ? (
+            <span
+              title={`${currentUser.streakCount} day streak! Longest: ${currentUser.longestStreak ?? currentUser.streakCount}`}
+              className="flex items-center gap-0.5 rounded-full bg-orange-500/20 px-2 py-0.5 text-[11px] font-bold text-orange-500 cursor-default"
+            >
+              🔥 {currentUser.streakCount}
+            </span>
+          ) : null}
+        </div>
         <button
           type="button"
           aria-label="Settings"
@@ -445,6 +474,7 @@ export default function HomePage() {
               onLike={() => handleLike(reel.id)}
               onSave={() => handleSave(reel.id)}
               onShare={() => handleShare(reel.id)}
+              onComment={() => setOpenCommentsReelId(reel.id)}
               onProfileClick={() => {
                 if (reel.creatorId) navigate(`/profile/${reel.creatorId}`);
               }}
@@ -468,11 +498,28 @@ export default function HomePage() {
         </div>
       )}
 
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)} 
-        onSignIn={handleSignIn} 
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSignIn={handleSignIn}
       />
+
+      {openCommentsReelId && (
+        <CommentsDrawer
+          reelId={openCommentsReelId}
+          isOpen={true}
+          onClose={() => setOpenCommentsReelId(null)}
+          onCommentCountChange={(delta) => {
+            setReels((prev) =>
+              prev.map((r) =>
+                r.id === openCommentsReelId
+                  ? { ...r, commentsCount: Math.max(0, (r.commentsCount ?? 0) + delta) }
+                  : r
+              )
+            );
+          }}
+        />
+      )}
     </div>
   );
 }

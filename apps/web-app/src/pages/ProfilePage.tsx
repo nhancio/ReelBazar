@@ -427,12 +427,12 @@ export default function ProfilePage() {
   };
 
   if (loading && !displayUser) {
-    return <div className="min-h-screen bg-black pt-20"><LoadingSpinner /></div>;
+    return <div className="min-h-[var(--app-h)] bg-black pt-20"><LoadingSpinner /></div>;
   }
 
   if (guestMode && isOwnProfile && !currentUser) {
     return (
-      <div className="min-h-[100dvh] bg-black flex flex-col items-center justify-center text-white p-6 gap-4">
+      <div className="min-h-[var(--app-h)] bg-black flex flex-col items-center justify-center text-white p-6 gap-4">
         <p className="text-lg font-semibold text-center">Sign in to view your profile</p>
         <button
           type="button"
@@ -447,7 +447,7 @@ export default function ProfilePage() {
 
   if (!displayUser) {
     return (
-      <div className="min-h-[100dvh] bg-black flex flex-col items-center justify-center text-white p-6">
+      <div className="min-h-[var(--app-h)] bg-black flex flex-col items-center justify-center text-white p-6">
         <p className="text-lg font-semibold">Profile not found</p>
         <p className="mt-2 text-sm text-white/50 text-center max-w-xs">
           This user has no profile document in the database yet, or you do not have access.
@@ -462,7 +462,7 @@ export default function ProfilePage() {
   const profilePending = displayUser.id ? followPendingIds.has(displayUser.id) : false;
 
   return (
-    <div className={`min-h-[100dvh] pb-24 ${theme === 'light' ? 'bg-[#f6f7fb] text-[#111827]' : 'bg-black text-white'}`}>
+    <div className={`min-h-[var(--app-h)] pb-24 ${theme === 'light' ? 'bg-[#f6f7fb] text-[#111827]' : 'bg-black text-white'}`}>
       <div className={`flex items-center justify-between px-4 py-3 border-b ${theme === 'light' ? 'border-black/10' : 'border-white/10'}`}>
         <NavigationArrows />
         <div className="flex flex-col flex-1 ml-3">
@@ -519,6 +519,12 @@ export default function ProfilePage() {
               <p className="text-lg font-bold">{followingCount}</p>
               <p className={`text-[13px] ${theme === 'light' ? 'text-black/70' : 'text-white/80'}`}>following</p>
             </button>
+            {isOwnProfile && (displayUser?.streakCount ?? 0) > 0 && (
+              <div className="text-center" title={`Longest streak: ${displayUser?.longestStreak ?? displayUser?.streakCount}`}>
+                <p className="text-lg font-bold">🔥{displayUser?.streakCount}</p>
+                <p className={`text-[13px] ${theme === 'light' ? 'text-black/70' : 'text-white/80'}`}>streak</p>
+              </div>
+            )}
           </div>
         </div>
 

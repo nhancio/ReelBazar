@@ -124,7 +124,7 @@ export default function OnboardingPage() {
   const isDark = theme !== 'light';
 
   return (
-    <div className={`min-h-[100dvh] w-full px-4 py-8 flex items-center justify-center ${isDark ? 'bg-black' : 'bg-[#f6f7fb]'}`}>
+    <div className={`min-h-[var(--app-h)] w-full px-4 py-8 flex items-center justify-center ${isDark ? 'bg-black' : 'bg-[#f6f7fb]'}`}>
       <div className={`w-full max-w-sm rounded-[32px] p-8 shadow-2xl ${isDark ? 'bg-[#121212] border border-white/10 text-white' : 'bg-white border border-black/10 text-black'}`}>
         <h2 className="text-2xl font-bold mb-2">Welcome to {APP_NAME}! 👋</h2>
         <p className={`text-sm mb-8 ${isDark ? 'text-white/50' : 'text-black/60'}`}>Let's set up your profile quickly.</p>

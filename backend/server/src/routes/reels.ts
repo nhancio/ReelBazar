@@ -12,6 +12,7 @@ import {
   normalizeString,
   parseIntegerQuery,
 } from '../utils/validation';
+import { SAMPLE_PRODUCT } from './products';
 
 const FieldValue = admin.firestore.FieldValue;
 
@@ -34,6 +35,7 @@ const uploadRateLimit = createRateLimit({
 interface ReelDoc {
   id: string;
   creatorId: string;
+  productId?: string;
   [key: string]: any; // Firestore document fields
 }
 
@@ -48,36 +50,80 @@ async function getCreatorData(creatorId: string) {
   return { id: doc.id, name: data.name, avatarUrl: data.avatarUrl, brandName: data.brandName };
 }
 
-// Helper: enrich reels with creator data
+// Helper: get product data for a reel's tagged product
+async function getProductData(productId?: string) {
+  if (!productId) return null;
+  if (productId === SAMPLE_PRODUCT.id) return SAMPLE_PRODUCT;
+  try {
+    const doc = await db().collection('products').doc(productId).get();
+    if (doc.exists) {
+      return { id: doc.id, ...doc.data() };
+    }
+  } catch {
+    /* continue */
+  }
+  return null;
+}
+
+// Helper: enrich reels with creator data and product data
 async function enrichReels(reels: ReelDoc[]) {
   const creatorIds = [...new Set(reels.map((r) => r.creatorId))].filter(Boolean);
-  if (creatorIds.length === 0) return reels.map(r => ({ ...r, creator: null }));
+  const productIds = [...new Set(reels.map((r) => r.productId))].filter(Boolean) as string[];
 
   const creatorMap: Record<string, CreatorSummary> = {};
-  
-  // Use getAll for batch fetching
-  const userRefs = creatorIds.map(id => db().collection('users').doc(id));
-  const userDocs = await db().getAll(...userRefs);
-  
-  userDocs.forEach(doc => {
-    if (doc.exists) {
-      const data = doc.data();
-      if (data) {
-        creatorMap[doc.id] = { 
-          id: doc.id, 
-          name: data.name, 
-          avatarUrl: data.avatarUrl, 
-          brandName: data.brandName 
-        };
+  const productMap: Record<string, any> = {};
+
+  if (creatorIds.length > 0) {
+    const userRefs = creatorIds.map((id) => db().collection('users').doc(id));
+    const userDocs = await db().getAll(...userRefs);
+
+    userDocs.forEach((doc) => {
+      if (doc.exists) {
+        const data = doc.data();
+        if (data) {
+          creatorMap[doc.id] = {
+            id: doc.id,
+            name: data.name,
+            avatarUrl: data.avatarUrl,
+            brandName: data.brandName,
+          };
+        } else {
+          creatorMap[doc.id] = null;
+        }
       } else {
         creatorMap[doc.id] = null;
       }
-    } else {
-      creatorMap[doc.id] = null;
-    }
-  });
+    });
+  }
 
-  return reels.map((r) => ({ ...r, creator: creatorMap[r.creatorId] || null }));
+  if (productIds.length > 0) {
+    const validFirestoreProductIds = productIds.filter((id) => id !== SAMPLE_PRODUCT.id);
+    if (validFirestoreProductIds.length > 0) {
+      const productRefs = validFirestoreProductIds.map((id) => db().collection('products').doc(id));
+      const productDocs = await db().getAll(...productRefs);
+      productDocs.forEach((doc) => {
+        if (doc.exists) {
+          productMap[doc.id] = { id: doc.id, ...doc.data() };
+        }
+      });
+    }
+    if (productIds.includes(SAMPLE_PRODUCT.id)) {
+      productMap[SAMPLE_PRODUCT.id] = SAMPLE_PRODUCT;
+    }
+  }
+
+  return reels.map((r) => {
+    const creator = creatorMap[r.creatorId] || null;
+    const product = r.productId ? (productMap[r.productId] || null) : null;
+    return {
+      ...r,
+      creator,
+      product,
+      commissionRate: r.commissionRate ?? (product?.commissionRate || 10),
+      ordersCount: r.ordersCount || 0,
+      productLink: r.productLink || product?.productLink || '',
+    };
+  });
 }
 
 // Get feed with cursor-based pagination
@@ -91,9 +137,8 @@ reelsRouter.get('/', async (req: Request, res: Response) => {
     if (category) {
       const safeCategory = normalizeString(category, { maxLength: 20 });
       query = query.where('category', '==', safeCategory);
-    } else {
-      query = query.orderBy('createdAt', 'desc');
     }
+    query = query.orderBy('createdAt', 'desc');
 
     if (cursor) {
       const cursorDoc = await db().collection('reels').doc(normalizeDocumentId(cursor, 'Cursor')).get();
@@ -124,6 +169,100 @@ reelsRouter.get('/', async (req: Request, res: Response) => {
   }
 });
 
+const SEARCH_WINDOW = 300;
+const STOP_WORDS = new Set([
+  'a', 'an', 'and', 'any', 'are', 'as', 'can', 'find', 'for', 'get', 'give', 'has', 'have',
+  'how', 'i', 'in', 'is', 'it', 'like', 'looking', 'me', 'my', 'need', 'of', 'on', 'or',
+  'please', 'reel', 'reels', 'show', 'some', 'something', 'that', 'the', 'to', 'want', 'was',
+  'what', 'which', 'with', 'you',
+]);
+
+function queryTerms(raw: string): string[] {
+  return [
+    ...new Set(
+      raw
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+        .split(/\s+/)
+        .filter((t) => t.length > 1 && !STOP_WORDS.has(t))
+    ),
+  ];
+}
+
+function scoreReel(
+  reel: Record<string, unknown>,
+  creator: Record<string, unknown> | null,
+  product: Record<string, unknown> | null,
+  terms: string[]
+): number {
+  const fields: Array<[string, number]> = [
+    [String(reel.category ?? ''), 5],
+    [String(reel.brandTag ?? ''), 4],
+    [String(product?.name ?? ''), 4],
+    [String(product?.brandName ?? ''), 4],
+    [String(reel.caption ?? ''), 3],
+    [String(creator?.username ?? ''), 2],
+    [String(creator?.name ?? ''), 2],
+    [String(creator?.brandName ?? ''), 2],
+  ];
+
+  let score = 0;
+  for (const [value, weight] of fields) {
+    if (!value) continue;
+    const haystack = value.toLowerCase();
+    for (const term of terms) {
+      if (haystack === term) score += weight * 2;
+      else if (haystack.includes(term)) score += weight;
+    }
+  }
+
+  const engagement = Number(reel.likesCount ?? 0) + Number(reel.savesCount ?? 0) + Number(reel.ordersCount ?? 0) * 2;
+  return score > 0 ? score + Math.min(engagement / 100, 1.5) : 0;
+}
+
+reelsRouter.get('/search', async (req: Request, res: Response) => {
+  try {
+    const q = normalizeString(req.query.q, { maxLength: 200 });
+    if (!q) return res.status(400).json({ message: 'A search query is required' });
+    const limitParam = parseIntegerQuery(req.query.limit, 20, 50);
+    const terms = queryTerms(q);
+
+    if (!terms.length) {
+      return res.json({ reels: [], query: q, terms, matched: 0 });
+    }
+
+    const snapshot = await db()
+      .collection('reels')
+      .orderBy('createdAt', 'desc')
+      .limit(SEARCH_WINDOW)
+      .get();
+
+    const rawReels = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as ReelDoc));
+    const enriched = await enrichReels(rawReels);
+
+    const scored = enriched
+      .map((reel) => ({
+        reel,
+        score: scoreReel(reel, reel.creator, reel.product, terms),
+      }))
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score);
+
+    res.json({
+      reels: scored.slice(0, limitParam).map((entry) => entry.reel),
+      query: q,
+      terms,
+      matched: scored.length,
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error searching reels:', message);
+    res.status(error instanceof ValidationError ? 400 : 500).json({
+      message: error instanceof ValidationError ? message : 'Internal server error',
+    });
+  }
+});
+
 // Get reel by ID
 reelsRouter.get('/:id', async (req: Request, res: Response) => {
   try {
@@ -133,10 +272,10 @@ reelsRouter.get('/:id', async (req: Request, res: Response) => {
     const data = doc.data();
     if (!data) return res.status(404).json({ message: 'Reel data missing' });
 
-    const reel = { id: doc.id, ...data };
-    const creator = await getCreatorData(data.creatorId);
+    const rawReel = { id: doc.id, ...data } as ReelDoc;
+    const [enriched] = await enrichReels([rawReel]);
 
-    res.json({ reel: { ...reel, creator } });
+    res.json({ reel: enriched });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error fetching reel:', message);
@@ -153,8 +292,7 @@ reelsRouter.get('/user/:userId', async (req: Request, res: Response) => {
     const take = parseIntegerQuery(limit, 10, 50);
     const userId = normalizeDocumentId(req.params.userId, 'User id');
 
-    let query = db().collection('reels')
-      .where('creatorId', '==', userId);
+    let query = db().collection('reels').where('creatorId', '==', userId);
 
     if (cursor) {
       const cursorDoc = await db().collection('reels').doc(normalizeDocumentId(cursor, 'Cursor')).get();
@@ -187,8 +325,7 @@ reelsRouter.get('/saved/:userId', async (req: Request, res: Response) => {
     const take = parseIntegerQuery(limit, 10, 50);
     const userId = normalizeDocumentId(req.params.userId, 'User id');
 
-    let query = db().collection('reelSaves')
-      .where('userId', '==', userId);
+    let query = db().collection('reelSaves').where('userId', '==', userId);
 
     if (cursor) {
       const cursorDoc = await db().collection('reelSaves').doc(normalizeDocumentId(cursor, 'Cursor')).get();
@@ -205,27 +342,26 @@ reelsRouter.get('/saved/:userId', async (req: Request, res: Response) => {
       return res.json({ reels: [], hasMore: false });
     }
 
-    // Fetch the actual reel documents in a single batch
     const uniqueReelIds = [...new Set(reelIds.slice(0, take))];
     const reelsSnapshot = await db().collection('reels').where(admin.firestore.FieldPath.documentId(), 'in', uniqueReelIds).get();
-    
+
     const reelsMap: Record<string, ReelDoc> = {};
     reelsSnapshot.docs.forEach((doc) => {
       reelsMap[doc.id] = { id: doc.id, ...doc.data() } as ReelDoc;
     });
-    
-    // Map back to original order and filter out potentially deleted reels
-    const orderedReels = savedData.slice(0, take)
-      .map(sd => reelsMap[sd.reelId])
+
+    const orderedReels = savedData
+      .slice(0, take)
+      .map((sd) => reelsMap[sd.reelId])
       .filter((r): r is ReelDoc => !!r);
 
     const hasMore = savedData.length > take;
     const enriched = await enrichReels(orderedReels);
-    
-    res.json({ 
-      reels: enriched, 
-      hasMore, 
-      nextCursor: hasMore ? snapshot.docs[take - 1].id : undefined 
+
+    res.json({
+      reels: enriched,
+      hasMore,
+      nextCursor: hasMore ? snapshot.docs[take - 1].id : undefined,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -243,21 +379,27 @@ reelsRouter.post('/upload', uploadRateLimit, authMiddleware, requireRegistered, 
       return res.status(400).json({ message: 'Video file is required' });
     }
 
-    const { productLink, category, caption, brandTag, brandId } = req.body;
+    const { productLink, category, caption, brandTag, brandId, productId, commissionRate } = req.body;
 
     const safeProductLink = normalizeOptionalUrl(productLink);
     const safeCategory = normalizeString(category, { maxLength: 20 });
     const safeCaption = normalizeString(caption, { maxLength: 500, allowEmpty: true, preserveNewlines: true });
     const safeBrandTag = normalizeString(brandTag, { maxLength: 80, allowEmpty: true });
     const safeBrandId = brandId ? normalizeDocumentId(brandId, 'Brand id') : null;
+    const safeProductId = productId ? normalizeDocumentId(productId, 'Product id') : null;
+    const parsedCommissionRate = commissionRate !== undefined ? Number.parseFloat(commissionRate) : null;
 
-    if (!safeProductLink || !safeCategory) {
-      return res.status(400).json({ message: 'productLink and category are required' });
+    if (!safeCategory) {
+      return res.status(400).json({ message: 'category is required' });
     }
 
-    const validCategories = ['Men', 'Women', 'Kids'];
+    if (!safeProductLink && !safeProductId) {
+      return res.status(400).json({ message: 'Either productLink or productId is required' });
+    }
+
+    const validCategories = ['Men', 'Women', 'Kids', 'Accessories', 'Footwear', 'Beauty'];
     if (!validCategories.includes(safeCategory)) {
-      return res.status(400).json({ message: 'category must be one of: Men, Women, Kids' });
+      return res.status(400).json({ message: `category must be one of: ${validCategories.join(', ')}` });
     }
 
     assertAllowedMimeType(req.file.mimetype, ALLOWED_VIDEO_TYPES, 'video');
@@ -278,20 +420,33 @@ reelsRouter.post('/upload', uploadRateLimit, authMiddleware, requireRegistered, 
     await file.makePublic();
     const videoUrl = `https://storage.googleapis.com/${bucket.name}/${filename}`;
 
+    // If productId is provided, get product's info if available
+    let productData: any = null;
+    if (safeProductId) {
+      productData = await getProductData(safeProductId);
+    }
+
+    const resolvedProductLink = safeProductLink || productData?.productLink || '';
+    const resolvedCommissionRate = Number.isFinite(parsedCommissionRate) ? parsedCommissionRate : (productData?.commissionRate || 10);
+
     const now = new Date().toISOString();
     const reelData = {
       videoUrl,
       thumbnailUrl: null,
-      productLink: safeProductLink,
+      productLink: resolvedProductLink,
+      productId: safeProductId || null,
+      commissionRate: resolvedCommissionRate,
+      ordersCount: 0,
       category: safeCategory,
       caption: safeCaption,
-      brandTag: safeBrandTag,
+      brandTag: safeBrandTag || productData?.brandName || null,
       brandId: safeBrandId,
       creatorId: req.user!.id,
       likesCount: 0,
       viewsCount: 0,
       sharesCount: 0,
       savesCount: 0,
+      commentsCount: 0,
       createdAt: now,
       updatedAt: now,
     };
@@ -299,7 +454,10 @@ reelsRouter.post('/upload', uploadRateLimit, authMiddleware, requireRegistered, 
     const docRef = await db().collection('reels').add(reelData);
     const creator = await getCreatorData(req.user!.id);
 
-    res.status(201).json({ reel: { id: docRef.id, ...reelData, creator }, url: videoUrl });
+    res.status(201).json({
+      reel: { id: docRef.id, ...reelData, creator, product: productData },
+      url: videoUrl,
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error uploading reel:', message);
@@ -431,6 +589,46 @@ reelsRouter.post('/:id/view', authMiddleware, requireRegistered, async (req: Req
         viewsCount: FieldValue.increment(1),
       });
     }
+
+    res.status(204).send();
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(error instanceof ValidationError ? 400 : 500).json({
+      message: error instanceof ValidationError ? message : 'Internal server error',
+    });
+  }
+});
+
+// Record product-link click (drives creator payouts — ₹5/click)
+const clickRateLimit = createRateLimit({
+  keyPrefix: 'reel-click',
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: 'Too many clicks. Please slow down.',
+});
+
+reelsRouter.post('/:id/click', clickRateLimit, async (req: Request, res: Response) => {
+  try {
+    const reelId = normalizeDocumentId(req.params.id, 'Reel id');
+    const reelRef = db().collection('reels').doc(reelId);
+    const reelDoc = await reelRef.get();
+    if (!reelDoc.exists) return res.status(404).json({ message: 'Reel not found' });
+
+    let userId: string | null = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      const { verifyFirebaseToken } = await import('../utils/firebase');
+      const decoded = await verifyFirebaseToken(authHeader.split(' ')[1]);
+      userId = decoded?.uid ?? null;
+    }
+
+    await db().collection('reelClicks').add({
+      reelId,
+      creatorId: reelDoc.data()!.creatorId,
+      userId,
+      createdAt: new Date().toISOString(),
+    });
+    await reelRef.update({ clicksCount: FieldValue.increment(1) });
 
     res.status(204).send();
   } catch (error: unknown) {

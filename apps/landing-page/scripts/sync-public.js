@@ -1,9 +1,8 @@
 /**
  * Copies static assets into apps/landing-page/public for Next.js.
  *
- * When Vercel "Root Directory" is `apps/landing-page`, two levels up from the
- * package root is the filesystem root, so `../../public` becomes `/public` and
- * does NOT point at the monorepo. We therefore:
+ * Some cloud builders run from `apps/landing-page`, while local builds run from
+ * the monorepo root. We therefore:
  * 1) Prefer env RAVA_PUBLIC_SOURCE if set (absolute path to repo public/)
  * 2) Else use ../../public from this package only if that directory exists
  * 3) Else if apps/landing-page/public already has required files, skip (OK)
@@ -59,8 +58,7 @@ if (hasRequiredAssets(dest)) {
 console.error(
   "sync-public: no static assets found.\n" +
     "  - Commit apps/landing-page/public/ (logo/, media/, site.webmanifest), or\n" +
-    "  - Set RAVA_PUBLIC_SOURCE to your repo public/ folder path, or\n" +
-    "  - Use Vercel Root Directory = monorepo root and build from apps/landing-page.\n" +
+    "  - Set RAVA_PUBLIC_SOURCE to your repo public/ folder path.\n" +
     "  Expected at minimum: public/logo/logo.jpeg and public/media/hero-video.mp4"
 );
 process.exit(1);

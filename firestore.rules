@@ -1,0 +1,189 @@
+rules_version = '2';
+
+// Rava Firestore security rules.
+// Pattern: users own their documents; social counters may only move by ±1 per
+// write; commerce collections (products, orders, payouts) are backend-only —
+// the Express API uses the Admin SDK, which bypasses these rules.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Allows a single counter field to change by a bounded delta while every
+    // other field stays untouched (blocks count inflation from clients).
+    function counterDelta(field, minDelta, maxDelta) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([field, 'updatedAt'])
+        && request.resource.data[field] is int
+        && resource.data[field] is int
+        && request.resource.data[field] >= resource.data[field] + minDelta
+        && request.resource.data[field] <= resource.data[field] + maxDelta;
+    }
+
+    // Fields a reel's creator may change from the client. Counters are absent by
+    // design: likes/saves/comments move only via counterDelta, and views/clicks
+    // only via the backend, because they are paid out in rupees.
+    function editableByCreator() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['caption', 'category', 'productUrl', 'productName',
+                  'productPrice', 'thumbnailUrl', 'updatedAt']);
+    }
+
+    // ---------- Users ----------
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create: if isOwner(uid)
+        && request.resource.data.get('followersCount', 0) == 0
+        && request.resource.data.get('followingCount', 0) == 0;
+      allow update: if isOwner(uid)
+        // Follow toggles adjust the other party's counters by exactly ±1.
+        || (signedIn() && (counterDelta('followersCount', -1, 1) || counterDelta('followingCount', -1, 1)));
+      allow delete: if false; // deletion goes through DELETE /users/me (backend)
+    }
+
+    // ---------- Reels ----------
+    match /reels/{reelId} {
+      allow read: if true; // public feed (guest mode browses without auth)
+      allow create: if signedIn()
+        && request.resource.data.creatorId == request.auth.uid
+        && request.resource.data.likesCount == 0
+        && request.resource.data.viewsCount == 0
+        && request.resource.data.savesCount == 0
+        && request.resource.data.get('clicksCount', 0) == 0
+        && request.resource.data.get('commentsCount', 0) == 0
+        && request.resource.data.caption is string
+        && request.resource.data.caption.size() <= 500;
+      // viewsCount and clicksCount decide creator payouts (see routes/payouts.ts),
+      // so they are writable only by the backend Admin SDK, which bypasses these
+      // rules. POST /reels/:id/view and /:id/click are the only legitimate paths.
+      // Creators may edit their own reel's content but never its counters.
+      allow update: if signedIn() && (
+        (resource.data.creatorId == request.auth.uid && editableByCreator())
+        || counterDelta('likesCount', -1, 1)
+        || counterDelta('savesCount', -1, 1)
+        || counterDelta('commentsCount', -1, 1)
+      );
+      allow delete: if signedIn() && resource.data.creatorId == request.auth.uid;
+    }
+
+    // ---------- Likes / Saves / Views (doc id: {userId}_{reelId}) ----------
+    match /reelLikes/{likeId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && likeId == request.auth.uid + '_' + request.resource.data.reelId;
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    match /reelSaves/{saveId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && saveId == request.auth.uid + '_' + request.resource.data.reelId;
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    match /reelViews/{viewId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && viewId == request.auth.uid + '_' + request.resource.data.reelId;
+      allow update, delete: if false;
+    }
+
+    // ---------- Comments ----------
+    match /reelComments/{commentId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 1000;
+      allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
+      allow update: if false;
+    }
+
+    // ---------- Follows (doc id: {followerId}_{followingId}) ----------
+    match /follows/{followId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.followerId == request.auth.uid
+        && followId == request.auth.uid + '_' + request.resource.data.followingId;
+      allow delete: if signedIn() && resource.data.followerId == request.auth.uid;
+    }
+
+    // ---------- Direct messages ----------
+    match /conversations/{conversationId} {
+      // Split per operation: `resource` is null on create and `request.resource`
+      // is null on read, so a combined rule dereferences a null on every path
+      // and denies. Participants are fixed at create; an update may not rewrite
+      // them to add or evict someone.
+      allow read: if signedIn() && request.auth.uid in resource.data.participants;
+      allow create: if signedIn() && request.auth.uid in request.resource.data.participants;
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.participants
+        && request.resource.data.participants == resource.data.participants;
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if signedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+        allow create: if signedIn()
+          && request.resource.data.senderId == request.auth.uid
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+        allow update, delete: if false;
+      }
+    }
+
+    // ---------- Brand products (legacy client reads) ----------
+    match /brandProducts/{productId} {
+      allow read: if true;
+      allow create, update: if signedIn() && request.resource.data.brandId == request.auth.uid;
+      allow delete: if signedIn() && resource.data.brandId == request.auth.uid;
+    }
+
+    // ---------- Commerce & analytics: backend (Admin SDK) only ----------
+    match /products/{productId} {
+      allow read: if true;       // catalog is public
+      allow write: if false;     // created via POST /products (validated server-side)
+    }
+
+    match /orders/{orderId} {
+      allow read: if signedIn() && resource.data.buyerId == request.auth.uid;
+      allow write: if false;     // checkout + status updates are server-side
+    }
+
+    match /payouts/{payoutId} {
+      allow read: if signedIn() && resource.data.creatorId == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /reelClicks/{clickId} {
+      allow read, write: if false; // written by POST /reels/:id/click
+    }
+
+    match /streakEvents/{eventId} {
+      allow read, write: if false; // backend-only analytics
+    }
+
+    match /collaborations/{collabId} {
+      allow read: if signedIn()
+        && (resource.data.brandId == request.auth.uid || resource.data.influencerId == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /contactMessages/{messageId} {
+      allow read, write: if false; // written via POST /contact
+    }
+
+    // Deny everything not matched above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

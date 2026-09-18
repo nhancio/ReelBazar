@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SUPPORTED_VIDEO_TYPES, MAX_FILE_SIZE, type User } from '@reelbazaar/config';
+import { SUPPORTED_VIDEO_TYPES, MAX_FILE_SIZE, CATEGORIES, type User } from '@reelbazaar/config';
 import { NavigationArrows } from '../components/NavigationArrows';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -22,6 +22,7 @@ export default function CreateReelPage() {
   const [brandTag, setBrandTag] = useState('');
   const [brandId, setBrandId] = useState('');
   const [dealBrands, setDealBrands] = useState<User[]>([]);
+  const [category, setCategory] = useState<string>(CATEGORIES[0]);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
@@ -103,11 +104,13 @@ export default function CreateReelPage() {
         caption: caption || null,
         brandTag: brandTag || null,
         brandId: brandId || null,
+        category,
         creatorId: auth.currentUser?.uid ?? user.id,
         likesCount: 0,
         viewsCount: 0,
         sharesCount: 0,
         savesCount: 0,
+        commentsCount: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         serverCreatedAt: serverTimestamp(),
@@ -221,14 +224,39 @@ export default function CreateReelPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-white/45">Caption</label>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-white/45">Caption</label>
+              <span className={`text-[11px] ${caption.length > 450 ? 'text-orange-400' : 'text-white/30'}`}>{caption.length}/500</span>
+            </div>
             <textarea
               value={caption}
-              onChange={(e) => setCaption(e.target.value)}
+              onChange={(e) => setCaption(e.target.value.slice(0, 500))}
               placeholder="Write a caption…"
               rows={3}
               className={`${fieldClass} min-h-[88px] resize-none`}
             />
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-white/45">Category</label>
+          <div className="flex flex-wrap gap-2">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setCategory(cat)}
+                className={`rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors
+                  ${category === cat
+                    ? 'bg-[#0095f6] text-white'
+                    : theme === 'light'
+                      ? 'bg-black/8 text-black/70 hover:bg-black/15'
+                      : 'bg-white/10 text-white/60 hover:bg-white/15'
+                  }`}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
         </div>
 

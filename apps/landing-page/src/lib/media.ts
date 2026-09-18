@@ -1,6 +1,5 @@
 /**
- * Files are served from `apps/landing-page/public` (commit this folder for Vercel when
- * the project Root Directory is `apps/landing-page`). Locally, `predev`/`prebuild` runs
+ * Files are served from `apps/landing-page/public`. Locally, `predev`/`prebuild` runs
  * `scripts/sync-public.js` to copy from the monorepo `public/` when present.
  */
 export const MEDIA = {

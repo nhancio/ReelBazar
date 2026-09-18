@@ -49,11 +49,6 @@ usersRouter.put('/me', authMiddleware, requireRegistered, async (req: Request, r
       }
     }
 
-    console.log('[usersRouter.put:/me] updateProfile request', {
-      userId: req.user!.id,
-      updateData,
-    });
-
     await db().collection('users').doc(req.user!.id).update(updateData);
     
     // Fetch updated user
@@ -166,6 +161,58 @@ usersRouter.post('/:id/follow', authMiddleware, requireRegistered, async (req: R
     }
   } catch (error: any) {
     console.error('Error toggling follow:', error.message);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// DELETE /users/me — full account deletion (App Store / Play Store requirement).
+// Removes the user's reels (and their videos), likes, saves, views, comments,
+// follows, streak events, user doc, and finally the Firebase Auth account.
+usersRouter.delete('/me', authMiddleware, requireRegistered, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const firebaseUid = req.user!.firebaseUid;
+
+    async function deleteByQuery(collection: string, field: string, value: string) {
+      const snapshot = await db().collection(collection).where(field, '==', value).get();
+      const batchSize = 400;
+      for (let i = 0; i < snapshot.docs.length; i += batchSize) {
+        const batch = db().batch();
+        snapshot.docs.slice(i, i + batchSize).forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+      }
+    }
+
+    // Delete reel videos from Storage, then the reel docs.
+    const reelsSnapshot = await db().collection('reels').where('creatorId', '==', userId).get();
+    for (const reelDoc of reelsSnapshot.docs) {
+      const videoUrl: string | undefined = reelDoc.data().videoUrl;
+      if (videoUrl?.includes('storage.googleapis.com')) {
+        const path = videoUrl.split(`${storage().name}/`)[1];
+        if (path) await storage().file(path).delete().catch(() => undefined);
+      }
+      await reelDoc.ref.delete();
+    }
+
+    await deleteByQuery('reelLikes', 'userId', userId);
+    await deleteByQuery('reelSaves', 'userId', userId);
+    await deleteByQuery('reelViews', 'userId', userId);
+    await deleteByQuery('reelComments', 'authorId', userId);
+    await deleteByQuery('follows', 'followerId', userId);
+    await deleteByQuery('follows', 'followingId', userId);
+    await deleteByQuery('streakEvents', 'userId', userId);
+    await deleteByQuery('products', 'brandId', userId);
+
+    await db().collection('users').doc(userId).delete();
+
+    // Auth account last so a mid-failure keeps the user able to retry.
+    await admin.auth().deleteUser(firebaseUid).catch((err: unknown) => {
+      console.error('Failed to delete auth user:', err);
+    });
+
+    res.status(204).send();
+  } catch (error: unknown) {
+    console.error('Error deleting account:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });

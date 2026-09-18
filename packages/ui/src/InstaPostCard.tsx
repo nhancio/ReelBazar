@@ -1,11 +1,27 @@
 import React, { useRef, useEffect, useState } from 'react';
 import type { Reel } from '@reelbazaar/config';
 
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return 'just now';
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d`;
+  if (d < 30) return `${Math.floor(d / 7)}w`;
+  if (d < 365) return `${Math.floor(d / 30)}mo`;
+  return `${Math.floor(d / 365)}y`;
+}
+
 interface InstaPostCardProps {
   reel: Reel;
   onLike?: () => void;
   onSave?: () => void;
   onShare?: () => void;
+  onComment?: () => void;
   onProfileClick?: () => void;
   /** If omitted, opens `reel.productLink` in a new tab when valid. */
   onProductClick?: () => void;
@@ -33,6 +49,7 @@ export function InstaPostCard({
   onLike,
   onSave,
   onShare,
+  onComment,
   onProfileClick,
   onProductClick,
   onView,
@@ -194,9 +211,9 @@ export function InstaPostCard({
             <span className={`text-[13px] font-semibold tracking-tight ${
               theme === 'light' ? 'text-slate-900' : 'text-white'
             }`}>{getDisplayName(reel.creator)}</span>
-            {reel.creator?.brandName && <span className={`text-[11px] ${
-              theme === 'light' ? 'text-slate-600' : 'text-white/60'
-            }`}>{reel.creator.brandName}</span>}
+            <span className={`text-[11px] ${theme === 'light' ? 'text-slate-500' : 'text-white/40'}`}>
+              {reel.creator?.brandName ? `${reel.creator.brandName} · ` : ''}{reel.createdAt ? timeAgo(reel.createdAt) : ''}
+            </span>
           </div>
         </div>
       </div>
@@ -277,6 +294,11 @@ export function InstaPostCard({
               <svg className={`w-[26px] h-[26px]`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
             )}
           </button>
+          <button onClick={(e) => handleInteraction(e, onComment)} className={`active:opacity-50 transition-opacity ${
+            theme === 'light' ? 'text-slate-800' : 'text-white'
+          }`}>
+            <svg className="w-[24px] h-[24px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          </button>
           <button onClick={(e) => handleInteraction(e, onShare, true)} className={`active:opacity-50 transition-opacity ${
             theme === 'light' ? 'text-slate-800' : 'text-white'
           }`}>
@@ -294,10 +316,10 @@ export function InstaPostCard({
         </button>
       </div>
 
-      {/* Likes & Views */}
-      <div className={`px-3 mb-1 flex items-center gap-2 ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+      {/* Likes, Views & Comments */}
+      <div className={`px-3 mb-1 flex items-center gap-2 flex-wrap ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
         <span className="text-[13px] font-semibold">{(reel.likesCount || 0).toLocaleString()} likes</span>
-        <span className={`text-[13px] ${theme === 'light' ? 'text-slate-400' : 'text-white/30'}`}>|</span>
+        <span className={`text-[13px] ${theme === 'light' ? 'text-slate-400' : 'text-white/30'}`}>·</span>
         <span className={`text-[13px] font-semibold flex items-center gap-1 ${theme === 'light' ? 'text-slate-600' : 'text-white/70'}`}>
           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
             <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
@@ -305,10 +327,21 @@ export function InstaPostCard({
           </svg>
           {(reel.viewsCount || 0).toLocaleString()} views
         </span>
-        <span className={`text-[13px] ${theme === 'light' ? 'text-slate-400' : 'text-white/30'}`}>|</span>
+        <span className={`text-[13px] ${theme === 'light' ? 'text-slate-400' : 'text-white/30'}`}>·</span>
         <span className={`text-[13px] font-semibold ${theme === 'light' ? 'text-slate-600' : 'text-white/70'}`}>
           {(reel.sharesCount || 0).toLocaleString()} shares
         </span>
+        {(reel.commentsCount ?? 0) > 0 && (
+          <>
+            <span className={`text-[13px] ${theme === 'light' ? 'text-slate-400' : 'text-white/30'}`}>·</span>
+            <button
+              onClick={(e) => handleInteraction(e, onComment)}
+              className={`text-[13px] font-semibold ${theme === 'light' ? 'text-slate-600' : 'text-white/70'}`}
+            >
+              {(reel.commentsCount || 0).toLocaleString()} comments
+            </button>
+          </>
+        )}
       </div>
 
       {/* Caption */}

@@ -22,6 +22,12 @@ ios/
 # Firebase Service Account
 serviceAccountKey.json
 *-firebase-adminsdk-*.json
+google-services.json
+**/google-services.json
+GoogleService-Info.plist
+**/GoogleService-Info.plist
+google-play-service-account.json
+**/google-play-service-account.json
 
 # Deploy tooling
 .firebase/

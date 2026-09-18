@@ -245,7 +245,7 @@ export default function SingleReelPage() {
 
   if (loading) {
     return (
-      <div className={`min-h-[100dvh] flex items-center justify-center ${theme === 'light' ? 'bg-[#f6f7fb]' : 'bg-black'}`}>
+      <div className={`min-h-[var(--app-h)] flex items-center justify-center ${theme === 'light' ? 'bg-[#f6f7fb]' : 'bg-black'}`}>
         <LoadingSpinner />
       </div>
     );
@@ -253,7 +253,7 @@ export default function SingleReelPage() {
 
   if (error || !reel) {
     return (
-      <div className={`min-h-[100dvh] flex flex-col items-center justify-center p-6 ${theme === 'light' ? 'bg-[#f6f7fb] text-black' : 'bg-black text-white'}`}>
+      <div className={`min-h-[var(--app-h)] flex flex-col items-center justify-center p-6 ${theme === 'light' ? 'bg-[#f6f7fb] text-black' : 'bg-black text-white'}`}>
         <p className="text-xl font-bold mb-4">{error || 'Reel not found'}</p>
         <button
           onClick={() => navigate(-1)}

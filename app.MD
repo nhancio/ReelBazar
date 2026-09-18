@@ -147,7 +147,7 @@ collaborations/     → Brand-influencer matches (doc ID: brandId_influencerId)
 |---|-------|----------|
 | 15 | Unused utility files not imported anywhere | `backend/server/src/create_bucket.ts`, `check_buckets.ts`, `upload_videos.ts` |
 | 16 | Avatar upload doesn't verify upload success before returning URL | `backend/server/src/routes/upload.ts` |
-| 17 | Hardcoded production API URL | `packages/config/index.ts:13` (`https://reelbazar-backend.vercel.app/api`) |
+| 17 | Hardcoded production API URL | Fixed: `packages/config/index.ts:13` now defaults to `/api/v1` |
 
 ---
 

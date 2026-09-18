@@ -1,0 +1,44 @@
+rules_version = '2';
+
+// Rava Storage security rules.
+// Reels/avatars/product images are publicly readable (served on the feed);
+// writes are owner-scoped with content-type and size caps.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Reel videos uploaded from the web client: reels/{uid}/...
+    match /reels/{uid}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.contentType.matches('video/.*')
+        && request.resource.size < 50 * 1024 * 1024;
+    }
+
+    // Legacy flat reel objects written by the backend (Admin SDK bypasses
+    // rules) — clients may only read.
+    match /reels/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Avatars: avatars/{uid}/...
+    match /avatars/{uid}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    // Product images: products/{uid}/...
+    match /products/{uid}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size < 10 * 1024 * 1024;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

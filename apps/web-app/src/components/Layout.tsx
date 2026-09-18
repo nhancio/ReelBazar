@@ -55,7 +55,7 @@ export default function Layout() {
   const { theme } = useTheme();
 
   return (
-    <div className={`rb-aurora min-h-[100dvh] h-[100dvh] flex flex-col overflow-hidden ${theme === 'light' ? 'bg-[#f6f7fb] text-black' : 'bg-black text-white'}`}>
+    <div className={`rb-aurora min-h-[var(--app-h)] h-[var(--app-h)] flex flex-col overflow-hidden ${theme === 'light' ? 'bg-[#f6f7fb] text-black' : 'bg-black text-white'}`}>
       <main className="flex-1 w-full relative overflow-y-auto">
         <Outlet />
       </main>
