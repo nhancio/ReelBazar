@@ -16,6 +16,7 @@ google-services.json
 GoogleService-Info.plist
 google-play-service-account.json
 credentials/
+credentials.json
 *.jks
 *.keystore
 *.p8

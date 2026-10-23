@@ -43,7 +43,8 @@
         "buildType": "app-bundle"
       },
       "ios": {
-        "buildConfiguration": "Release"
+        "buildConfiguration": "Release",
+        "credentialsSource": "local"
       },
       "env": {
         "EXPO_PUBLIC_APP_ENV": "production"
@@ -53,7 +54,11 @@
   "submit": {
     "production": {
       "ios": {
-        "appleTeamId": "76G23XAVL3"
+        "appleId": "nithindidigam@nhancio.com",
+        "appleTeamId": "76G23XAVL3",
+        "ascApiKeyPath": "./credentials/ios/AuthKey_6L9HHK2V5P.p8",
+        "ascApiKeyId": "6L9HHK2V5P",
+        "ascApiKeyIssuerId": "65cb08f9-60a7-44a4-95b1-e23d653de497"
       },
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",

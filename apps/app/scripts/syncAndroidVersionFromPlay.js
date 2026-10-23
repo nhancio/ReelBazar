@@ -86,6 +86,9 @@ async function playJson(accessToken, pathname, { method = 'GET', body } = {}) {
   const text = await response.text();
   const json = text ? JSON.parse(text) : {};
   if (!response.ok) {
+    if (response.status === 404 && pathname.startsWith(`/applications/${packageName}/edits`)) {
+      return { __notFound: true };
+    }
     fail(`Play API ${method} ${pathname} failed (${response.status}).`);
   }
   return json;
@@ -109,6 +112,9 @@ async function highestPlayVersionCode(accessToken) {
     method: 'POST',
     body: {},
   });
+  if (edit.__notFound) {
+    return 0;
+  }
   const editId = edit.id;
   if (typeof editId !== 'string' || editId.length === 0) fail('Play Console did not return an edit id.');
   try {

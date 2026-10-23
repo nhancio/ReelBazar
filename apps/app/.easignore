@@ -24,5 +24,7 @@ coverage/
 !google-services.json
 !GoogleService-Info.plist
 !google-play-service-account.json
+!credentials.json
+!credentials/ios/*
 !app.config.js
 !eas.json
