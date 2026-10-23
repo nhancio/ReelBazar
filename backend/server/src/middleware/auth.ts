@@ -56,3 +56,18 @@ export function requireRegistered(req: Request, res: Response, next: NextFunctio
   next();
 }
 
+export async function requireBrand(req: Request, res: Response, next: NextFunction) {
+  if (!req.user?.id) {
+    return res.status(403).json({ message: 'User not registered' });
+  }
+  try {
+    const user = await db().collection('users').doc(req.user.id).get();
+    if (user.data()?.persona !== 'Brand') {
+      return res.status(403).json({ message: 'Only brand accounts can manage products' });
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
+

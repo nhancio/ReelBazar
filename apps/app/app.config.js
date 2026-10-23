@@ -62,6 +62,7 @@ module.exports = {
       // entirely when neither exists.
       ...(iosGoogleServicesFile ? { googleServicesFile: iosGoogleServicesFile } : {}),
       infoPlist: {
+        LSApplicationQueriesSchemes: ['tez', 'phonepe', 'paytmmp'],
         NSCameraUsageDescription:
           'Rava uses your camera to record fashion reels when you choose to create one.',
         NSMicrophoneUsageDescription:
@@ -131,6 +132,7 @@ module.exports = {
           android: {
             enableMinifyInReleaseBuilds: true,
             enableShrinkResourcesInReleaseBuilds: true,
+            extraProguardRules: '-keepattributes *Annotation*\n-dontwarn com.razorpay.**\n-keep class com.razorpay.** { *; }\n-optimizations !method/inlining/\n-keepclasseswithmembers class * { public void onPayment*(...); }',
           },
           ios: {
             // `pod install` fails outright without these:

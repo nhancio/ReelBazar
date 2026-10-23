@@ -9,23 +9,23 @@ dotenv.config();
 export function initFirebaseAdmin() {
   if (admin.apps.length > 0) return;
 
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.RAVA_FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  const clientEmail = process.env.RAVA_FIREBASE_CLIENT_EMAIL;
   const projectId =
-    process.env.FIREBASE_PROJECT_ID ||
+    process.env.RAVA_FIREBASE_PROJECT_ID ||
     process.env.GCLOUD_PROJECT ||
     process.env.GOOGLE_CLOUD_PROJECT ||
     'demo-reelbazaar';
-  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || `${projectId}.firebasestorage.app`;
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  const storageBucket = process.env.RAVA_FIREBASE_STORAGE_BUCKET || `${projectId}.firebasestorage.app`;
+  const serviceAccountJson = process.env.RAVA_FIREBASE_SERVICE_ACCOUNT_JSON;
+  const serviceAccountPath = process.env.RAVA_FIREBASE_SERVICE_ACCOUNT_KEY;
   const resolvedPath = serviceAccountPath ? path.resolve(process.cwd(), serviceAccountPath) : null;
 
   if (serviceAccountJson) {
     const serviceAccount = JSON.parse(serviceAccountJson);
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.firebasestorage.app`,
+      storageBucket: process.env.RAVA_FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.firebasestorage.app`,
     });
   } else if (privateKey && clientEmail) {
     admin.initializeApp({
@@ -40,7 +40,7 @@ export function initFirebaseAdmin() {
     const serviceAccount = JSON.parse(fs.readFileSync(resolvedPath, 'utf-8'));
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.firebasestorage.app`,
+      storageBucket: process.env.RAVA_FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.firebasestorage.app`,
     });
   } else {
     console.warn('Firebase Admin: No service account configured. Using application default credentials.');

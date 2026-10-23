@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db, storage } from '../utils/firebase';
-import { authMiddleware, requireRegistered } from '../middleware/auth';
+import { authMiddleware, requireBrand, requireRegistered } from '../middleware/auth';
 import { createRateLimit } from '../middleware/rateLimit';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
@@ -11,7 +11,8 @@ import {
   normalizeString,
   parseIntegerQuery,
 } from '../utils/validation';
-import { SAMPLE_PRODUCT } from '@reelbazaar/config';
+import { SAMPLE_PRODUCT } from '../constants/sampleProduct';
+import { isProductionRuntime } from '../orderLogic';
 
 export { SAMPLE_PRODUCT };
 
@@ -105,7 +106,7 @@ productsRouter.get('/', async (req: Request, res: Response) => {
     if (hasMore) products = products.slice(0, take);
 
     // Keep the demo flow alive: an empty catalog still shows the sample product.
-    if (products.length === 0 && !cursor && !brandId) {
+    if (products.length === 0 && !cursor && !brandId && !isProductionRuntime(process.env)) {
       products = [SAMPLE_PRODUCT];
     }
 
@@ -151,7 +152,7 @@ productsRouter.get('/brand/:brandId', async (req: Request, res: Response) => {
 productsRouter.get('/:id', async (req: Request, res: Response) => {
   try {
     const id = normalizeDocumentId(req.params.id, 'Product id');
-    if (id === SAMPLE_PRODUCT.id) {
+    if (id === SAMPLE_PRODUCT.id && !isProductionRuntime(process.env)) {
       return res.json({ product: SAMPLE_PRODUCT });
     }
 
@@ -174,6 +175,7 @@ productsRouter.post(
   createProductRateLimit,
   authMiddleware,
   requireRegistered,
+  requireBrand,
   imageUpload.single('file'),
   async (req: Request, res: Response) => {
     try {
@@ -217,7 +219,6 @@ productsRouter.post(
 
       const brandDoc = await db().collection('users').doc(req.user!.id).get();
       const brandData = brandDoc.data();
-
       const now = new Date().toISOString();
       const productData = {
         brandId: req.user!.id,
@@ -258,6 +259,7 @@ productsRouter.put(
   '/:id',
   authMiddleware,
   requireRegistered,
+  requireBrand,
   imageUpload.single('file'),
   async (req: Request, res: Response) => {
     try {
@@ -340,7 +342,7 @@ productsRouter.put(
 );
 
 // DELETE /products/:id — brand removes their listing
-productsRouter.delete('/:id', authMiddleware, requireRegistered, async (req: Request, res: Response) => {
+productsRouter.delete('/:id', authMiddleware, requireRegistered, requireBrand, async (req: Request, res: Response) => {
   try {
     const id = normalizeDocumentId(req.params.id, 'Product id');
     const doc = await db().collection('products').doc(id).get();

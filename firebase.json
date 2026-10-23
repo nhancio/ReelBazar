@@ -29,7 +29,7 @@
   "hosting": [
     {
       "site": "reelbaazar",
-      "public": "apps/web-app/dist",
+      "public": "apps/app/dist",
       "ignore": [
         "firebase.json",
         "**/.*",

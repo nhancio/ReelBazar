@@ -1,0 +1,26 @@
+export const SAMPLE_PRODUCT = {
+  id: 'sample-rava-tee',
+  brandId: 'rava-demo-brand',
+  brandName: 'Rava Studio',
+  brandAvatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
+  name: 'Rava Signature Oversized Tee',
+  description:
+    'Heavyweight 240 GSM cotton oversized tee with the Rava monogram. Unisex fit, pre-shrunk, made in India. High quality streetwear crafted for creator lifestyle.',
+  imageUrl: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=80',
+  images: [
+    'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&auto=format&fit=crop&q=80',
+  ],
+  category: 'Men',
+  price: 999,
+  originalPrice: 1499,
+  currency: 'INR',
+  commissionRate: 15,
+  inStock: true,
+  inventoryCount: 100,
+  productLink: 'https://rava.one/products/sample-tee',
+  sku: 'RAVA-TEE-001',
+  isSample: true,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+} as const;

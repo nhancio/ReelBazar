@@ -11,6 +11,7 @@ import {
 } from '../utils/razorpay';
 import { SAMPLE_PRODUCT } from './products';
 import { ValidationError, normalizeDocumentId, normalizeString } from '../utils/validation';
+import { buildTracking, canVerifyPayment, demoPaymentAllowed, isProductionRuntime } from '../orderLogic';
 
 const FieldValue = admin.firestore.FieldValue;
 
@@ -24,60 +25,6 @@ const checkoutRateLimit = createRateLimit({
 });
 
 const APP_ORIGIN = process.env.APP_ORIGIN || 'https://app.rava.one';
-
-const TRACKING_STEPS: Array<{ status: string; label: string; afterMinutes: number }> = [
-  { status: 'confirmed', label: 'Order confirmed', afterMinutes: 0 },
-  { status: 'packed', label: 'Packed at warehouse', afterMinutes: 2 },
-  { status: 'shipped', label: 'Shipped with courier', afterMinutes: 10 },
-  { status: 'out_for_delivery', label: 'Out for delivery', afterMinutes: 30 },
-  { status: 'delivered', label: 'Delivered', afterMinutes: 60 },
-];
-
-function buildTracking(order: FirebaseFirestore.DocumentData) {
-  if (order.status === 'cancelled') {
-    return {
-      currentStatus: 'cancelled',
-      steps: [{ status: 'cancelled', label: 'Order cancelled', at: order.updatedAt || order.createdAt, done: true }],
-    };
-  }
-
-  if (order.status === 'failed') {
-    return {
-      currentStatus: 'failed',
-      steps: [{ status: 'failed', label: 'Payment failed', at: order.updatedAt || order.createdAt, done: true }],
-    };
-  }
-
-  if (order.status === 'pending_payment' || !order.paidAt) {
-    return {
-      currentStatus: order.status || 'pending_payment',
-      steps: [{ status: 'pending_payment', label: 'Awaiting payment', at: order.createdAt, done: false }],
-    };
-  }
-
-  // If explicit fulfillment status has been set by brand:
-  const orderStatus = order.status || 'confirmed';
-  const statusOrder = ['confirmed', 'packed', 'shipped', 'out_for_delivery', 'delivered'];
-  const currentIdx = statusOrder.indexOf(orderStatus);
-
-  const paidAtMs = new Date(order.paidAt).getTime();
-  const elapsedMinutes = (Date.now() - paidAtMs) / 60000;
-
-  const steps = TRACKING_STEPS.map((step, idx) => {
-    // If status is explicit, mark all previous steps and current step as done
-    const doneByStatus = currentIdx >= 0 ? idx <= currentIdx : false;
-    const doneByTime = elapsedMinutes >= step.afterMinutes;
-    return {
-      status: step.status,
-      label: step.label,
-      at: new Date(paidAtMs + step.afterMinutes * 60000).toISOString(),
-      done: doneByStatus || doneByTime,
-    };
-  });
-
-  const current = [...steps].reverse().find((s) => s.done);
-  return { currentStatus: orderStatus !== 'confirmed' ? orderStatus : (current?.status ?? 'confirmed'), steps };
-}
 
 async function getProduct(productId: string): Promise<FirebaseFirestore.DocumentData | null> {
   if (productId === SAMPLE_PRODUCT.id) return SAMPLE_PRODUCT;
@@ -142,23 +89,48 @@ async function recordOrderSettlement(orderId: string, orderData: FirebaseFiresto
 ordersRouter.post('/checkout', checkoutRateLimit, authMiddleware, requireRegistered, async (req: Request, res: Response) => {
   try {
     const productId = normalizeDocumentId(req.body.productId, 'Product id');
+    if (productId === SAMPLE_PRODUCT.id && isProductionRuntime(process.env)) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
     const product = await getProduct(productId);
     if (!product) return res.status(404).json({ message: 'Product not found' });
     if (product.inStock === false) return res.status(409).json({ message: 'Product is out of stock' });
 
     const quantity = Math.max(1, Math.min(50, Number.parseInt(req.body.quantity || '1', 10) || 1));
-    const reelId = req.body.reelId ? normalizeDocumentId(req.body.reelId, 'Reel id') : null;
-    let creatorId = req.body.creatorId ? normalizeDocumentId(req.body.creatorId, 'Creator id') : null;
-
-    // If reelId is provided but creatorId is missing, resolve creatorId from reel
-    if (reelId && !creatorId) {
-      const reelDoc = await db().collection('reels').doc(reelId).get();
-      if (reelDoc.exists) {
-        creatorId = reelDoc.data()?.creatorId || null;
-      }
+    if (Number.isFinite(product.inventoryCount) && product.inventoryCount < quantity) {
+      return res.status(409).json({ message: 'Requested quantity is not available' });
+    }
+    const useRazorpay = razorpayEnabled();
+    if (!useRazorpay && !demoPaymentAllowed(process.env)) {
+      return res.status(503).json({ message: 'Payments are temporarily unavailable' });
     }
 
-    const shippingAddress = req.body.shippingAddress || null;
+    const reelId = req.body.reelId ? normalizeDocumentId(req.body.reelId, 'Reel id') : null;
+    let creatorId: string | null = null;
+    if (reelId) {
+      const reelDoc = await db().collection('reels').doc(reelId).get();
+      if (!reelDoc.exists) return res.status(404).json({ message: 'Reel not found' });
+      const reelData = reelDoc.data()!;
+      if (reelData.productId !== productId) return res.status(400).json({ message: 'Reel is not tagged with this product' });
+      creatorId = reelData.creatorId || null;
+    }
+
+    const inputAddress = req.body.shippingAddress;
+    const shippingAddress = inputAddress && typeof inputAddress === 'object'
+      ? {
+          street: normalizeString(inputAddress.street, { minLength: 1, maxLength: 200 }),
+          city: normalizeString(inputAddress.city, { minLength: 1, maxLength: 100 }),
+          state: normalizeString(inputAddress.state, { minLength: 1, maxLength: 100 }),
+          pincode: normalizeString(inputAddress.pincode, { minLength: 6, maxLength: 6 }),
+          country: normalizeString(inputAddress.country || 'India', { minLength: 1, maxLength: 60 }),
+        }
+      : null;
+    if (
+      !shippingAddress?.street || !shippingAddress.city || !shippingAddress.state
+      || !shippingAddress.pincode || !/^\d{6}$/.test(shippingAddress.pincode)
+    ) {
+      return res.status(400).json({ message: 'A complete delivery address with a valid 6-digit pincode is required' });
+    }
     const buyerName = normalizeString(req.body.buyerName, { maxLength: 100, allowEmpty: true });
     const buyerPhone = normalizeString(req.body.buyerPhone, { maxLength: 25, allowEmpty: true });
 
@@ -179,8 +151,6 @@ ordersRouter.post('/checkout', checkoutRateLimit, authMiddleware, requireRegiste
 
     const now = new Date().toISOString();
     const orderRef = db().collection('orders').doc();
-    const useRazorpay = razorpayEnabled();
-
     let razorpayOrderId: string | null = null;
     let paymentUrl: string;
 
@@ -276,13 +246,6 @@ ordersRouter.post('/verify', authMiddleware, requireRegistered, async (req: Requ
       return res.status(400).json({ message: 'razorpayOrderId, razorpayPaymentId, and razorpaySignature are required' });
     }
 
-    const orderRef = db().collection('orders').doc(orderId);
-    const orderDoc = await orderRef.get();
-    if (!orderDoc.exists) return res.status(404).json({ message: 'Order not found' });
-
-    const data = orderDoc.data()!;
-    if (data.buyerId !== req.user!.id) return res.status(403).json({ message: 'Not authorized' });
-
     const isValid = verifyPaymentSignature({
       razorpayOrderId,
       razorpayPaymentId,
@@ -293,23 +256,47 @@ ordersRouter.post('/verify', authMiddleware, requireRegistered, async (req: Requ
       return res.status(400).json({ message: 'Invalid payment signature' });
     }
 
+    const orderRef = db().collection('orders').doc(orderId);
     const now = new Date().toISOString();
-    await orderRef.update({
-      status: 'confirmed',
-      paidAt: data.paidAt || now,
-      razorpayPaymentId,
-      razorpaySignature,
-      updatedAt: now,
+    const result = await db().runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(orderRef);
+      if (!snapshot.exists) return { error: 'not-found' as const };
+      const data = snapshot.data()!;
+      if (data.buyerId !== req.user!.id) return { error: 'forbidden' as const };
+      if (data.paymentProvider !== 'razorpay' || data.razorpayOrderId !== razorpayOrderId) {
+        return { error: 'mismatch' as const };
+      }
+      if (!canVerifyPayment(data, req.user!.id, razorpayOrderId, razorpayPaymentId)) {
+        return { error: 'conflict' as const };
+      }
+      if (data.status === 'confirmed') return { data, newlyConfirmed: false };
+
+      const updates = {
+        status: 'confirmed',
+        paidAt: data.paidAt || now,
+        razorpayPaymentId,
+        razorpaySignature,
+        updatedAt: now,
+      };
+      transaction.update(orderRef, updates);
+      return { data: { ...data, ...updates }, newlyConfirmed: true };
     });
 
-    const updatedDoc = await orderRef.get();
-    const updatedData = updatedDoc.data()!;
-
-    await recordOrderSettlement(orderId, updatedData);
+    if ('error' in result) {
+      const status = result.error === 'not-found' ? 404
+        : result.error === 'forbidden' ? 403
+          : result.error === 'mismatch' ? 400 : 409;
+      const message = result.error === 'not-found' ? 'Order not found'
+        : result.error === 'forbidden' ? 'Not authorized'
+          : result.error === 'mismatch' ? 'Payment does not match this order'
+            : 'Order is not awaiting this payment';
+      return res.status(status).json({ message });
+    }
+    if (result.newlyConfirmed) await recordOrderSettlement(orderId, result.data);
 
     res.json({
       success: true,
-      order: { id: updatedDoc.id, ...updatedData, tracking: buildTracking(updatedData) },
+      order: { id: orderId, ...result.data, tracking: buildTracking(result.data) },
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -396,7 +383,9 @@ ordersRouter.patch('/:id/fulfillment', authMiddleware, requireRegistered, async 
     };
     if (courierName !== undefined) updates.courierName = courierName || null;
     if (trackingNumber !== undefined) updates.trackingNumber = trackingNumber || null;
+    if (status === 'packed' && !data.packedAt) updates.packedAt = now;
     if (status === 'shipped' && !data.shippedAt) updates.shippedAt = now;
+    if (status === 'out_for_delivery' && !data.outForDeliveryAt) updates.outForDeliveryAt = now;
     if (status === 'delivered' && !data.deliveredAt) updates.deliveredAt = now;
 
     await orderRef.update(updates);
@@ -489,28 +478,32 @@ export async function razorpayWebhookHandler(req: Request, res: Response) {
       }
     }
 
-    if (orderDoc && orderRef) {
-      const currentData = orderDoc.data()!;
+    if (orderDoc && orderRef && orderDoc.data()?.razorpayOrderId === rzpOrderId) {
       const now = new Date().toISOString();
 
       if (event === 'payment.captured' || event === 'order.paid') {
-        if (currentData.status === 'pending_payment' || currentData.status === 'failed') {
-          const updatedPayload = {
+        const confirmation = await db().runTransaction(async (transaction) => {
+          const snapshot = await transaction.get(orderRef);
+          if (!snapshot.exists) return null;
+          const currentData = snapshot.data()!;
+          if (currentData.razorpayOrderId !== rzpOrderId || currentData.status !== 'pending_payment') return null;
+          const updates = {
             status: 'confirmed',
             paidAt: currentData.paidAt || now,
             razorpayPaymentId: paymentId || currentData.razorpayPaymentId || null,
             updatedAt: now,
           };
-          await orderRef.update(updatedPayload);
-          await recordOrderSettlement(orderDoc.id, { ...currentData, ...updatedPayload });
-        }
+          transaction.update(orderRef, updates);
+          return { ...currentData, ...updates };
+        });
+        if (confirmation) await recordOrderSettlement(orderDoc.id, confirmation);
       } else if (event === 'payment.failed') {
-        if (currentData.status === 'pending_payment') {
-          await orderRef.update({
-            status: 'failed',
-            updatedAt: now,
-          });
-        }
+        await db().runTransaction(async (transaction) => {
+          const snapshot = await transaction.get(orderRef);
+          if (snapshot.exists && snapshot.data()?.razorpayOrderId === rzpOrderId && snapshot.data()?.status === 'pending_payment') {
+            transaction.update(orderRef, { status: 'failed', updatedAt: now });
+          }
+        });
       }
     }
 

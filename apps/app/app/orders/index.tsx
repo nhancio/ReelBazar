@@ -22,15 +22,13 @@ import { radius, spacing, typography } from '@/theme';
 export default function OrdersListScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { palette, theme } = useTheme();
+  const { palette } = useTheme();
   const { showToast } = useToast();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'active' | 'delivered'>('all');
-
-  const isDark = theme !== 'light';
 
   const loadOrders = useCallback(async () => {
     try {

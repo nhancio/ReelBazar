@@ -15,6 +15,7 @@ import { productsRouter } from './routes/products';
 import { ordersRouter, razorpayWebhookHandler } from './routes/orders';
 import { payoutsRouter } from './routes/payouts';
 import { moderationRouter } from './routes/moderation';
+import { isProductionRuntime } from './orderLogic';
 
 initFirebaseAdmin();
 
@@ -84,7 +85,7 @@ app.use(
 );
 
 /** Dev-only: append Cursor debug NDJSON (web app proxies /api here). */
-if (process.env.NODE_ENV !== 'production') {
+if (!isProductionRuntime(process.env)) {
   app.post(
     '/api/__debug/ingest',
     express.raw({ type: 'application/json', limit: '512kb' }),

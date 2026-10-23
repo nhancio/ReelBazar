@@ -10,6 +10,7 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import { ordersApi, type CheckoutResponse, type Order } from '@reelbazaar/api';
+import { openRazorpayCheckout } from './razorpayCheckout';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { Button } from '@/components/Button';
@@ -74,41 +75,22 @@ export function RazorpayCheckoutModal({
     [checkoutData, onSuccess, showToast]
   );
 
-  const triggerRazorpayWeb = useCallback(async () => {
+  const triggerRazorpayCheckout = useCallback(async () => {
     if (!checkoutData || !checkoutData.razorpayOrderId) return;
+    if (!checkoutData.keyId) {
+      showToast('Razorpay is not configured for this checkout', 'error');
+      return;
+    }
 
     setProcessing(true);
     try {
-      if (typeof window !== 'undefined' && !window.Razorpay) {
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-          script.async = true;
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error('Failed to load Razorpay SDK'));
-          document.body.appendChild(script);
-        });
-      }
-
-      if (typeof window !== 'undefined' && window.Razorpay) {
-        const options = {
+      const response = await openRazorpayCheckout({
           key: checkoutData.keyId,
-          amount: checkoutData.amount * 100,
+          amount: Math.round(checkoutData.amount * 100),
           currency: checkoutData.currency || 'INR',
           name: 'Rava Marketplace',
           description: checkoutData.order.productName || 'Product Order',
           order_id: checkoutData.razorpayOrderId,
-          handler: (response: {
-            razorpay_payment_id: string;
-            razorpay_order_id: string;
-            razorpay_signature: string;
-          }) => {
-            void handleVerify(
-              response.razorpay_order_id,
-              response.razorpay_payment_id,
-              response.razorpay_signature
-            );
-          },
           prefill: {
             name: checkoutData.order.buyerName || '',
             email: checkoutData.order.buyerEmail || '',
@@ -117,20 +99,17 @@ export function RazorpayCheckoutModal({
           theme: {
             color: '#ff3366',
           },
-          modal: {
-            ondismiss: () => {
-              setProcessing(false);
-            },
-          },
-        };
-
-        const rzp = new window.Razorpay(options);
-        rzp.open();
+          modal: { ondismiss: () => setProcessing(false) },
+      });
+      if (!response.razorpay_order_id || !response.razorpay_payment_id || !response.razorpay_signature) {
+        throw new Error('Payment response was incomplete; your order was not confirmed');
       }
+      await handleVerify(response.razorpay_order_id, response.razorpay_payment_id, response.razorpay_signature);
     } catch (err: unknown) {
-      console.error('Failed to open Razorpay web checkout:', err);
+      console.error('Failed to open Razorpay checkout:', err);
       const msg = err instanceof Error ? err.message : 'Failed to launch checkout';
       showToast(msg, 'error');
+    } finally {
       setProcessing(false);
     }
   }, [checkoutData, handleVerify, showToast]);
@@ -157,10 +136,10 @@ export function RazorpayCheckoutModal({
       if (checkoutData.demoMode) {
         // In demo mode, order is already confirmed on backend
       } else if (Platform.OS === 'web' && checkoutData.razorpayOrderId) {
-        void triggerRazorpayWeb();
+        void triggerRazorpayCheckout();
       }
     }
-  }, [visible, checkoutData, triggerRazorpayWeb]);
+  }, [visible, checkoutData, triggerRazorpayCheckout]);
 
   if (!visible || !checkoutData) return null;
 
@@ -252,7 +231,7 @@ export function RazorpayCheckoutModal({
             ) : (
               <Button
                 label={processing ? 'Launching Razorpay…' : `Pay ₹${checkoutData.amount.toLocaleString('en-IN')}`}
-                onPress={triggerRazorpayWeb}
+                onPress={() => void triggerRazorpayCheckout()}
                 loading={processing || verifying}
                 fullWidth
               />

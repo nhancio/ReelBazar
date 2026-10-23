@@ -1208,6 +1208,29 @@ export default function ProfileScreen() {
               />
             </View>
 
+            <View style={styles.editField}>
+              <Text style={[styles.editLabel, { color: palette.textMuted }]}>CATEGORY *</Text>
+              <View style={styles.chipsRow}>
+                {CATEGORIES.map((category) => (
+                  <Pressable
+                    key={category}
+                    onPress={() => setProdCategory(category)}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: prodCategory === category ? palette.accent : 'transparent',
+                        borderColor: prodCategory === category ? palette.accent : palette.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.chipText, { color: prodCategory === category ? '#ffffff' : palette.text }]}>
+                      {category}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
             <View style={styles.inputRow}>
               <View style={[styles.editField, { flex: 1 }]}>
                 <Text style={[styles.editLabel, { color: palette.textMuted }]}>PRICE (INR ₹) *</Text>
