@@ -55,6 +55,7 @@
     "production": {
       "ios": {
         "appleId": "nithindidigam@nhancio.com",
+        "ascAppId": "6826155161",
         "appleTeamId": "76G23XAVL3",
         "ascApiKeyPath": "./credentials/ios/AuthKey_6L9HHK2V5P.p8",
         "ascApiKeyId": "6L9HHK2V5P",
