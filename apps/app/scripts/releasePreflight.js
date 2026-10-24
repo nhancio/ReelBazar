@@ -54,6 +54,22 @@ check(eas.build?.production?.channel === 'production', 'Production OTA channel i
 check(eas.build?.production?.environment === 'production', 'Production EAS environment is selected', 'Production environment is missing');
 check(eas.build?.production?.env?.EXPO_PUBLIC_APP_ENV === 'production', 'Production app environment is explicit', 'EXPO_PUBLIC_APP_ENV must be production');
 
+// Native Expo modules share the SDK's major version. One from another SDK still builds (precompiled
+// modules skip compilation) but dies at launch with dyld "Symbol missing" — iOS build 1 shipped
+// expo-font 57 pulled in through @expo/vector-icons' peer dependency and crashed on every open.
+try {
+  const { modules } = JSON.parse(
+    execFileSync('npx', ['expo-modules-autolinking', 'resolve', '--platform', 'apple', '--json'], { cwd: root, encoding: 'utf8' }),
+  );
+  const sdkMajor = require(require.resolve('expo/package.json', { paths: [root] })).version.split('.')[0];
+  const foreign = modules
+    .filter((m) => /^(expo$|expo-|@expo\/)/.test(m.packageName) && m.packageVersion.split('.')[0] !== sdkMajor)
+    .map((m) => `${m.packageName}@${m.packageVersion}`);
+  check(foreign.length === 0, `All native Expo modules match SDK ${sdkMajor}`, `Native Expo modules from another SDK: ${foreign.join(', ')}`);
+} catch {
+  failures.push('Unable to resolve native Expo modules');
+}
+
 if (requestedPlatform === 'android' || requestedPlatform === 'all') {
   check(app.android?.package === 'com.nhancio.rava', 'Android package is com.nhancio.rava', `Unexpected Android package: ${app.android?.package}`);
   check(Number.isInteger(app.android?.versionCode) && app.android.versionCode >= 1, `Android versionCode is ${app.android?.versionCode}`, 'Android versionCode must be an integer >= 1');
