@@ -59,6 +59,7 @@ DEPLOY_FIREBASE=1
 DO_WEB_BUILD=1
 USE_CI=0
 BUILD_ONLY=0
+FIREBASE_PROJECT="${FIREBASE_PROJECT:-reelbaazar}"
 FIREBASE_ONLY="hosting,functions"
 LANDING_SITE_ID="reelbaazar-landing"
 FUNCTION_ENV_BACKUP_DIR=""
@@ -475,9 +476,9 @@ ensure_landing_site() {
 
   echo "==> Ensuring Firebase Hosting site exists: $LANDING_SITE_ID"
   if [[ -n "${FIREBASE_TOKEN:-}" ]]; then
-    firebase_cmd hosting:sites:create "$LANDING_SITE_ID" --non-interactive --token "$FIREBASE_TOKEN" >/dev/null 2>&1 || true
+    firebase_cmd hosting:sites:create "$LANDING_SITE_ID" --project "$FIREBASE_PROJECT" --non-interactive --token "$FIREBASE_TOKEN" >/dev/null 2>&1 || true
   else
-    firebase_cmd hosting:sites:create "$LANDING_SITE_ID" >/dev/null 2>&1 || true
+    firebase_cmd hosting:sites:create "$LANDING_SITE_ID" --project "$FIREBASE_PROJECT" >/dev/null 2>&1 || true
   fi
 }
 
@@ -488,9 +489,9 @@ firebase_deploy_with_retry() {
 
   while [[ "$attempt" -le "$max_attempts" ]]; do
     if [[ -n "${FIREBASE_TOKEN:-}" ]]; then
-      firebase_cmd deploy --only "$only" --force --non-interactive --token "$FIREBASE_TOKEN" && return 0
+      firebase_cmd deploy --project "$FIREBASE_PROJECT" --only "$only" --force --non-interactive --token "$FIREBASE_TOKEN" && return 0
     else
-      firebase_cmd deploy --only "$only" --force && return 0
+      firebase_cmd deploy --project "$FIREBASE_PROJECT" --only "$only" --force && return 0
     fi
 
     if [[ "$attempt" -lt "$max_attempts" ]]; then

@@ -15,7 +15,7 @@
     "lint": "expo lint --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "verify": "npm run lint && npm run typecheck",
-    "prebuild": "expo prebuild --clean",
+    "prebuild:native": "expo prebuild --clean",
     "assets:generate": "node scripts/buildAssets.js",
     "play:assets": "node scripts/buildAssets.js",
     "play:preflight": "node scripts/playStorePreflight.js",
