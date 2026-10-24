@@ -5,7 +5,7 @@ NODE20_BIN="/opt/homebrew/opt/node@20/bin"
 if [[ -x "$NODE20_BIN/node" ]]; then
   export PATH="$NODE20_BIN:/opt/homebrew/bin:$PATH"
 fi
-PROFILE="${EAS_PROFILE:-preview}"
+PROFILE="${EAS_IOS_PROFILE:-${EAS_PROFILE:-production}}"
 WAIT_FLAG="${EAS_WAIT_FLAG:---no-wait}"
 export NODE_ENV=production EXPO_PUBLIC_APP_ENV="$PROFILE"
 cd "$PROJECT_ROOT"

@@ -11,4 +11,4 @@ MESSAGE="${1:-chore(app): OTA update for Android & iOS}"
 export NODE_ENV=production EXPO_PUBLIC_APP_ENV="$BRANCH"
 cd "$PROJECT_ROOT"
 npm run verify
-eas update --branch "$BRANCH" --platform "$PLATFORM" --message "$MESSAGE" --non-interactive
+eas update --branch "$BRANCH" --environment "$BRANCH" --platform "$PLATFORM" --message "$MESSAGE" --non-interactive

@@ -52,6 +52,7 @@ DO_IOS=1
 DO_SUBMIT=0
 DO_SYNC_ENV=0
 EAS_PROFILE="${EAS_PROFILE:-preview}"
+EAS_IOS_PROFILE="${EAS_IOS_PROFILE:-production}"
 EAS_WAIT_FLAG="--no-wait"
 
 DEPLOY_FIREBASE=0
@@ -352,10 +353,14 @@ deploy_expo() {
   if [[ "$DO_EXPO_OTA" -eq 1 ]]; then
     echo ""
     echo "==> [Expo OTA] Publishing EAS Update to branch '$EAS_PROFILE' (platform: $ota_platform)..."
-    if eas_cmd update --branch "$EAS_PROFILE" --platform "$ota_platform" --message "$DEPLOY_MSG" --non-interactive; then
+    if eas_cmd update --branch "$EAS_PROFILE" --environment "$EAS_PROFILE" --platform "$ota_platform" --message "$DEPLOY_MSG" --non-interactive; then
       echo "✅ [Expo OTA] Published update to '$EAS_PROFILE' ($ota_platform)."
     else
       echo "⚠️  [Expo OTA] eas update returned a non-zero status (continuing to binary builds)." >&2
+    fi
+    if [[ "$EAS_IOS_PROFILE" != "$EAS_PROFILE" ]]; then
+      echo "==> [Expo OTA] Publishing EAS Update to branch '$EAS_IOS_PROFILE' (platform: $ota_platform)..."
+      eas_cmd update --branch "$EAS_IOS_PROFILE" --environment "$EAS_IOS_PROFILE" --platform "$ota_platform" --message "$DEPLOY_MSG" --non-interactive || true
     fi
   fi
 
@@ -374,12 +379,12 @@ deploy_expo() {
   # 3c. EAS Build — iOS
   if [[ "$DO_EXPO_BUILD" -eq 1 && "$DO_IOS" -eq 1 ]]; then
     echo ""
-    echo "==> [Expo iOS] Triggering EAS Build (profile: $EAS_PROFILE, wait: $EAS_WAIT_FLAG)..."
-    if eas_cmd build --platform ios --profile "$EAS_PROFILE" --message "$DEPLOY_MSG" --non-interactive "$EAS_WAIT_FLAG"; then
-      echo "✅ [Expo iOS] Build queued/completed on EAS ($EAS_PROFILE)."
+    echo "==> [Expo iOS] Triggering EAS Build (profile: $EAS_IOS_PROFILE, wait: $EAS_WAIT_FLAG)..."
+    if eas_cmd build --platform ios --profile "$EAS_IOS_PROFILE" --message "$DEPLOY_MSG" --non-interactive "$EAS_WAIT_FLAG"; then
+      echo "✅ [Expo iOS] Build queued/completed on EAS ($EAS_IOS_PROFILE)."
     else
       echo "⚠️  [Expo iOS] Cloud build requires interactive Apple Developer credentials or provisioning setup." >&2
-      echo "   Tip: Run 'cd apps/app && eas build --platform ios --profile $EAS_PROFILE' once interactively to link Apple credentials." >&2
+      echo "   Tip: Run 'cd apps/app && eas build --platform ios --profile $EAS_IOS_PROFILE' once interactively to link Apple credentials." >&2
     fi
   fi
 
