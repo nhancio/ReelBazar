@@ -20,6 +20,7 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { Button } from '@/components/Button';
+import { NativeSegmentedPicker } from '@/components/NativeUI';
 import { radius, spacing, typography } from '@/theme';
 
 const INTEREST_OPTIONS = [
@@ -76,7 +77,7 @@ async function syncProfileToBackend(
 export default function OnboardingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { palette, theme } = useTheme();
+  const { palette } = useTheme();
   const { user, firebaseUser, guestMode, refreshUser } = useAuth();
 
   const existingInterests = useMemo(
@@ -154,7 +155,6 @@ export default function OnboardingScreen() {
     }
   };
 
-  const isDark = theme !== 'light';
   const showSelectionError = submitted && selectedInterests.length === 0;
 
   return (
@@ -176,14 +176,14 @@ export default function OnboardingScreen() {
           style={[
             styles.card,
             {
-              backgroundColor: isDark ? '#141416' : '#ffffff',
-              borderColor: palette.border,
+              backgroundColor: palette.sheet,
+              borderColor: palette.borderStrong,
             },
           ]}
         >
-          <Text style={[styles.title, { color: palette.text }]}>Welcome to {APP_NAME}! 👋</Text>
-          <Text style={[styles.subtitle, { color: palette.textMuted }]}>
-            Let&apos;s set up your profile quickly.
+          <Text style={[styles.title, { color: palette.text }]}>Welcome to {APP_NAME} ✨</Text>
+          <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
+            Curate your style profile in seconds.
           </Text>
 
           {/* Username */}
@@ -193,13 +193,13 @@ export default function OnboardingScreen() {
               value={username}
               onChangeText={(t) => setUsername(t.replace(/[^a-zA-Z0-9_.]/g, '').toLowerCase())}
               placeholder="e.g. fashionguru"
-              placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
+              placeholderTextColor={palette.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
               style={[
                 styles.input,
                 {
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                  backgroundColor: palette.inputBg,
                   borderColor: palette.borderInteractive,
                   color: palette.text,
                 },
@@ -210,6 +210,12 @@ export default function OnboardingScreen() {
           {/* Persona selector */}
           <View style={styles.section}>
             <Text style={[styles.label, { color: palette.textMuted }]}>SELECT YOUR PERSONA</Text>
+            <NativeSegmentedPicker<Persona>
+              options={PERSONAS.map((p) => ({ label: p, value: p }))}
+              selectedValue={selectedPersona}
+              onValueChange={setSelectedPersona}
+              style={{ marginBottom: spacing.xs }}
+            />
             <View style={styles.personaList}>
               {PERSONAS.map((p) => {
                 const isSelected = selectedPersona === p;
@@ -223,13 +229,7 @@ export default function OnboardingScreen() {
                     style={[
                       styles.personaRow,
                       {
-                        backgroundColor: isSelected
-                          ? isDark
-                            ? 'rgba(168,85,247,0.15)'
-                            : 'rgba(168,85,247,0.08)'
-                          : isDark
-                            ? 'rgba(255,255,255,0.05)'
-                            : 'rgba(0,0,0,0.03)',
+                        backgroundColor: isSelected ? palette.accentSoft : palette.cardElevated,
                         borderColor: isSelected ? palette.accent : palette.border,
                       },
                     ]}
@@ -238,18 +238,14 @@ export default function OnboardingScreen() {
                       style={[
                         styles.personaIconWrap,
                         {
-                          backgroundColor: isSelected
-                            ? palette.accentSoft
-                            : isDark
-                              ? 'rgba(255,255,255,0.08)'
-                              : 'rgba(0,0,0,0.06)',
+                          backgroundColor: isSelected ? palette.accent : palette.inputBg,
                         },
                       ]}
                     >
                       <Ionicons
                         name={info.icon}
                         size={20}
-                        color={isSelected ? palette.accent : palette.textSecondary}
+                        color={isSelected ? palette.textOnAccent : palette.textSecondary}
                       />
                     </View>
                     <View style={styles.personaText}>
@@ -291,12 +287,8 @@ export default function OnboardingScreen() {
                     style={[
                       styles.chip,
                       {
-                        backgroundColor: isSelected
-                          ? palette.text
-                          : isDark
-                            ? 'rgba(255,255,255,0.07)'
-                            : 'rgba(0,0,0,0.05)',
-                        borderColor: isSelected ? palette.text : palette.border,
+                        backgroundColor: isSelected ? palette.accent : palette.cardElevated,
+                        borderColor: isSelected ? palette.accent : palette.borderStrong,
                       },
                     ]}
                   >
@@ -304,11 +296,7 @@ export default function OnboardingScreen() {
                       style={[
                         styles.chipText,
                         {
-                          color: isSelected
-                            ? palette.background
-                            : isDark
-                              ? 'rgba(255,255,255,0.7)'
-                              : 'rgba(0,0,0,0.75)',
+                          color: isSelected ? palette.textOnAccent : palette.textSecondary,
                           fontWeight: isSelected ? '700' : '600',
                         },
                       ]}

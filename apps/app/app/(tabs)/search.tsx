@@ -1,9 +1,13 @@
-/**
- * Search tab — the same /reels/search endpoint the AI tab uses, with a plain query field
- * instead of a conversational one. Was `discover.tsx`; renamed with the nav change.
- */
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -23,14 +27,26 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const [active, setActive] = useState<string | null>(null);
   const [results, setResults] = useState<Reel[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searched, setSearched] = useState(false);
+
+  const loadTrending = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await reelsApi.getFeed(undefined, undefined);
+      setResults(res.reels || []);
+      setSearched(false);
+    } catch {
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const run = useCallback(
     async (q: string) => {
       if (!q.trim()) {
-        setResults([]);
-        setSearched(false);
+        void loadTrending();
         return;
       }
       setLoading(true);
@@ -45,32 +61,46 @@ export default function SearchScreen() {
         setLoading(false);
       }
     },
-    [showToast]
+    [loadTrending, showToast]
   );
 
-  // Debounced as-you-type: one request per pause, not one per keystroke.
   useEffect(() => {
     if (!query.trim()) {
-      setResults([]);
-      setSearched(false);
+      void loadTrending();
       return;
     }
     const timer = setTimeout(() => void run(query), 350);
     return () => clearTimeout(timer);
-  }, [query, run]);
+  }, [query, run, loadTrending]);
 
   return (
     <View style={[styles.fill, { backgroundColor: palette.background, paddingTop: insets.top }]}>
       <View style={styles.head}>
-        <View style={[styles.field, { backgroundColor: palette.card, borderColor: palette.border }]}>
-          <Ionicons name="search" size={17} color={palette.textMuted} />
+        <View style={styles.titleRow}>
+          <Text style={[styles.screenTitle, { color: palette.text }]}>Discover</Text>
+          <View style={[styles.badgePill, { backgroundColor: palette.accentSoft, borderColor: palette.accentGlow }]}>
+            <Ionicons name="flame" size={12} color={palette.accent} />
+            <Text style={[styles.badgeText, { color: palette.accent }]}>Curated Drops</Text>
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.field,
+            {
+              backgroundColor: palette.inputBg,
+              borderColor: palette.borderStrong,
+            },
+          ]}
+        >
+          <Ionicons name="search" size={18} color={palette.accent} />
           <TextInput
             value={query}
             onChangeText={(t) => {
               setQuery(t);
               setActive(null);
             }}
-            placeholder="Search reels, brands, creators"
+            placeholder="Search reels, luxury brands, creators…"
             placeholderTextColor={palette.textMuted}
             style={[styles.input, { color: palette.text }]}
             returnKeyType="search"
@@ -78,8 +108,15 @@ export default function SearchScreen() {
             accessibilityLabel="Search"
           />
           {query ? (
-            <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel="Clear search">
-              <Ionicons name="close-circle" size={17} color={palette.textMuted} />
+            <Pressable
+              onPress={() => {
+                setQuery('');
+                setActive(null);
+              }}
+              hitSlop={8}
+              accessibilityLabel="Clear search"
+            >
+              <Ionicons name="close-circle" size={18} color={palette.textMuted} />
             </Pressable>
           ) : null}
         </View>
@@ -102,14 +139,17 @@ export default function SearchScreen() {
                 style={({ pressed }) => [
                   styles.chip,
                   {
-                    borderColor: on ? 'transparent' : palette.borderInteractive,
-                    backgroundColor: on ? palette.accentStrong : palette.card,
+                    borderColor: on ? palette.accent : palette.borderStrong,
+                    backgroundColor: on ? palette.accent : palette.cardElevated,
                   },
-                  pressed && { opacity: 0.7 },
+                  pressed && { opacity: 0.8 },
                 ]}
               >
                 <Text
-                  style={[styles.chipText, { color: on ? palette.textOnAccent : palette.text }]}
+                  style={[
+                    styles.chipText,
+                    { color: on ? palette.textOnAccent : palette.textSecondary },
+                  ]}
                 >
                   {item}
                 </Text>
@@ -121,7 +161,7 @@ export default function SearchScreen() {
 
       {loading && !results.length ? (
         <View style={styles.centre}>
-          <ActivityIndicator color={palette.accent} />
+          <ActivityIndicator size="large" color={palette.accent} />
         </View>
       ) : (
         <FlatList
@@ -131,13 +171,27 @@ export default function SearchScreen() {
           columnWrapperStyle={styles.grid}
           contentContainerStyle={{
             paddingHorizontal: spacing.lg,
+            paddingTop: spacing.sm,
             paddingBottom: TAB_BAR_HEIGHT + insets.bottom + spacing.xl,
           }}
           keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={
+            results.length > 0 ? (
+              <Text style={[styles.sectionHeader, { color: palette.textMuted }]}>
+                {searched ? `RESULTS FOR "${query.toUpperCase()}"` : 'TRENDING NOW'}
+              </Text>
+            ) : null
+          }
           ListEmptyComponent={
             <View style={styles.centre}>
-              <Text style={{ color: palette.textMuted }}>
-                {searched ? 'No reels matched that.' : 'Search for something to wear.'}
+              <View style={[styles.emptyCircle, { backgroundColor: palette.accentSoft }]}>
+                <Ionicons name="search-outline" size={28} color={palette.accent} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: palette.text }]}>
+                {searched ? 'No reels matched that query' : 'Explore trending fashion'}
+              </Text>
+              <Text style={[styles.emptySub, { color: palette.textMuted }]}>
+                Try searching for a category like Women, Footwear, or a brand handle.
               </Text>
             </View>
           }
@@ -153,24 +207,71 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   head: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.md },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  screenTitle: {
+    ...typography.title,
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: -0.6,
+  },
+  badgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
   field: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
     borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    height: 44,
+    borderWidth: 1,
+    height: 48,
   },
   input: { flex: 1, ...typography.body, paddingVertical: 0 },
-  chips: { gap: spacing.sm, paddingBottom: spacing.sm },
+  chips: { gap: spacing.sm, paddingBottom: spacing.xs },
   chip: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
   },
-  chipText: { ...typography.caption, fontWeight: '600' },
+  chipText: { ...typography.caption, fontWeight: '700' },
+  sectionHeader: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.9,
+    marginBottom: spacing.sm,
+  },
   grid: { gap: spacing.md },
-  centre: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl },
+  centre: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xxl,
+    gap: spacing.sm,
+  },
+  emptyCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  emptyTitle: { fontSize: 16, fontWeight: '700' },
+  emptySub: { fontSize: 13, textAlign: 'center', lineHeight: 19 },
 });

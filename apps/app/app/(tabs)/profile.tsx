@@ -9,7 +9,6 @@ import {
   ScrollView,
   Share,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   useWindowDimensions,
@@ -51,6 +50,11 @@ import { useToast } from '@/context/ToastContext';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import {
+  NativeDropdownPicker,
+  NativeSegmentedPicker,
+  NativeSwitch,
+} from '@/components/NativeUI';
 import { UserListModal } from '@/components/UserListModal';
 import { LEGAL_LAST_UPDATED } from '@/lib/legalContent';
 import { formatCount, timeAgo } from '@/lib/timeAgo';
@@ -762,31 +766,22 @@ export default function ProfileScreen() {
             <View style={styles.bioSection}>
               <View style={styles.nameRow}>
                 <Text style={[styles.bioName, { color: palette.text }]}>{user.name}</Text>
+                <Ionicons name="checkmark-circle" size={16} color={palette.accent} />
                 {user.persona ? (
                   <View
                     style={[
                       styles.personaBadge,
                       {
-                        backgroundColor:
-                          user.persona === 'Brand'
-                            ? 'rgba(236,72,153,0.15)'
-                            : user.persona === 'User'
-                              ? 'rgba(59,130,246,0.15)'
-                              : 'rgba(168,85,247,0.15)',
+                        backgroundColor: palette.accentSoft,
+                        borderColor: palette.accentGlow,
+                        borderWidth: 1,
                       },
                     ]}
                   >
                     <Text
                       style={[
                         styles.personaBadgeText,
-                        {
-                          color:
-                            user.persona === 'Brand'
-                              ? '#ec4899'
-                              : user.persona === 'User'
-                                ? '#3b82f6'
-                                : '#a855f7',
-                        },
+                        { color: palette.accent },
                       ]}
                     >
                       {user.persona}
@@ -797,7 +792,7 @@ export default function ProfileScreen() {
 
               {user.brandName ? (
                 <Text style={[styles.brandText, { color: palette.textSecondary }]}>
-                  Building <Text style={{ fontWeight: '700' }}>{user.brandName}</Text>
+                  Building <Text style={{ fontWeight: '700', color: palette.text }}>{user.brandName}</Text>
                 </Text>
               ) : null}
 
@@ -818,6 +813,7 @@ export default function ProfileScreen() {
               />
               <Button
                 label="Create Reel"
+                icon="add-circle-outline"
                 variant="primary"
                 onPress={() => router.push('/create')}
                 style={styles.actionBtn}
@@ -829,8 +825,8 @@ export default function ProfileScreen() {
                 style={[
                   styles.iconBtn,
                   {
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-                    borderColor: palette.border,
+                    backgroundColor: palette.cardElevated,
+                    borderColor: palette.borderStrong,
                   },
                 ]}
               >
@@ -839,18 +835,30 @@ export default function ProfileScreen() {
             </View>
 
             {/* 4 Multi-Sided Marketplace Tabs */}
+            <View style={{ marginTop: spacing.md }}>
+              <NativeSegmentedPicker<'my' | 'saved' | 'creator_hub' | 'brand_hub'>
+                options={[
+                  { label: 'Posts', value: 'my' },
+                  { label: 'Saved', value: 'saved' },
+                  { label: 'Earnings', value: 'creator_hub' },
+                  { label: 'Brand Hub', value: 'brand_hub' },
+                ]}
+                selectedValue={activeTab}
+                onValueChange={setActiveTab}
+              />
+            </View>
             <View style={[styles.hubTabsRow, { borderBottomColor: palette.border }]}>
               <Pressable
                 onPress={() => setActiveTab('my')}
                 style={[
                   styles.hubTab,
-                  activeTab === 'my' && [styles.hubTabActive, { borderBottomColor: palette.text }],
+                  activeTab === 'my' && [styles.hubTabActive, { borderBottomColor: palette.accent }],
                 ]}
               >
                 <Ionicons
                   name={activeTab === 'my' ? 'grid' : 'grid-outline'}
-                  size={20}
-                  color={activeTab === 'my' ? palette.text : palette.textMuted}
+                  size={19}
+                  color={activeTab === 'my' ? palette.accent : palette.textMuted}
                 />
                 <Text style={[styles.hubTabText, { color: activeTab === 'my' ? palette.text : palette.textMuted }]}>
                   Posts
@@ -861,13 +869,13 @@ export default function ProfileScreen() {
                 onPress={() => setActiveTab('saved')}
                 style={[
                   styles.hubTab,
-                  activeTab === 'saved' && [styles.hubTabActive, { borderBottomColor: palette.text }],
+                  activeTab === 'saved' && [styles.hubTabActive, { borderBottomColor: palette.accent }],
                 ]}
               >
                 <Ionicons
                   name={activeTab === 'saved' ? 'bookmark' : 'bookmark-outline'}
-                  size={20}
-                  color={activeTab === 'saved' ? palette.text : palette.textMuted}
+                  size={19}
+                  color={activeTab === 'saved' ? palette.accent : palette.textMuted}
                 />
                 <Text style={[styles.hubTabText, { color: activeTab === 'saved' ? palette.text : palette.textMuted }]}>
                   Saved
@@ -878,15 +886,15 @@ export default function ProfileScreen() {
                 onPress={() => setActiveTab('creator_hub')}
                 style={[
                   styles.hubTab,
-                  activeTab === 'creator_hub' && [styles.hubTabActive, { borderBottomColor: '#a855f7' }],
+                  activeTab === 'creator_hub' && [styles.hubTabActive, { borderBottomColor: palette.accent }],
                 ]}
               >
                 <Ionicons
                   name={activeTab === 'creator_hub' ? 'wallet' : 'wallet-outline'}
-                  size={20}
-                  color={activeTab === 'creator_hub' ? '#a855f7' : palette.textMuted}
+                  size={19}
+                  color={activeTab === 'creator_hub' ? palette.accent : palette.textMuted}
                 />
-                <Text style={[styles.hubTabText, { color: activeTab === 'creator_hub' ? '#a855f7' : palette.textMuted }]}>
+                <Text style={[styles.hubTabText, { color: activeTab === 'creator_hub' ? palette.text : palette.textMuted }]}>
                   Earnings
                 </Text>
               </Pressable>
@@ -895,15 +903,15 @@ export default function ProfileScreen() {
                 onPress={() => setActiveTab('brand_hub')}
                 style={[
                   styles.hubTab,
-                  activeTab === 'brand_hub' && [styles.hubTabActive, { borderBottomColor: '#ec4899' }],
+                  activeTab === 'brand_hub' && [styles.hubTabActive, { borderBottomColor: palette.accent }],
                 ]}
               >
                 <Ionicons
                   name={activeTab === 'brand_hub' ? 'storefront' : 'storefront-outline'}
-                  size={20}
-                  color={activeTab === 'brand_hub' ? '#ec4899' : palette.textMuted}
+                  size={19}
+                  color={activeTab === 'brand_hub' ? palette.accent : palette.textMuted}
                 />
-                <Text style={[styles.hubTabText, { color: activeTab === 'brand_hub' ? '#ec4899' : palette.textMuted }]}>
+                <Text style={[styles.hubTabText, { color: activeTab === 'brand_hub' ? palette.text : palette.textMuted }]}>
                   Brand Hub
                 </Text>
               </Pressable>
@@ -913,18 +921,18 @@ export default function ProfileScreen() {
             {activeTab === 'creator_hub' && (
               <View style={styles.hubContainer}>
                 {/* Total Earnings Hero Card */}
-                <View style={[styles.earningsHero, { borderColor: palette.border }]}>
-                  <Text style={styles.earningsLabel}>TOTAL CREATOR EARNINGS</Text>
-                  <Text style={styles.earningsAmount}>
+                <View style={[styles.earningsHero, { backgroundColor: palette.accentSoft, borderColor: palette.accent }]}>
+                  <Text style={[styles.earningsLabel, { color: palette.accent }]}>TOTAL CREATOR EARNINGS</Text>
+                  <Text style={[styles.earningsAmount, { color: palette.text }]}>
                     ₹{(payoutSummary?.totals.totalEarnings ?? 0).toLocaleString('en-IN')}
                   </Text>
                   <View style={styles.pendingRow}>
-                    <Text style={styles.pendingText}>
+                    <Text style={[styles.pendingText, { color: palette.textSecondary }]}>
                       Pending Balance: ₹{(payoutSummary?.totals.pendingBalance ?? 0).toLocaleString('en-IN')}
                     </Text>
                     <Pressable
                       onPress={() => setShowPayoutModal(true)}
-                      style={styles.withdrawPill}
+                      style={[styles.withdrawPill, { backgroundColor: palette.accent }]}
                     >
                       <Text style={styles.withdrawPillText}>Withdraw UPI</Text>
                       <Ionicons name="arrow-forward" size={12} color="#ffffff" />
@@ -934,8 +942,8 @@ export default function ProfileScreen() {
 
                 {/* 3 Split Breakdown Cards */}
                 <View style={styles.breakdownGrid}>
-                  <View style={[styles.breakdownItem, { backgroundColor: palette.card, borderColor: palette.border }]}>
-                    <Ionicons name="eye" size={18} color="#3b82f6" />
+                  <View style={[styles.breakdownItem, { backgroundColor: palette.cardElevated, borderColor: palette.border }]}>
+                    <Ionicons name="eye" size={18} color={palette.accent} />
                     <Text style={[styles.breakdownItemTitle, { color: palette.textMuted }]}>Views (₹1/view)</Text>
                     <Text style={[styles.breakdownItemAmt, { color: palette.text }]}>
                       ₹{(payoutSummary?.totals.viewEarnings ?? 0).toLocaleString('en-IN')}
@@ -945,8 +953,8 @@ export default function ProfileScreen() {
                     </Text>
                   </View>
 
-                  <View style={[styles.breakdownItem, { backgroundColor: palette.card, borderColor: palette.border }]}>
-                    <Ionicons name="finger-print" size={18} color="#eab308" />
+                  <View style={[styles.breakdownItem, { backgroundColor: palette.cardElevated, borderColor: palette.border }]}>
+                    <Ionicons name="finger-print" size={18} color={palette.warning} />
                     <Text style={[styles.breakdownItemTitle, { color: palette.textMuted }]}>Clicks (₹5/click)</Text>
                     <Text style={[styles.breakdownItemAmt, { color: palette.text }]}>
                       ₹{(payoutSummary?.totals.clickEarnings ?? 0).toLocaleString('en-IN')}
@@ -956,10 +964,10 @@ export default function ProfileScreen() {
                     </Text>
                   </View>
 
-                  <View style={[styles.breakdownItem, { backgroundColor: palette.card, borderColor: palette.border }]}>
-                    <Ionicons name="sparkles" size={18} color="#22c55e" />
+                  <View style={[styles.breakdownItem, { backgroundColor: palette.cardElevated, borderColor: palette.border }]}>
+                    <Ionicons name="sparkles" size={18} color={palette.success} />
                     <Text style={[styles.breakdownItemTitle, { color: palette.textMuted }]}>Product Comm.</Text>
-                    <Text style={[styles.breakdownItemAmt, { color: '#22c55e' }]}>
+                    <Text style={[styles.breakdownItemAmt, { color: palette.success }]}>
                       ₹{(payoutSummary?.totals.salesCommissions ?? 0).toLocaleString('en-IN')}
                     </Text>
                     <Text style={[styles.breakdownItemSub, { color: palette.textMuted }]}>
@@ -1088,8 +1096,8 @@ export default function ProfileScreen() {
                             </Text>
                           </View>
 
-                          <View style={[styles.payoutStatusBadge, { backgroundColor: o.status === 'delivered' ? 'rgba(34,197,94,0.15)' : 'rgba(59,130,246,0.15)' }]}>
-                            <Text style={[styles.payoutStatusText, { color: o.status === 'delivered' ? '#22c55e' : '#3b82f6' }]}>
+                          <View style={[styles.payoutStatusBadge, { backgroundColor: o.status === 'delivered' ? palette.successSoft : palette.accentSoft }]}>
+                            <Text style={[styles.payoutStatusText, { color: o.status === 'delivered' ? palette.success : palette.accent }]}>
                               {o.status.toUpperCase()}
                             </Text>
                           </View>
@@ -1209,7 +1217,14 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.editField}>
-              <Text style={[styles.editLabel, { color: palette.textMuted }]}>CATEGORY *</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={[styles.editLabel, { color: palette.textMuted }]}>CATEGORY *</Text>
+                <NativeDropdownPicker<Category>
+                  options={CATEGORIES.map((c) => ({ label: c, value: c }))}
+                  selectedValue={prodCategory}
+                  onValueChange={setProdCategory}
+                />
+              </View>
               <View style={styles.chipsRow}>
                 {CATEGORIES.map((category) => (
                   <Pressable
@@ -1285,7 +1300,7 @@ export default function ProfileScreen() {
 
             <View style={styles.switchRow}>
               <Text style={[styles.editLabel, { color: palette.text }]}>IN STOCK & AVAILABLE FOR PURCHASE</Text>
-              <Switch value={prodInStock} onValueChange={setProdInStock} trackColor={{ true: '#22c55e', false: '#64748b' }} />
+              <NativeSwitch value={prodInStock} onValueChange={setProdInStock} />
             </View>
           </ScrollView>
         </View>
@@ -1361,19 +1376,15 @@ export default function ProfileScreen() {
           <View style={styles.formScroll}>
             <View style={styles.editField}>
               <Text style={[styles.editLabel, { color: palette.textMuted }]}>STATUS</Text>
-              <View style={styles.chipsRow}>
-                {(['packed', 'shipped', 'delivered'] as const).map((st) => (
-                  <Pressable
-                    key={st}
-                    onPress={() => setFulfillStatus(st)}
-                    style={[styles.chip, { backgroundColor: fulfillStatus === st ? palette.accent : isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)', borderColor: fulfillStatus === st ? palette.accent : palette.border }]}
-                  >
-                    <Text style={[styles.chipText, { color: fulfillStatus === st ? '#ffffff' : palette.text, fontWeight: fulfillStatus === st ? '700' : '500' }]}>
-                      {st.toUpperCase()}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              <NativeSegmentedPicker<'packed' | 'shipped' | 'delivered'>
+                options={[
+                  { label: 'Packed', value: 'packed' },
+                  { label: 'Shipped', value: 'shipped' },
+                  { label: 'Delivered', value: 'delivered' },
+                ]}
+                selectedValue={fulfillStatus}
+                onValueChange={setFulfillStatus}
+              />
             </View>
 
             <View style={styles.editField}>
@@ -1525,13 +1536,16 @@ export default function ProfileScreen() {
             </Section>
 
             <Section title="Appearance" palette={palette}>
-              <Row
-                icon={theme === 'dark' ? 'sunny-outline' : 'moon-outline'}
-                label={theme === 'dark' ? 'Light appearance' : 'Dark appearance'}
-                onPress={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                palette={palette}
-                last
-              />
+              <View style={{ padding: spacing.md }}>
+                <NativeSegmentedPicker<'dark' | 'light'>
+                  options={[
+                    { label: 'Obsidian Dark', value: 'dark' },
+                    { label: 'Alabaster Light', value: 'light' },
+                  ]}
+                  selectedValue={theme === 'light' ? 'light' : 'dark'}
+                  onValueChange={(next) => setTheme(next)}
+                />
+              </View>
             </Section>
 
             <Section title="Safety & Privacy" palette={palette}>
@@ -1777,21 +1791,19 @@ const styles = StyleSheet.create({
   earningsHero: {
     padding: spacing.lg,
     borderRadius: radius.card,
-    backgroundColor: 'rgba(168,85,247,0.12)',
     borderWidth: 1,
     gap: 4,
   },
-  earningsLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 0.8, color: '#a855f7' },
-  earningsAmount: { fontSize: 32, fontWeight: '900', letterSpacing: -1, color: '#ffffff' },
+  earningsLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
+  earningsAmount: { fontSize: 32, fontWeight: '900', letterSpacing: -1 },
   pendingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
-  pendingText: { fontSize: 13, color: 'rgba(255,255,255,0.7)' },
+  pendingText: { fontSize: 13 },
   withdrawPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#a855f7',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     borderRadius: radius.pill,
   },
   withdrawPillText: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
@@ -1836,7 +1848,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: spacing.md,
   },
-  brandProdThumb: { width: 44, height: 44, borderRadius: radius.sm, overflow: 'hidden', backgroundColor: '#1f242d', alignItems: 'center', justifyContent: 'center' },
+  brandProdThumb: { width: 44, height: 44, borderRadius: radius.sm, overflow: 'hidden', backgroundColor: '#1a1a22', alignItems: 'center', justifyContent: 'center' },
   brandProdDetails: { flex: 1, gap: 2 },
   brandProdName: { fontSize: 13, fontWeight: '700' },
   brandProdMeta: { fontSize: 11 },
@@ -1857,7 +1869,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   videoPlaceholder: {
-    backgroundColor: '#1f242d',
+    backgroundColor: '#1a1a22',
     alignItems: 'center',
     justifyContent: 'center',
   },

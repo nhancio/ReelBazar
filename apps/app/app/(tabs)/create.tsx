@@ -25,6 +25,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { Button } from '@/components/Button';
 import { BrandCatalogModal } from '@/components/BrandCatalogModal';
+import { NativeDropdownPicker } from '@/components/NativeUI';
 import { radius, spacing, typography } from '@/theme';
 
 interface PickedVideo {
@@ -284,7 +285,10 @@ export default function CreateReelScreen() {
         ]}
       >
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => {
+            if (router.canGoBack()) router.back();
+            else router.replace('/');
+          }}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Back"
@@ -395,7 +399,7 @@ export default function CreateReelScreen() {
                 style={[
                   styles.taggedCard,
                   {
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                    backgroundColor: palette.cardElevated,
                     borderColor: palette.accent,
                   },
                 ]}
@@ -409,7 +413,7 @@ export default function CreateReelScreen() {
                 </View>
 
                 <View style={styles.taggedInfo}>
-                  <Text style={[styles.taggedBrand, { color: palette.textSecondary }]}>
+                  <Text style={[styles.taggedBrand, { color: palette.accent }]}>
                     {taggedProduct.brandName || 'Brand'}
                   </Text>
                   <Text style={[styles.taggedName, { color: palette.text }]} numberOfLines={1}>
@@ -438,15 +442,15 @@ export default function CreateReelScreen() {
                   value={productLink}
                   onChangeText={setProductLink}
                   placeholder="https://example.com/product (or browse catalog above)"
-                  placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
+                  placeholderTextColor={palette.textMuted}
                   keyboardType="url"
                   autoCapitalize="none"
                   autoCorrect={false}
                   style={[
                     styles.input,
                     {
-                      backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                      borderColor: palette.borderInteractive,
+                      backgroundColor: palette.inputBg,
+                      borderColor: palette.borderStrong,
                       color: palette.text,
                     },
                   ]}
@@ -472,15 +476,15 @@ export default function CreateReelScreen() {
               value={caption}
               onChangeText={(t) => setCaption(t.slice(0, 500))}
               placeholder="Write an engaging caption for your reel…"
-              placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
+              placeholderTextColor={palette.textMuted}
               multiline
               numberOfLines={3}
               style={[
                 styles.input,
                 styles.textarea,
                 {
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                  borderColor: palette.borderInteractive,
+                  backgroundColor: palette.inputBg,
+                  borderColor: palette.borderStrong,
                   color: palette.text,
                 },
               ]}
@@ -489,7 +493,14 @@ export default function CreateReelScreen() {
 
           {/* Category */}
           <View style={styles.field}>
-            <Text style={[styles.fieldLabel, { color: palette.textMuted }]}>CATEGORY</Text>
+            <View style={styles.fieldHeaderRow}>
+              <Text style={[styles.fieldLabel, { color: palette.textMuted }]}>CATEGORY</Text>
+              <NativeDropdownPicker<Category>
+                options={CATEGORIES.map((c) => ({ label: c, value: c }))}
+                selectedValue={category}
+                onValueChange={setCategory}
+              />
+            </View>
             <View style={styles.chipsRow}>
               {CATEGORIES.map((cat) => {
                 const isSelected = category === cat;
@@ -502,12 +513,8 @@ export default function CreateReelScreen() {
                     style={[
                       styles.chip,
                       {
-                        backgroundColor: isSelected
-                          ? palette.accent
-                          : isDark
-                            ? 'rgba(255,255,255,0.08)'
-                            : 'rgba(0,0,0,0.05)',
-                        borderColor: isSelected ? palette.accent : palette.border,
+                        backgroundColor: isSelected ? palette.accent : palette.cardElevated,
+                        borderColor: isSelected ? palette.accent : palette.borderStrong,
                       },
                     ]}
                   >
@@ -515,12 +522,8 @@ export default function CreateReelScreen() {
                       style={[
                         styles.chipText,
                         {
-                          color: isSelected
-                            ? palette.textOnAccent
-                            : isDark
-                              ? 'rgba(255,255,255,0.8)'
-                              : 'rgba(0,0,0,0.75)',
-                          fontWeight: isSelected ? '700' : '500',
+                          color: isSelected ? palette.textOnAccent : palette.textSecondary,
+                          fontWeight: isSelected ? '700' : '600',
                         },
                       ]}
                     >
@@ -539,14 +542,14 @@ export default function CreateReelScreen() {
               value={brandTag}
               onChangeText={setBrandTag}
               placeholder="@brandname"
-              placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
+              placeholderTextColor={palette.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
               style={[
                 styles.input,
                 {
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                  borderColor: palette.borderInteractive,
+                  backgroundColor: palette.inputBg,
+                  borderColor: palette.borderStrong,
                   color: palette.text,
                 },
               ]}
@@ -697,7 +700,7 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: radius.sm,
     overflow: 'hidden',
-    backgroundColor: '#1f242d',
+    backgroundColor: '#1a1a22',
     alignItems: 'center',
     justifyContent: 'center',
   },

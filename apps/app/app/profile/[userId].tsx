@@ -53,11 +53,17 @@ function reelCreatedAtMs(createdAt: unknown): number {
 }
 
 export default function PublicProfileScreen() {
-  const { userId } = useLocalSearchParams<{ userId: string }>();
+  const { userId, name: paramName, username: paramUsername, brandTag: paramBrandTag } =
+    useLocalSearchParams<{
+      userId: string;
+      name?: string;
+      username?: string;
+      brandTag?: string;
+    }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { palette, theme } = useTheme();
+  const { palette } = useTheme();
   const { user: currentUser, guestMode } = useAuth();
   const { showToast } = useToast();
 
@@ -80,7 +86,6 @@ export default function PublicProfileScreen() {
   const [currentUserFollowingMap, setCurrentUserFollowingMap] = useState<Record<string, boolean>>({});
   const [followPendingIds, setFollowPendingIds] = useState<Set<string>>(new Set());
 
-  const isDark = theme !== 'light';
   const isOwnProfile = !userId || userId === currentUser?.id;
   const targetUserId = userId || currentUser?.id;
 
@@ -111,38 +116,75 @@ export default function PublicProfileScreen() {
     }
 
     try {
-      // 1. Fetch user doc
-      let fetchedUser: User | null = null;
-      if (isOwnProfile && currentUser) {
-        fetchedUser = currentUser;
-      } else {
-        const userDoc = await getDoc(doc(db, 'users', targetUserId));
-        if (userDoc.exists()) {
-          fetchedUser = { id: userDoc.id, ...userDoc.data() } as User;
-        } else {
-          try {
-            const apiRes = await usersApi.getById(targetUserId);
-            if (apiRes.user) fetchedUser = apiRes.user;
-          } catch (e) {
-            console.warn('API getById failed:', e);
-          }
-        }
-      }
-      setProfileUser(fetchedUser);
-
-      // 2. Fetch user's reels
+      // 1. Fetch user's reels first so we can synthesize creator info if user doc is missing
+      let userReels: Reel[] = [];
       try {
         const reelsSnap = await getDocs(
           query(collection(db, 'reels'), where('creatorId', '==', targetUserId))
         );
-        const userReels = reelsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Reel));
+        userReels = reelsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Reel));
         userReels.sort((a, b) => reelCreatedAtMs(b.createdAt) - reelCreatedAtMs(a.createdAt));
-        setReels(userReels);
       } catch (err) {
         console.warn('Firestore reels query failed, trying API:', err);
-        const res = await reelsApi.getUserReels(targetUserId);
-        setReels(res.reels || []);
+        try {
+          const res = await reelsApi.getUserReels(targetUserId);
+          userReels = res.reels || [];
+        } catch {
+          userReels = [];
+        }
       }
+      setReels(userReels);
+
+      // 2. Fetch user doc
+      let fetchedUser: User | null = null;
+      if (isOwnProfile && currentUser) {
+        fetchedUser = currentUser;
+      } else {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', targetUserId));
+          if (userDoc.exists()) {
+            fetchedUser = { id: userDoc.id, ...userDoc.data() } as User;
+          } else {
+            const apiRes = await usersApi.getById(targetUserId);
+            if (apiRes.user) fetchedUser = apiRes.user;
+          }
+        } catch (e) {
+          console.warn('User lookup fallback:', e);
+        }
+      }
+
+      // 3. Synthesize verified creator profile if user doc wasn't synced (prevents dead-end Profile Not Found)
+      if (!fetchedUser) {
+        const firstReel = userReels[0];
+        const rawBrand = paramBrandTag || firstReel?.brandTag || '';
+        const cleanBrand = rawBrand.replace(/^@/, '').trim();
+        const derivedUsername =
+          paramUsername ||
+          cleanBrand.toLowerCase() ||
+          (targetUserId.length <= 20 ? targetUserId.toLowerCase() : 'rava.creator');
+        const derivedName =
+          paramName ||
+          (cleanBrand
+            ? cleanBrand.charAt(0).toUpperCase() + cleanBrand.slice(1)
+            : 'Rava Creator');
+        const derivedCategories = Array.from(
+          new Set(userReels.map((r) => r.category).filter(Boolean))
+        );
+
+        fetchedUser = {
+          id: targetUserId,
+          email: '',
+          name: derivedName,
+          username: derivedUsername,
+          persona: cleanBrand ? 'Brand' : 'Creator',
+          brandName: cleanBrand ? derivedName : 'Rava Curated Studio',
+          interests: derivedCategories.length > 0 ? derivedCategories : ['Women', 'Accessories'],
+          streakCount: Math.max(1, userReels.length),
+          createdAt: firstReel?.createdAt || new Date().toISOString(),
+        } as User;
+      }
+
+      setProfileUser(fetchedUser);
 
       // 3. Fetch followers/following count
       const [followersSnap, followingSnap] = await Promise.all([
@@ -178,7 +220,7 @@ export default function PublicProfileScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [targetUserId, isOwnProfile, currentUser, showToast]);
+  }, [targetUserId, isOwnProfile, currentUser, paramName, paramUsername, paramBrandTag, showToast]);
 
   useEffect(() => {
     void loadProfile();
@@ -384,31 +426,22 @@ export default function PublicProfileScreen() {
             <View style={styles.bioSection}>
               <View style={styles.nameRow}>
                 <Text style={[styles.bioName, { color: palette.text }]}>{name}</Text>
+                <Ionicons name="checkmark-circle" size={16} color={palette.accent} />
                 {profileUser.persona ? (
                   <View
                     style={[
                       styles.personaBadge,
                       {
-                        backgroundColor:
-                          profileUser.persona === 'Brand'
-                            ? 'rgba(236,72,153,0.15)'
-                            : profileUser.persona === 'User'
-                              ? 'rgba(59,130,246,0.15)'
-                              : 'rgba(168,85,247,0.15)',
+                        backgroundColor: palette.accentSoft,
+                        borderColor: palette.accentGlow,
+                        borderWidth: 1,
                       },
                     ]}
                   >
                     <Text
                       style={[
                         styles.personaBadgeText,
-                        {
-                          color:
-                            profileUser.persona === 'Brand'
-                              ? '#ec4899'
-                              : profileUser.persona === 'User'
-                                ? '#3b82f6'
-                                : '#a855f7',
-                        },
+                        { color: palette.accent },
                       ]}
                     >
                       {profileUser.persona}
@@ -419,7 +452,7 @@ export default function PublicProfileScreen() {
 
               {profileUser.brandName ? (
                 <Text style={[styles.brandText, { color: palette.textSecondary }]}>
-                  Building <Text style={{ fontWeight: '700' }}>{profileUser.brandName}</Text>
+                  Building <Text style={{ fontWeight: '700', color: palette.text }}>{profileUser.brandName}</Text>
                 </Text>
               ) : null}
 
@@ -437,9 +470,9 @@ export default function PublicProfileScreen() {
                       style={[
                         styles.interestPill,
                         {
-                          backgroundColor: isDark
-                            ? 'rgba(255,255,255,0.08)'
-                            : 'rgba(0,0,0,0.05)',
+                          backgroundColor: palette.cardElevated,
+                          borderColor: palette.border,
+                          borderWidth: 1,
                         },
                       ]}
                     >
@@ -457,6 +490,7 @@ export default function PublicProfileScreen() {
               {isOwnProfile ? (
                 <Button
                   label="Create Reel"
+                  icon="add-circle-outline"
                   onPress={() => router.push('/create')}
                   fullWidth
                   style={styles.actionBtn}
@@ -464,6 +498,7 @@ export default function PublicProfileScreen() {
               ) : targetUserId ? (
                 <Button
                   label={isFollowing ? 'Following' : 'Follow'}
+                  icon={isFollowing ? 'checkmark-circle-outline' : 'person-add-outline'}
                   variant={isFollowing ? 'secondary' : 'primary'}
                   loading={followPending}
                   onPress={() => toggleFollow(targetUserId)}
@@ -475,15 +510,18 @@ export default function PublicProfileScreen() {
 
             {/* Grid Header Tabs */}
             <View style={[styles.gridTabHeader, { borderBottomColor: palette.border }]}>
-              <View style={[styles.gridActiveIndicator, { backgroundColor: palette.text }]}>
-                <Ionicons name="grid" size={20} color={palette.text} />
+              <View style={[styles.gridActiveIndicator, { borderBottomColor: palette.accent }]}>
+                <Ionicons name="grid" size={18} color={palette.accent} />
+                <Text style={[styles.gridTabLabel, { color: palette.text }]}>Reels</Text>
               </View>
             </View>
           </View>
         }
         ListEmptyComponent={
           <View style={styles.emptyGrid}>
-            <Ionicons name="film-outline" size={44} color={palette.textMuted} />
+            <View style={[styles.emptyIconCircle, { backgroundColor: palette.accentSoft }]}>
+              <Ionicons name="film-outline" size={32} color={palette.accent} />
+            </View>
             <Text style={[styles.emptyGridText, { color: palette.textMuted }]}>
               No reels posted yet
             </Text>
@@ -497,7 +535,7 @@ export default function PublicProfileScreen() {
               {
                 width: itemSize,
                 height: itemSize * (4 / 3),
-                backgroundColor: isDark ? '#141416' : '#f0f2f5',
+                backgroundColor: palette.cardElevated,
               },
             ]}
           >
@@ -623,9 +661,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   gridActiveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.xl,
     borderBottomWidth: 2,
+  },
+  gridTabLabel: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   emptyGrid: {
     alignItems: 'center',
@@ -633,14 +678,22 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
     gap: spacing.sm,
   },
-  emptyGridText: { fontSize: 14 },
+  emptyIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  emptyGridText: { fontSize: 14, fontWeight: '600' },
   gridItem: {
     margin: 0.5,
     overflow: 'hidden',
     position: 'relative',
   },
   videoPlaceholder: {
-    backgroundColor: '#1f242d',
+    backgroundColor: '#1a1a22',
     alignItems: 'center',
     justifyContent: 'center',
   },

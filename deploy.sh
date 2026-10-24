@@ -1,44 +1,236 @@
 #!/usr/bin/env bash
-# Rava — one command to push to Git, then build and publish everything to Firebase.
+# =============================================================================
+# Rava — Unified Deploy Script (Git + Expo Android & iOS + Firebase)
+# =============================================================================
 #
-# Deploy flow (per project policy: every deploy pushes to Git first):
-#   1) Push   — ensure the 'origin' remote is correct, stage, commit (if there are
-#               changes), and push the current branch to GitHub.
-#   2) Deploy — this repo has NO CI/CD auto-deploy configured (no .github/workflows
-#               directory exists, and no Netlify/Vercel git-integration is wired up —
-#               only stale netlify.toml files remain under apps/*, unconnected). So a
-#               manual Firebase deploy always runs right after the push:
-#                 npm install → turbo build (web-app, landing, server) → verify
-#                 artifacts → firebase deploy --only hosting,functions
-#
-# Targets:
-#   • Firebase Hosting app      → reelbaazar             → apps/web-app/dist
-#   • Firebase Hosting landing  → reelbaazar-landing     → apps/landing-page/out
-#   • Firebase Functions API    → api (us-central1)      → backend/server
+# Pipeline:
+#   Step 1: Verify & Preflight — Lint, TypeScript check, & Android/iOS preflight
+#   Step 2: Push to Git        — Stage, commit, and push branch to GitHub
+#   Step 3: Push to Expo       — Publish OTA update + queue EAS builds for
+#                                Android & iOS (preview or production profile)
+#   Step 4: Firebase Deploy    — Optional web-app / landing / functions deploy
 #
 # Usage:
-#   ./deploy.sh                     push to git, then full Firebase deploy (default)
-#   ./deploy.sh "commit message"    push using this commit message, then deploy
-#   ./deploy.sh --no-push           skip the git push step; deploy only
-#   ./deploy.sh --build-only        build + verify only (no push, no cloud deploy)
-#   ./deploy.sh --ci                npm ci instead of npm install
-#   ./deploy.sh --hosting-only      deploy Firebase Hosting only
-#   ./deploy.sh --functions-only    deploy Firebase Functions only
-#   ./deploy.sh --no-firebase       push + build + verify, skip Firebase deploy
-#   ./deploy.sh --help
-#
-# Token (optional; for CI or non-interactive CLI):
-#   export FIREBASE_TOKEN="..."   # https://firebase.google.com/docs/cli#cli-ci-systems
-#
-# Git remote (optional overrides; defaults match this repo's known-good origin):
-#   export REMOTE_URL="..."       # used to add/fix 'origin' if it's missing/wrong
-#   export REMOTE_BRANCH="..."    # fallback branch name if HEAD is detached
-#
-set -euo pipefail
-# Select the GitHub account for this repository before every push.
-# Override GITHUB_ACCOUNT when a repository is intentionally owned by a different account.
-GITHUB_ACCOUNT="${GITHUB_ACCOUNT:-didigamnithin}"
+#   ./deploy.sh                               Push to Git + Push to Expo (Android & iOS)
+#   ./deploy.sh "feat: native UI & theme"     Custom commit & EAS update message
+#   ./deploy.sh --profile production          Use EAS 'production' profile (default: preview)
+#   ./deploy.sh --android-only                Push to Git + Expo Android only
+#   ./deploy.sh --ios-only                    Push to Git + Expo iOS only
+#   ./deploy.sh --ota-only                    Push to Git + EAS Update (OTA) only (skip cloud binary build)
+#   ./deploy.sh --wait                        Wait for EAS cloud builds to finish
+#   ./deploy.sh --submit                      Also run eas submit for Android & iOS
+#   ./deploy.sh --sync-env                    Sync EXPO_PUBLIC_* from apps/app/.env to EAS before deploy
+#   ./deploy.sh --with-firebase               Also build & deploy Firebase Hosting + Functions
+#   ./deploy.sh --no-expo                     Skip Expo deploy (Git + Firebase only)
+#   ./deploy.sh --no-push                     Skip Git push
+#   ./deploy.sh --help                        Show usage help
+# =============================================================================
 
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="$ROOT/apps/app"
+cd "$ROOT"
+
+NODE20_BIN="/opt/homebrew/opt/node@20/bin"
+if [[ -x "$NODE20_BIN/node" ]]; then
+  export PATH="$NODE20_BIN:/opt/homebrew/bin:$PATH"
+fi
+
+GITHUB_ACCOUNT="${GITHUB_ACCOUNT:-didigamnithin}"
+REMOTE_NAME="origin"
+REMOTE_URL="${REMOTE_URL:-https://github.com/nhancio/ReelBazar.git}"
+FALLBACK_BRANCH="${REMOTE_BRANCH:-main}"
+
+DO_VERIFY=1
+DO_PUSH=1
+DO_EXPO=1
+DO_EXPO_OTA=1
+DO_EXPO_BUILD=1
+DO_ANDROID=1
+DO_IOS=1
+DO_SUBMIT=0
+DO_SYNC_ENV=0
+EAS_PROFILE="${EAS_PROFILE:-preview}"
+EAS_WAIT_FLAG="--no-wait"
+
+DEPLOY_FIREBASE=0
+USE_CI=0
+BUILD_ONLY=0
+FIREBASE_ONLY="hosting,functions"
+LANDING_SITE_ID="reelbaazar-landing"
+FUNCTION_ENV_BACKUP_DIR=""
+COMMIT_MSG=""
+
+usage() {
+  cat <<'EOF'
+Usage: ./deploy.sh [options] ["commit message"]
+
+  Default: Verify (lint + tsc + preflight) -> Push to Git -> Push to Expo (OTA + Android & iOS EAS builds).
+
+Options:
+  "commit message"       Commit & EAS update message (default: "chore: deploy Rava to Git, Android, and iOS")
+  --profile <name>       EAS profile: development | preview | production (default: preview)
+  --production           Shorthand for --profile production
+  --preview              Shorthand for --profile preview
+  --android-only         Target Android only for Expo build/update
+  --ios-only             Target iOS only for Expo build/update
+  --ota-only             Publish EAS Update (OTA) to Android & iOS without queueing new cloud binaries
+  --no-ota               Skip EAS Update (OTA); run EAS cloud builds only
+  --no-build             Alias for --ota-only
+  --wait                 Wait for EAS cloud builds to complete (default: --no-wait)
+  --submit               Submit latest Android & iOS builds to Google Play / TestFlight
+  --sync-env             Sync apps/app/.env EXPO_PUBLIC_* variables to EAS before deploying
+  --no-expo              Skip Expo Android/iOS step
+  --no-push              Skip Git commit & push step
+  --no-verify            Skip lint/typecheck verification step
+  --with-firebase        Also build & deploy Firebase Hosting + Functions
+  --hosting-only         Deploy Firebase Hosting only (implies --with-firebase)
+  --functions-only       Deploy Firebase Functions only (implies --with-firebase)
+  --no-firebase          Skip Firebase deploy (default unless --with-firebase is passed)
+  --build-only           Verify and build only; no Git push, no Expo/Firebase deploy
+  --ci                   Use npm ci instead of npm install when building Firebase targets
+  -h, --help             Show this help message
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --profile)
+      EAS_PROFILE="${2:-preview}"
+      shift 2
+      ;;
+    --production)
+      EAS_PROFILE="production"
+      shift
+      ;;
+    --preview)
+      EAS_PROFILE="preview"
+      shift
+      ;;
+    --android-only)
+      DO_ANDROID=1
+      DO_IOS=0
+      shift
+      ;;
+    --ios-only)
+      DO_ANDROID=0
+      DO_IOS=1
+      shift
+      ;;
+    --ota-only|--no-build)
+      DO_EXPO_OTA=1
+      DO_EXPO_BUILD=0
+      shift
+      ;;
+    --no-ota)
+      DO_EXPO_OTA=0
+      shift
+      ;;
+    --wait)
+      EAS_WAIT_FLAG="--wait"
+      shift
+      ;;
+    --no-wait)
+      EAS_WAIT_FLAG="--no-wait"
+      shift
+      ;;
+    --submit)
+      DO_SUBMIT=1
+      shift
+      ;;
+    --sync-env)
+      DO_SYNC_ENV=1
+      shift
+      ;;
+    --no-expo)
+      DO_EXPO=0
+      shift
+      ;;
+    --no-push)
+      DO_PUSH=0
+      shift
+      ;;
+    --push)
+      DO_PUSH=1
+      shift
+      ;;
+    --no-verify)
+      DO_VERIFY=0
+      shift
+      ;;
+    --with-firebase|--deploy|--deploy-firebase)
+      DEPLOY_FIREBASE=1
+      shift
+      ;;
+    --no-firebase)
+      DEPLOY_FIREBASE=0
+      shift
+      ;;
+    --hosting-only)
+      DEPLOY_FIREBASE=1
+      FIREBASE_ONLY="hosting"
+      shift
+      ;;
+    --functions-only)
+      DEPLOY_FIREBASE=1
+      FIREBASE_ONLY="functions"
+      shift
+      ;;
+    --ci)
+      USE_CI=1
+      shift
+      ;;
+    --build-only)
+      BUILD_ONLY=1
+      DO_PUSH=0
+      DO_EXPO=0
+      DEPLOY_FIREBASE=0
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -*)
+      echo "Unknown option: $1 (use --help)" >&2
+      exit 1
+      ;;
+    *)
+      COMMIT_MSG="$1"
+      shift
+      ;;
+  esac
+done
+
+DEPLOY_MSG="${COMMIT_MSG:-chore: deploy Rava native UI update to Git, Android, and iOS}"
+
+# ---------------------------------------------------------------------------
+# Step 1: Verify & Preflight (apps/app)
+# ---------------------------------------------------------------------------
+if [[ "$DO_VERIFY" -eq 1 ]]; then
+  echo ""
+  echo "====================================================================="
+  echo "==> Step 1/4: Verify & Preflight (Expo Lint + TypeScript + Preflight)"
+  echo "====================================================================="
+  (
+    cd "$APP_DIR"
+    npm run verify
+    if [[ "$DO_ANDROID" -eq 1 && "$DO_IOS" -eq 1 ]]; then
+      node scripts/releasePreflight.js
+    elif [[ "$DO_ANDROID" -eq 1 ]]; then
+      node scripts/releasePreflight.js android
+    elif [[ "$DO_IOS" -eq 1 ]]; then
+      node scripts/releasePreflight.js ios
+    fi
+  )
+else
+  echo "==> Step 1/4: Verify & Preflight — skipped (--no-verify)."
+fi
+
+# ---------------------------------------------------------------------------
+# Step 2: Push to Git
+# ---------------------------------------------------------------------------
 ensure_github_account() {
   command -v gh >/dev/null 2>&1 || {
     echo "GitHub CLI (gh) is required to push as $GITHUB_ACCOUNT." >&2
@@ -62,81 +254,6 @@ push_with_github_account() {
   git push "$@"
 }
 
-
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$ROOT"
-
-DO_PUSH=1
-USE_CI=0
-BUILD_ONLY=0
-DEPLOY_FIREBASE=1
-FIREBASE_ONLY="hosting,functions"
-LANDING_SITE_ID="reelbaazar-landing"
-FUNCTION_ENV_BACKUP_DIR=""
-COMMIT_MSG=""
-
-REMOTE_NAME="origin"
-REMOTE_URL="${REMOTE_URL:-https://github.com/nhancio/ReelBazar.git}"
-FALLBACK_BRANCH="${REMOTE_BRANCH:-main}"
-
-usage() {
-  cat <<'EOF'
-Usage: ./deploy.sh [options] ["commit message"]
-
-  Default: push to Git (add/commit/push), then install dependencies, build all
-  apps, and deploy Firebase Hosting + Functions.
-
-  "commit message"       Optional commit message for the push step.
-                          Default: "chore: automated deployment update".
-
-  --no-push              Skip the git push step; deploy only.
-  --build-only           Build and verify only; no push, no Firebase deploy.
-  --ci                   Use npm ci instead of npm install.
-
-  --hosting-only         Deploy Firebase Hosting only.
-  --functions-only       Deploy Firebase Functions only.
-  --no-firebase          Push + build + verify, skip Firebase deploy.
-
-  FIREBASE_TOKEN — optional; used when set (CI or token-based CLI).
-  REMOTE_URL     — optional; overrides the 'origin' remote this script ensures.
-  REMOTE_BRANCH  — optional; fallback branch name if HEAD is detached.
-EOF
-}
-
-for arg in "$@"; do
-  case "$arg" in
-    --no-push) DO_PUSH=0 ;;
-    --push) DO_PUSH=1 ;; # push is already the default step 1; kept for back-compat
-    --ci) USE_CI=1 ;;
-    --build-only) BUILD_ONLY=1 ;;
-    --no-firebase) DEPLOY_FIREBASE=0 ;;
-    --hosting-only) FIREBASE_ONLY="hosting" ;;
-    --functions-only) FIREBASE_ONLY="functions" ;;
-    --deploy|--deploy-firebase)
-      ;; # no-op: full Firebase deploy is the default
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    -*)
-      echo "Unknown option: $arg (use --help)" >&2
-      exit 1
-      ;;
-    *)
-      COMMIT_MSG="$arg"
-      ;;
-  esac
-done
-
-if [[ "$BUILD_ONLY" -eq 1 ]]; then
-  DEPLOY_FIREBASE=0
-  DO_PUSH=0
-fi
-
-# ---------------------------------------------------------------------------
-# Step 1: push to Git
-# ---------------------------------------------------------------------------
-
 check_nested_repos() {
   local nested
   nested="$(find . -mindepth 2 -name ".git" \
@@ -144,9 +261,7 @@ check_nested_repos() {
     -not -path "*/node_modules/*" \
     2>/dev/null || true)"
   if [[ -n "$nested" ]]; then
-    echo "WARN: Found nested git repositories under this project (not declared as" >&2
-    echo "      submodules in .gitmodules). 'git add -A' will stage these as embedded" >&2
-    echo "      gitlinks, not their file contents. Review before pushing:" >&2
+    echo "WARN: Found nested git repositories under this project:" >&2
     echo "$nested" | sed 's/^/         /' >&2
   fi
 }
@@ -154,8 +269,6 @@ check_nested_repos() {
 git_push() {
   if [[ ! -d "$ROOT/.git" ]]; then
     echo "ERROR: $ROOT is not a git repository yet (no .git directory)." >&2
-    echo "       Run: git init && git remote add $REMOTE_NAME $REMOTE_URL" >&2
-    echo "       then commit and re-run ./deploy.sh." >&2
     exit 1
   fi
 
@@ -179,9 +292,8 @@ git_push() {
   if git diff --cached --quiet; then
     echo "==> No staged changes to commit."
   else
-    local msg="${COMMIT_MSG:-chore: automated deployment update}"
-    echo "==> Committing: $msg"
-    git commit -m "$msg"
+    echo "==> Committing: $DEPLOY_MSG"
+    git commit -m "$DEPLOY_MSG"
   fi
 
   local branch
@@ -199,20 +311,108 @@ git_push() {
 }
 
 if [[ "$DO_PUSH" -eq 1 ]]; then
-  echo "==> Step 1/2: push to Git"
+  echo ""
+  echo "====================================================================="
+  echo "==> Step 2/4: Push to Git"
+  echo "====================================================================="
   git_push
 else
-  echo "==> Step 1/2: push to Git — skipped (--no-push/--build-only)."
+  echo "==> Step 2/4: Push to Git — skipped (--no-push)."
 fi
 
 # ---------------------------------------------------------------------------
-# Step 2: deploy
-#
-# No CI/CD auto-deploy is wired up for this repo (confirmed: no .github/workflows,
-# no connected Netlify/Vercel git integration), so the manual Firebase deploy below
-# always runs after the push above — it is not redundant here.
+# Step 3: Push to Expo -> Android & iOS
 # ---------------------------------------------------------------------------
+eas_cmd() {
+  if command -v eas >/dev/null 2>&1; then
+    eas "$@"
+  else
+    npx --yes eas-cli "$@"
+  fi
+}
 
+deploy_expo() {
+  cd "$APP_DIR"
+  export NODE_ENV=production
+  export EXPO_PUBLIC_APP_ENV="$EAS_PROFILE"
+
+  if [[ "$DO_SYNC_ENV" -eq 1 ]]; then
+    echo "==> Syncing EXPO_PUBLIC_* environment variables to EAS ($EAS_PROFILE)..."
+    bash "$APP_DIR/scripts/eas-env-sync.sh" "$EAS_PROFILE" || true
+  fi
+
+  local ota_platform="all"
+  if [[ "$DO_ANDROID" -eq 1 && "$DO_IOS" -eq 0 ]]; then
+    ota_platform="android"
+  elif [[ "$DO_ANDROID" -eq 0 && "$DO_IOS" -eq 1 ]]; then
+    ota_platform="ios"
+  fi
+
+  # 3a. EAS Update (instant OTA bundle push to Android & iOS)
+  if [[ "$DO_EXPO_OTA" -eq 1 ]]; then
+    echo ""
+    echo "==> [Expo OTA] Publishing EAS Update to branch '$EAS_PROFILE' (platform: $ota_platform)..."
+    if eas_cmd update --branch "$EAS_PROFILE" --platform "$ota_platform" --message "$DEPLOY_MSG" --non-interactive; then
+      echo "✅ [Expo OTA] Published update to '$EAS_PROFILE' ($ota_platform)."
+    else
+      echo "⚠️  [Expo OTA] eas update returned a non-zero status (continuing to binary builds)." >&2
+    fi
+  fi
+
+  # 3b. EAS Build — Android
+  if [[ "$DO_EXPO_BUILD" -eq 1 && "$DO_ANDROID" -eq 1 ]]; then
+    echo ""
+    echo "==> [Expo Android] Triggering EAS Build (profile: $EAS_PROFILE, wait: $EAS_WAIT_FLAG)..."
+    if eas_cmd build --platform android --profile "$EAS_PROFILE" --message "$DEPLOY_MSG" --non-interactive "$EAS_WAIT_FLAG"; then
+      echo "✅ [Expo Android] Build queued/completed on EAS ($EAS_PROFILE)."
+    else
+      echo "⚠️  [Expo Android] Cloud build could not be queued non-interactively." >&2
+      echo "   Tip: Run 'cd apps/app && npm run expo:apk' or './scripts/buildapk.sh' for local APK build." >&2
+    fi
+  fi
+
+  # 3c. EAS Build — iOS
+  if [[ "$DO_EXPO_BUILD" -eq 1 && "$DO_IOS" -eq 1 ]]; then
+    echo ""
+    echo "==> [Expo iOS] Triggering EAS Build (profile: $EAS_PROFILE, wait: $EAS_WAIT_FLAG)..."
+    if eas_cmd build --platform ios --profile "$EAS_PROFILE" --message "$DEPLOY_MSG" --non-interactive "$EAS_WAIT_FLAG"; then
+      echo "✅ [Expo iOS] Build queued/completed on EAS ($EAS_PROFILE)."
+    else
+      echo "⚠️  [Expo iOS] Cloud build requires interactive Apple Developer credentials or provisioning setup." >&2
+      echo "   Tip: Run 'cd apps/app && eas build --platform ios --profile $EAS_PROFILE' once interactively to link Apple credentials." >&2
+    fi
+  fi
+
+  # 3d. Optional Store Submission (Google Play & App Store Connect / TestFlight)
+  if [[ "$DO_SUBMIT" -eq 1 ]]; then
+    if [[ "$DO_ANDROID" -eq 1 ]]; then
+      echo ""
+      echo "==> [Expo Submit Android] Submitting latest Android build to Google Play..."
+      eas_cmd submit --platform android --profile production --latest --non-interactive || true
+    fi
+    if [[ "$DO_IOS" -eq 1 ]]; then
+      echo ""
+      echo "==> [Expo Submit iOS] Submitting latest iOS build to App Store Connect / TestFlight..."
+      eas_cmd submit --platform ios --profile production --latest --non-interactive || true
+    fi
+  fi
+
+  cd "$ROOT"
+}
+
+if [[ "$DO_EXPO" -eq 1 ]]; then
+  echo ""
+  echo "====================================================================="
+  echo "==> Step 3/4: Push to Expo (Android: $DO_ANDROID | iOS: $DO_IOS | Profile: $EAS_PROFILE)"
+  echo "====================================================================="
+  deploy_expo
+else
+  echo "==> Step 3/4: Push to Expo — skipped (--no-expo)."
+fi
+
+# ---------------------------------------------------------------------------
+# Step 4: Optional Firebase Web & Functions Deploy
+# ---------------------------------------------------------------------------
 firebase_cmd() {
   if command -v firebase >/dev/null 2>&1; then
     firebase "$@"
@@ -294,74 +494,37 @@ firebase_deploy_with_retry() {
     attempt=$((attempt + 1))
   done
 
-  echo "ERROR: Firebase deploy failed after $max_attempts attempts. Running with --debug for details..." >&2
-  if [[ -n "${FIREBASE_TOKEN:-}" ]]; then
-    firebase_cmd deploy --only "$only" --force --non-interactive --token "$FIREBASE_TOKEN" --debug
-  else
-    firebase_cmd deploy --only "$only" --force --debug
-  fi
+  echo "ERROR: Firebase deploy failed after $max_attempts attempts." >&2
+  return 1
 }
 
-echo "==> Step 2/2: build + deploy — root: $ROOT"
-
-if [[ "$USE_CI" -eq 1 ]]; then
-  echo "==> Installing dependencies (npm ci)..."
-  npm ci
-else
-  echo "==> Installing dependencies (npm install)..."
-  npm install
-fi
-
-echo "==> Building: web-app, landing-page, server..."
-npm run deploy:build
-
-echo "==> Verifying build artifacts..."
-ok=1
-if [[ ! -f "$ROOT/apps/web-app/dist/index.html" ]]; then
-  echo "ERROR: Missing apps/web-app/dist/index.html" >&2
-  ok=0
-fi
-if [[ ! -f "$ROOT/apps/landing-page/out/index.html" ]]; then
-  echo "ERROR: Missing apps/landing-page/out/index.html" >&2
-  ok=0
-fi
-if [[ ! -f "$ROOT/backend/server/dist/firebase.js" ]]; then
-  echo "ERROR: Missing backend/server/dist/firebase.js" >&2
-  ok=0
-fi
-if [[ "$ok" -ne 1 ]]; then
-  exit 1
-fi
-
-echo ""
-echo "==> Build OK:"
-echo "    Firebase Hosting app:      apps/web-app/dist/        (site: reelbaazar)"
-echo "    Firebase Hosting landing:  apps/landing-page/out/    (site: reelbaazar-landing)"
-echo "    Firebase Functions API:    backend/server/dist/firebase.js"
-echo ""
-
-if [[ "$BUILD_ONLY" -eq 1 ]]; then
-  echo "==> --build-only: skipping cloud deploy."
-elif [[ "$DEPLOY_FIREBASE" -eq 1 ]]; then
-  if [[ ! -f "$ROOT/.firebaserc" ]]; then
-    echo "ERROR: Missing .firebaserc. Copy .firebaserc.example to .firebaserc and set your Firebase project id." >&2
-    exit 1
+if [[ "$DEPLOY_FIREBASE" -eq 1 || "$BUILD_ONLY" -eq 1 ]]; then
+  echo ""
+  echo "====================================================================="
+  echo "==> Step 4/4: Build & Deploy Firebase ($FIREBASE_ONLY)"
+  echo "====================================================================="
+  if [[ "$USE_CI" -eq 1 ]]; then
+    npm ci
+  else
+    npm install
   fi
-  echo "==> No CI/CD auto-deploy configured for this repo — running manual Firebase deploy."
-  ensure_landing_site
-  hide_function_env_for_deploy
-  echo "==> Firebase deploy ($FIREBASE_ONLY)..."
-  firebase_deploy_with_retry "$FIREBASE_ONLY"
-  restore_function_env
+  npm run deploy:build
+
+  if [[ "$BUILD_ONLY" -eq 0 ]]; then
+    ensure_landing_site
+    hide_function_env_for_deploy
+    firebase_deploy_with_retry "$FIREBASE_ONLY"
+    restore_function_env
+  fi
 else
-  echo "==> --no-firebase: skipping cloud deploy."
+  echo "==> Step 4/4: Firebase deploy — skipped (pass --with-firebase to include)."
 fi
 
 echo ""
-echo "==> Reminders:"
-echo "    • Connect app.rava.one to Firebase Hosting site reelbaazar."
-echo "    • Connect rava.one to Firebase Hosting site reelbaazar-landing."
-echo "    • The app calls the API through Firebase Hosting at /api/v1."
-echo ""
-
-echo "==> Done."
+echo "====================================================================="
+echo "==> Rava Deployment Pipeline Complete!"
+echo "    • Git:      pushed to $REMOTE_NAME"
+echo "    • Expo OTA: branch '$EAS_PROFILE' (Android & iOS)"
+echo "    • Android:  EAS Build ($EAS_PROFILE)"
+echo "    • iOS:      EAS Build ($EAS_PROFILE)"
+echo "====================================================================="

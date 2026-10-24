@@ -18,7 +18,7 @@ export default function Root({ children }: { children: ReactNode }) {
 
         {/* PWA — the Vite build shipped an installable app via vite-plugin-pwa, and
             public/site.webmanifest already exists at the repo root. */}
-        <meta name="theme-color" content="#020617" />
+        <meta name="theme-color" content="#08080a" />
         <link rel="manifest" href="/site.webmanifest" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -46,7 +46,7 @@ html, body, #root {
   width: 100%;
   max-width: 100%;
   margin: 0;
-  background-color: #020617;
+  background-color: #08080a;
   overflow-x: hidden;
 }
 /* The old app hid its scrollbar for a cleaner mobile-app look. */

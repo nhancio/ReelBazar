@@ -9,29 +9,33 @@ export type ShadowStyle = Pick<
  * Native shadows. `elevation` is what actually draws on Android; the shadow* props are iOS.
  * Both are set on every entry so a card looks the same on either platform.
  */
-export const shadows: Record<'card' | 'chrome' | 'floating', ShadowStyle> = {
-  // `.rb-card` — 0 8px 32px rgba(131,149,193,0.15)
+export const shadows: Record<'card' | 'chrome' | 'floating' | 'glow', ShadowStyle> = {
   card: {
-    shadowColor: '#8395c1',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 32,
+    shadowOpacity: 0.24,
+    shadowRadius: 24,
     elevation: 6,
   },
-  // `.rb-surface-strong` — 0 4px 24px rgba(131,149,193,0.15)
   chrome: {
-    shadowColor: '#8395c1',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
     elevation: 4,
   },
-  // Toasts and anything that floats above the tab bar.
   floating: {
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
     elevation: 12,
+  },
+  glow: {
+    shadowColor: '#ff2d78',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.32,
+    shadowRadius: 16,
+    elevation: 8,
   },
 };

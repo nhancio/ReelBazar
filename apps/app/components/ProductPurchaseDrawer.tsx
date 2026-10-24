@@ -22,6 +22,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
+import { NativeDropdownPicker } from '@/components/NativeUI';
 import { RazorpayCheckoutModal } from '@/components/RazorpayCheckoutModal';
 import { radius, spacing, typography } from '@/theme';
 
@@ -40,7 +41,7 @@ export function ProductPurchaseDrawer({
 }: Props) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { palette, theme } = useTheme();
+  const { palette } = useTheme();
   const { user, guestMode } = useAuth();
   const { showToast } = useToast();
 
@@ -56,8 +57,6 @@ export function ProductPurchaseDrawer({
   const [checkoutData, setCheckoutData] = useState<CheckoutResponse | null>(null);
   const [showRazorpayModal, setShowRazorpayModal] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
-
-  const isDark = theme !== 'light';
 
   const resetForm = useCallback(() => {
     setQuantity(1);
@@ -154,21 +153,23 @@ export function ProductPurchaseDrawer({
             style={[
               styles.drawer,
               {
-                backgroundColor: palette.card,
+                backgroundColor: palette.sheet,
                 paddingBottom: insets.bottom + spacing.md,
-                borderTopColor: palette.border,
+                borderTopColor: palette.borderStrong,
               },
             ]}
           >
             {/* Drawer handle */}
             <View style={styles.handleWrap}>
-              <View style={[styles.handleBar, { backgroundColor: palette.border }]} />
+              <View style={[styles.handleBar, { backgroundColor: palette.borderStrong }]} />
             </View>
 
             {/* Header */}
             <View style={[styles.header, { borderBottomColor: palette.border }]}>
               <View style={styles.headerTitleRow}>
-                <Ionicons name="bag-handle" size={20} color={palette.accent} />
+                <View style={[styles.headerIconBadge, { backgroundColor: palette.accentSoft }]}>
+                  <Ionicons name="bag-handle" size={16} color={palette.accent} />
+                </View>
                 <Text style={[styles.headerTitle, { color: palette.text }]}>
                   {confirmedOrder ? 'Order Confirmed' : 'Instant Checkout'}
                 </Text>
@@ -181,28 +182,28 @@ export function ProductPurchaseDrawer({
             {confirmedOrder ? (
               /* Success View */
               <View style={styles.successContainer}>
-                <View style={[styles.successIconWrap, { backgroundColor: 'rgba(34,197,94,0.15)' }]}>
-                  <Ionicons name="checkmark-circle" size={56} color="#22c55e" />
+                <View style={[styles.successIconWrap, { backgroundColor: palette.successSoft }]}>
+                  <Ionicons name="checkmark-circle" size={56} color={palette.success} />
                 </View>
 
                 <Text style={[styles.successTitle, { color: palette.text }]}>
                   Thank you for your order!
                 </Text>
-                <Text style={[styles.successSub, { color: palette.textMuted }]}>
+                <Text style={[styles.successSub, { color: palette.textSecondary }]}>
                   Order #{confirmedOrder.id.slice(0, 10).toUpperCase()} has been confirmed.
                 </Text>
 
-                <View style={[styles.successCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderColor: palette.border }]}>
+                <View style={[styles.successCard, { backgroundColor: palette.cardElevated, borderColor: palette.borderStrong }]}>
                   <View style={styles.successItemRow}>
-                    <Text style={[styles.successLabel, { color: palette.textMuted }]}>Item</Text>
+                    <Text style={[styles.successLabel, { color: palette.textSecondary }]}>Item</Text>
                     <Text style={[styles.successVal, { color: palette.text }]} numberOfLines={1}>{confirmedOrder.productName}</Text>
                   </View>
                   <View style={styles.successItemRow}>
-                    <Text style={[styles.successLabel, { color: palette.textMuted }]}>Amount Paid</Text>
-                    <Text style={[styles.successVal, { color: '#22c55e', fontWeight: '800' }]}>₹{confirmedOrder.amount.toLocaleString('en-IN')}</Text>
+                    <Text style={[styles.successLabel, { color: palette.textSecondary }]}>Amount Paid</Text>
+                    <Text style={[styles.successVal, { color: palette.success, fontWeight: '800' }]}>₹{confirmedOrder.amount.toLocaleString('en-IN')}</Text>
                   </View>
                   <View style={styles.successItemRow}>
-                    <Text style={[styles.successLabel, { color: palette.textMuted }]}>Estimated Delivery</Text>
+                    <Text style={[styles.successLabel, { color: palette.textSecondary }]}>Estimated Delivery</Text>
                     <Text style={[styles.successVal, { color: palette.text }]}>2-4 Business Days</Text>
                   </View>
                 </View>
@@ -234,8 +235,8 @@ export function ProductPurchaseDrawer({
                 keyboardShouldPersistTaps="handled"
               >
                 {/* Product Summary Banner */}
-                <View style={[styles.productBanner, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: palette.border }]}>
-                  <View style={styles.productImageWrap}>
+                <View style={[styles.productBanner, { backgroundColor: palette.cardElevated, borderColor: palette.borderStrong }]}>
+                  <View style={[styles.productImageWrap, { backgroundColor: palette.inputBg }]}>
                     {product.imageUrl ? (
                       <Image
                         source={{ uri: product.imageUrl }}
@@ -255,7 +256,7 @@ export function ProductPurchaseDrawer({
                       <Text style={[styles.brandNameText, { color: palette.textSecondary }]} numberOfLines={1}>
                         {product.brandName || 'Verified Brand'}
                       </Text>
-                      <Ionicons name="checkmark-circle" size={14} color="#3b82f6" />
+                      <Ionicons name="checkmark-circle" size={14} color={palette.accent} />
                     </View>
 
                     <Text style={[styles.productTitle, { color: palette.text }]} numberOfLines={2}>
@@ -272,7 +273,7 @@ export function ProductPurchaseDrawer({
                         </Text>
                       )}
                       {discountPercent > 0 && (
-                        <View style={styles.discountBadge}>
+                        <View style={[styles.discountBadge, { backgroundColor: palette.accent }]}>
                           <Text style={styles.discountText}>{discountPercent}% OFF</Text>
                         </View>
                       )}
@@ -294,9 +295,17 @@ export function ProductPurchaseDrawer({
                 <View style={[styles.sectionRow, { borderBottomColor: palette.border }]}>
                   <Text style={[styles.sectionTitle, { color: palette.text }]}>Quantity</Text>
                   <View style={styles.qtyControl}>
+                    <NativeDropdownPicker<number>
+                      options={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => ({
+                        label: `Qty: ${n}`,
+                        value: n,
+                      }))}
+                      selectedValue={quantity}
+                      onValueChange={setQuantity}
+                    />
                     <Pressable
                       onPress={() => setQuantity((q) => Math.max(1, q - 1))}
-                      style={[styles.qtyBtn, { borderColor: palette.border, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}
+                      style={[styles.qtyBtn, { borderColor: palette.borderStrong, backgroundColor: palette.cardElevated }]}
                       hitSlop={6}
                     >
                       <Ionicons name="remove" size={16} color={palette.text} />
@@ -304,7 +313,7 @@ export function ProductPurchaseDrawer({
                     <Text style={[styles.qtyValue, { color: palette.text }]}>{quantity}</Text>
                     <Pressable
                       onPress={() => setQuantity((q) => Math.min(10, q + 1))}
-                      style={[styles.qtyBtn, { borderColor: palette.border, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}
+                      style={[styles.qtyBtn, { borderColor: palette.borderStrong, backgroundColor: palette.cardElevated }]}
                       hitSlop={6}
                     >
                       <Ionicons name="add" size={16} color={palette.text} />
@@ -321,8 +330,8 @@ export function ProductPurchaseDrawer({
                       value={buyerName}
                       onChangeText={setBuyerName}
                       placeholder="Full Name"
-                      placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
-                      style={[styles.input, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderColor: palette.borderInteractive, color: palette.text }]}
+                      placeholderTextColor={palette.textMuted}
+                      style={[styles.input, { backgroundColor: palette.inputBg, borderColor: palette.borderStrong, color: palette.text }]}
                     />
 
                     <TextInput
@@ -330,16 +339,16 @@ export function ProductPurchaseDrawer({
                       onChangeText={setBuyerPhone}
                       placeholder="Mobile Phone (for delivery SMS)"
                       keyboardType="phone-pad"
-                      placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
-                      style={[styles.input, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderColor: palette.borderInteractive, color: palette.text }]}
+                      placeholderTextColor={palette.textMuted}
+                      style={[styles.input, { backgroundColor: palette.inputBg, borderColor: palette.borderStrong, color: palette.text }]}
                     />
 
                     <TextInput
                       value={street}
                       onChangeText={setStreet}
                       placeholder="House / Flat / Street Address"
-                      placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
-                      style={[styles.input, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderColor: palette.borderInteractive, color: palette.text }]}
+                      placeholderTextColor={palette.textMuted}
+                      style={[styles.input, { backgroundColor: palette.inputBg, borderColor: palette.borderStrong, color: palette.text }]}
                     />
 
                     <View style={styles.inputRow}>
@@ -347,8 +356,8 @@ export function ProductPurchaseDrawer({
                         value={city}
                         onChangeText={setCity}
                         placeholder="City"
-                        placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
-                        style={[styles.input, { flex: 1, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderColor: palette.borderInteractive, color: palette.text }]}
+                        placeholderTextColor={palette.textMuted}
+                        style={[styles.input, { flex: 1, backgroundColor: palette.inputBg, borderColor: palette.borderStrong, color: palette.text }]}
                       />
                       <TextInput
                         value={pincode}
@@ -356,8 +365,8 @@ export function ProductPurchaseDrawer({
                         placeholder="Pincode"
                         keyboardType="number-pad"
                         maxLength={6}
-                        placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
-                        style={[styles.input, { width: 120, backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderColor: palette.borderInteractive, color: palette.text }]}
+                        placeholderTextColor={palette.textMuted}
+                        style={[styles.input, { width: 120, backgroundColor: palette.inputBg, borderColor: palette.borderStrong, color: palette.text }]}
                       />
                     </View>
 
@@ -365,30 +374,30 @@ export function ProductPurchaseDrawer({
                       value={stateName}
                       onChangeText={setStateName}
                       placeholder="State (e.g. Maharashtra, Karnataka)"
-                      placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
-                      style={[styles.input, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderColor: palette.borderInteractive, color: palette.text }]}
+                      placeholderTextColor={palette.textMuted}
+                      style={[styles.input, { backgroundColor: palette.inputBg, borderColor: palette.borderStrong, color: palette.text }]}
                     />
                   </View>
                 </View>
 
                 {/* Price Breakdown */}
-                <View style={[styles.breakdownCard, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', borderColor: palette.border }]}>
+                <View style={[styles.breakdownCard, { backgroundColor: palette.cardElevated, borderColor: palette.borderStrong }]}>
                   <View style={styles.breakdownRow}>
-                    <Text style={[styles.breakdownLabel, { color: palette.textMuted }]}>Item Total ({quantity} {quantity === 1 ? 'item' : 'items'})</Text>
+                    <Text style={[styles.breakdownLabel, { color: palette.textSecondary }]}>Item Total ({quantity} {quantity === 1 ? 'item' : 'items'})</Text>
                     <Text style={[styles.breakdownVal, { color: palette.text }]}>₹{totalPrice.toLocaleString('en-IN')}</Text>
                   </View>
                   <View style={styles.breakdownRow}>
-                    <Text style={[styles.breakdownLabel, { color: palette.textMuted }]}>Delivery Charges</Text>
-                    <Text style={[styles.breakdownVal, { color: '#22c55e', fontWeight: '700' }]}>FREE</Text>
+                    <Text style={[styles.breakdownLabel, { color: palette.textSecondary }]}>Delivery Charges</Text>
+                    <Text style={[styles.breakdownVal, { color: palette.success, fontWeight: '700' }]}>FREE</Text>
                   </View>
                   <View style={styles.breakdownRow}>
-                    <Text style={[styles.breakdownLabel, { color: palette.textMuted }]}>Platform Fee</Text>
-                    <Text style={[styles.breakdownVal, { color: '#22c55e', fontWeight: '700' }]}>FREE</Text>
+                    <Text style={[styles.breakdownLabel, { color: palette.textSecondary }]}>Platform Fee</Text>
+                    <Text style={[styles.breakdownVal, { color: palette.success, fontWeight: '700' }]}>FREE</Text>
                   </View>
-                  <View style={[styles.breakdownDivider, { backgroundColor: palette.border }]} />
+                  <View style={[styles.breakdownDivider, { backgroundColor: palette.borderStrong }]} />
                   <View style={styles.breakdownRow}>
                     <Text style={[styles.totalLabel, { color: palette.text }]}>Total Amount</Text>
-                    <Text style={[styles.totalVal, { color: palette.text }]}>₹{totalPrice.toLocaleString('en-IN')}</Text>
+                    <Text style={[styles.totalVal, { color: palette.accent }]}>₹{totalPrice.toLocaleString('en-IN')}</Text>
                   </View>
                 </View>
 
@@ -396,6 +405,8 @@ export function ProductPurchaseDrawer({
                 <Button
                   label={checkingOut ? 'Initializing Secure Payment…' : `Pay ₹${totalPrice.toLocaleString('en-IN')} with Razorpay`}
                   variant="primary"
+                  size="lg"
+                  icon="lock-closed"
                   loading={checkingOut}
                   onPress={handleBuyNow}
                   fullWidth
@@ -404,16 +415,16 @@ export function ProductPurchaseDrawer({
 
                 <View style={styles.trustBadges}>
                   <View style={styles.trustItem}>
-                    <Ionicons name="shield-checkmark-outline" size={14} color={palette.textMuted} />
-                    <Text style={[styles.trustText, { color: palette.textMuted }]}>100% Genuine</Text>
+                    <Ionicons name="shield-checkmark-outline" size={14} color={palette.accent} />
+                    <Text style={[styles.trustText, { color: palette.textSecondary }]}>100% Genuine</Text>
                   </View>
                   <View style={styles.trustItem}>
-                    <Ionicons name="sync-outline" size={14} color={palette.textMuted} />
-                    <Text style={[styles.trustText, { color: palette.textMuted }]}>7-Day Returns</Text>
+                    <Ionicons name="sync-outline" size={14} color={palette.accent} />
+                    <Text style={[styles.trustText, { color: palette.textSecondary }]}>7-Day Returns</Text>
                   </View>
                   <View style={styles.trustItem}>
-                    <Ionicons name="lock-closed-outline" size={14} color={palette.textMuted} />
-                    <Text style={[styles.trustText, { color: palette.textMuted }]}>Razorpay Secured</Text>
+                    <Ionicons name="lock-closed-outline" size={14} color={palette.accent} />
+                    <Text style={[styles.trustText, { color: palette.textSecondary }]}>Razorpay Secured</Text>
                   </View>
                 </View>
               </ScrollView>
@@ -435,16 +446,17 @@ export function ProductPurchaseDrawer({
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
-  scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.6)' },
+  scrim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0, 0, 0, 0.72)' },
   drawer: {
     borderTopLeftRadius: radius.card,
     borderTopRightRadius: radius.card,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    maxHeight: '90%',
+    borderCurve: 'continuous',
+    borderTopWidth: 1,
+    maxHeight: '92%',
     minHeight: 460,
   },
   handleWrap: { alignItems: 'center', paddingTop: 10, paddingBottom: 6 },
-  handleBar: { width: 38, height: 4, borderRadius: 2 },
+  handleBar: { width: 40, height: 4, borderRadius: 2 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -454,7 +466,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  headerTitle: { ...typography.heading, fontSize: 17, fontWeight: '700' },
+  headerIconBadge: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: { ...typography.heading, fontSize: 18, fontWeight: '800' },
   closeBtn: { padding: 4 },
   scrollArea: { flexShrink: 1 },
   scrollContent: { padding: spacing.lg, gap: spacing.md },
@@ -463,14 +482,14 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.md,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: 1,
   },
   productImageWrap: {
-    width: 76,
-    height: 76,
+    width: 78,
+    height: 78,
     borderRadius: radius.sm,
     overflow: 'hidden',
-    backgroundColor: '#20242c',
   },
   imagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
   productDetails: { flex: 1, justifyContent: 'center', gap: 3 },

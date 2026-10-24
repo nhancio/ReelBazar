@@ -39,6 +39,8 @@ import { useToast } from '@/context/ToastContext';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ReelPlayer916 } from '@/components/ReelPlayer916';
 import { ProductPurchaseDrawer } from '@/components/ProductPurchaseDrawer';
+import { GlassIconButton, GlassSurface } from '@/components/GlassSurface';
+import { LinearGradient } from 'expo-linear-gradient';
 import { radius, spacing } from '@/theme';
 
 const PAGE_SIZE = 10;
@@ -336,6 +338,7 @@ export default function FeedScreen() {
         ]}
       >
         <View style={styles.headerLeft}>
+          <View style={[styles.brandDot, { backgroundColor: palette.accent }]} />
           <Text style={styles.brandTitle}>{APP_NAME}</Text>
           {currentUser?.streakCount ? (
             <View style={styles.streakBadge}>
@@ -345,28 +348,28 @@ export default function FeedScreen() {
         </View>
 
         <View style={styles.headerRight}>
-          <Pressable
+          <GlassIconButton
+            icon="search"
+            label="Search"
+            size={38}
+            iconSize={19}
+            color="#ffffff"
             onPress={() => router.push('/search')}
-            hitSlop={8}
-            style={styles.headerIconBtn}
-            accessibilityLabel="Search"
-          >
-            <Ionicons name="search" size={22} color="#ffffff" />
-          </Pressable>
+          />
 
-          <Pressable
+          <GlassIconButton
+            icon="bag-handle-outline"
+            label="My Orders"
+            size={38}
+            iconSize={19}
+            color="#ffffff"
             onPress={() => router.push('/orders')}
-            hitSlop={8}
-            style={styles.headerIconBtn}
-            accessibilityLabel="My Orders"
-          >
-            <Ionicons name="bag-handle-outline" size={22} color="#ffffff" />
-          </Pressable>
+          />
         </View>
       </View>
 
-      {/* Floating Category Filters */}
-      <View style={[styles.categoryBar, { top: insets.top + 48 }]}>
+      {/* Floating Category Filters (Aura Liquid Glass Chips) */}
+      <View style={[styles.categoryBar, { top: insets.top + 50 }]}>
         <FlatList
           horizontal
           data={['All', ...CATEGORIES]}
@@ -375,22 +378,41 @@ export default function FeedScreen() {
           contentContainerStyle={styles.categoryContent}
           renderItem={({ item }) => {
             const active = selectedCategory === item;
+            if (active) {
+              return (
+                <Pressable
+                  onPress={() => setSelectedCategory(item as Category | 'All')}
+                  style={[styles.categoryPill, styles.categoryPillActive]}
+                >
+                  <LinearGradient
+                    colors={[...palette.accentGradient]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <LinearGradient
+                    colors={['rgba(255,255,255,0.35)', 'transparent']}
+                    locations={[0, 0.5]}
+                    style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]}
+                  />
+                  <Text style={[styles.categoryText, styles.categoryTextActive]}>
+                    {item}
+                  </Text>
+                </Pressable>
+              );
+            }
             return (
               <Pressable
                 onPress={() => setSelectedCategory(item as Category | 'All')}
-                style={[
-                  styles.categoryPill,
-                  active && styles.categoryPillActive,
-                ]}
               >
-                <Text
-                  style={[
-                    styles.categoryText,
-                    active && styles.categoryTextActive,
-                  ]}
+                <GlassSurface
+                  interactive
+                  intensity={55}
+                  cornerRadius={radius.pill}
+                  style={styles.categoryGlassPill}
                 >
-                  {item}
-                </Text>
+                  <Text style={styles.categoryText}>{item}</Text>
+                </GlassSurface>
               </Pressable>
             );
           }}
@@ -421,7 +443,15 @@ export default function FeedScreen() {
             onSave={() => void toggle('save', item.id)}
             onShare={() => void handleShare(item.id)}
             onComment={() => router.push(`/reel/${item.id}`)}
-            onProfilePress={() => item.creatorId && router.push(`/profile/${item.creatorId}`)}
+            onProfilePress={() => {
+              const targetId = item.creatorId || item.brandTag?.replace(/^@/, '') || 'rava-creator';
+              const params = new URLSearchParams();
+              if (item.creator?.name) params.set('name', item.creator.name);
+              if (item.creator?.username) params.set('username', item.creator.username);
+              if (item.brandTag) params.set('brandTag', item.brandTag);
+              const qs = params.toString();
+              router.push(`/profile/${targetId}${qs ? `?${qs}` : ''}`);
+            }}
             onView={() => trackView(item.id)}
             onProductPress={(prod) => handleOpenProduct(prod, item)}
           />
@@ -492,30 +522,46 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  brandDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
   brandTitle: {
     color: '#ffffff',
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '900',
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
     textShadowColor: 'rgba(0,0,0,0.8)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
   streakBadge: {
-    backgroundColor: 'rgba(255, 107, 61, 0.3)',
+    backgroundColor: 'rgba(255, 45, 120, 0.25)',
     borderRadius: radius.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
     borderWidth: 1,
-    borderColor: 'rgba(255, 107, 61, 0.6)',
+    borderColor: 'rgba(255, 45, 120, 0.6)',
   },
-  streakText: { color: '#ff6b3d', fontSize: 11, fontWeight: '800' },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  streakText: { color: '#ff8ab5', fontSize: 11, fontWeight: '800' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerCreateBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
   headerIconBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(10,10,14,0.58)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -530,25 +576,32 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 4,
   },
-  categoryPill: {
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  categoryGlassPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  categoryPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
   },
   categoryPillActive: {
-    backgroundColor: '#ffffff',
-    borderColor: '#ffffff',
+    shadowColor: '#ff2d78',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
   },
   categoryText: {
-    color: 'rgba(255,255,255,0.85)',
+    color: 'rgba(255,255,255,0.88)',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   categoryTextActive: {
-    color: '#000000',
+    color: '#ffffff',
     fontWeight: '800',
   },
   emptyContainer: {

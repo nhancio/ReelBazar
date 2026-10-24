@@ -12,8 +12,8 @@ import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { ordersApi, type Order } from '@reelbazaar/api';
+import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
-import { useToast } from '@/context/ToastContext';
 import { Button } from '@/components/Button';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { timeAgo } from '@/lib/timeAgo';
@@ -23,7 +23,7 @@ export default function OrdersListScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { palette } = useTheme();
-  const { showToast } = useToast();
+  const { user, guestMode } = useAuth();
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,17 +31,24 @@ export default function OrdersListScreen() {
   const [filter, setFilter] = useState<'all' | 'active' | 'delivered'>('all');
 
   const loadOrders = useCallback(async () => {
+    if (guestMode || !user) {
+      setOrders([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     try {
       const res = await ordersApi.getBuyerOrders();
       setOrders(res.orders || []);
     } catch (err) {
-      console.error('Failed to load orders:', err);
-      showToast('Could not load orders', 'error');
+      console.warn('Orders fetch fallback to empty list:', err);
+      setOrders([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [showToast]);
+  }, [guestMode, user]);
 
   useEffect(() => {
     void loadOrders();
@@ -60,19 +67,19 @@ export default function OrdersListScreen() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'delivered':
-        return { label: 'Delivered', bg: 'rgba(34,197,94,0.15)', text: '#22c55e', icon: 'checkmark-circle' };
+        return { label: 'Delivered', bg: palette.successSoft, text: palette.success, icon: 'checkmark-circle' };
       case 'shipped':
-        return { label: 'Shipped', bg: 'rgba(59,130,246,0.15)', text: '#3b82f6', icon: 'airplane' };
+        return { label: 'Shipped', bg: palette.accentSoft, text: palette.accent, icon: 'airplane' };
       case 'out_for_delivery':
-        return { label: 'Out for Delivery', bg: 'rgba(168,85,247,0.15)', text: '#a855f7', icon: 'bicycle' };
+        return { label: 'Out for Delivery', bg: palette.accentSoft, text: palette.accent, icon: 'bicycle' };
       case 'packed':
-        return { label: 'Packed', bg: 'rgba(234,179,8,0.15)', text: '#eab308', icon: 'cube' };
+        return { label: 'Packed', bg: palette.warningSoft, text: palette.warning, icon: 'cube' };
       case 'confirmed':
-        return { label: 'Confirmed', bg: 'rgba(34,197,94,0.15)', text: '#22c55e', icon: 'checkmark' };
+        return { label: 'Confirmed', bg: palette.successSoft, text: palette.success, icon: 'checkmark' };
       case 'cancelled':
-        return { label: 'Cancelled', bg: 'rgba(239,68,68,0.15)', text: '#ef4444', icon: 'close-circle' };
+        return { label: 'Cancelled', bg: palette.dangerSoft, text: palette.danger, icon: 'close-circle' };
       default:
-        return { label: 'Processing', bg: 'rgba(255,255,255,0.1)', text: palette.textSecondary, icon: 'time' };
+        return { label: 'Processing', bg: palette.cardElevated, text: palette.textSecondary, icon: 'time' };
     }
   };
 
@@ -297,7 +304,7 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: radius.sm,
     overflow: 'hidden',
-    backgroundColor: '#1f242d',
+    backgroundColor: '#1a1a22',
   },
   thumbFallback: { alignItems: 'center', justifyContent: 'center' },
   productInfo: { flex: 1, gap: 2 },

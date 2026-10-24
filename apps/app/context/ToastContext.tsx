@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
-import { colors, radius, spacing, shadows, TAB_BAR_HEIGHT } from '@/theme';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import Animated, { FadeInUp, FadeOutUp } from 'react-native-reanimated';
+import { colors, radius, spacing, shadows } from '@/theme';
 
 type ToastType = 'success' | 'error' | 'info';
 
@@ -17,7 +18,7 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
-const TOAST_DURATION_MS = 3000;
+const TOAST_DURATION_MS = 2800;
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -26,15 +27,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
     const id = ++counterRef.current;
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => [...prev.slice(-2), { id, message, type }]);
     const timer = setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, TOAST_DURATION_MS);
     timersRef.current.push(timer);
   }, []);
 
-  // The web version leaked a setTimeout per toast on unmount. On native that fires into a
-  // torn-down tree and warns, so clear them.
   useEffect(() => {
     const timers = timersRef;
     return () => {
@@ -50,8 +49,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((t) => (
           <Animated.View
             key={t.id}
-            entering={FadeInDown.duration(200)}
-            exiting={FadeOut.duration(150)}
+            entering={FadeInUp.duration(220)}
+            exiting={FadeOutUp.duration(160)}
             style={[
               styles.toast,
               shadows.floating,
@@ -59,7 +58,26 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               t.type === 'error' && styles.error,
             ]}
           >
-            <Text style={styles.text}>{t.message}</Text>
+            <Ionicons
+              name={
+                t.type === 'success'
+                  ? 'checkmark-circle'
+                  : t.type === 'error'
+                    ? 'alert-circle'
+                    : 'sparkles'
+              }
+              size={16}
+              color={
+                t.type === 'success'
+                  ? '#34d399'
+                  : t.type === 'error'
+                    ? '#fda4af'
+                    : colors.accent
+              }
+            />
+            <Text style={styles.text} numberOfLines={2}>
+              {t.message}
+            </Text>
           </Animated.View>
         ))}
       </View>
@@ -70,25 +88,39 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 const styles = StyleSheet.create({
   host: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: TAB_BAR_HEIGHT + spacing.xxl,
+    left: spacing.lg,
+    right: spacing.lg,
+    top: 58,
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: spacing.xs,
     zIndex: 9999,
   },
   toast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     borderRadius: radius.pill,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    borderCurve: 'continuous',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 11,
+    backgroundColor: 'rgba(18, 18, 24, 0.96)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 45, 120, 0.35)',
+    maxWidth: 380,
   },
-  success: { backgroundColor: 'rgba(22,163,74,0.92)' },
-  error: { backgroundColor: 'rgba(220,38,38,0.92)' },
+  success: {
+    backgroundColor: 'rgba(12, 28, 22, 0.96)',
+    borderColor: 'rgba(16, 185, 129, 0.45)',
+  },
+  error: {
+    backgroundColor: 'rgba(34, 12, 20, 0.96)',
+    borderColor: 'rgba(244, 63, 94, 0.45)',
+  },
   text: {
     color: colors.textOnAccent,
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
+    flexShrink: 1,
   },
 });
 

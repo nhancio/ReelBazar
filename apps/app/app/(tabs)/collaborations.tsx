@@ -18,12 +18,13 @@ import { useToast } from '@/context/ToastContext';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { NativeSegmentedPicker } from '@/components/NativeUI';
 import { radius, spacing, typography } from '@/theme';
 
 export default function CollaborationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { palette, theme } = useTheme();
+  const { palette } = useTheme();
   const { user, guestMode } = useAuth();
   const { showToast } = useToast();
 
@@ -91,7 +92,6 @@ export default function CollaborationsScreen() {
     }
   };
 
-  const isDark = theme !== 'light';
   const activeCollabs = myCollabs.filter((c) => c.status === 'accepted' || c.status === 'pending');
 
   const renderPartner = (collab: Collaboration): User | null => {
@@ -147,55 +147,14 @@ export default function CollaborationsScreen() {
 
       {/* Tabs */}
       <View style={[styles.tabsRow, { borderBottomColor: palette.border }]}>
-        <Pressable
-          onPress={() => setTab('suggestions')}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: tab === 'suggestions' }}
-          style={[
-            styles.tabBtn,
-            tab === 'suggestions' && {
-              backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
-              borderColor: palette.text,
-            },
+        <NativeSegmentedPicker<'suggestions' | 'active'>
+          options={[
+            { label: `Suggested (${suggestions.length})`, value: 'suggestions' },
+            { label: `Active (${activeCollabs.length})`, value: 'active' },
           ]}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              {
-                color: tab === 'suggestions' ? palette.text : palette.textMuted,
-                fontWeight: tab === 'suggestions' ? '700' : '600',
-              },
-            ]}
-          >
-            Suggested ({suggestions.length})
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() => setTab('active')}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: tab === 'active' }}
-          style={[
-            styles.tabBtn,
-            tab === 'active' && {
-              backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
-              borderColor: palette.text,
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              {
-                color: tab === 'active' ? palette.text : palette.textMuted,
-                fontWeight: tab === 'active' ? '700' : '600',
-              },
-            ]}
-          >
-            Active ({activeCollabs.length})
-          </Text>
-        </Pressable>
+          selectedValue={tab}
+          onValueChange={setTab}
+        />
       </View>
 
       {loading ? (
@@ -266,10 +225,7 @@ export default function CollaborationsScreen() {
                             style={[
                               styles.typeBadge,
                               {
-                                backgroundColor:
-                                  partner.userType === 'brand'
-                                    ? 'rgba(236,72,153,0.15)'
-                                    : 'rgba(168,85,247,0.15)',
+                                backgroundColor: palette.accentSoft,
                               },
                             ]}
                           >
@@ -277,8 +233,7 @@ export default function CollaborationsScreen() {
                               style={[
                                 styles.typeBadgeText,
                                 {
-                                  color:
-                                    partner.userType === 'brand' ? '#ec4899' : '#a855f7',
+                                  color: palette.accent,
                                 },
                               ]}
                             >
@@ -343,10 +298,7 @@ export default function CollaborationsScreen() {
                           style={[
                             styles.typeBadge,
                             {
-                              backgroundColor:
-                                partner.userType === 'brand'
-                                  ? 'rgba(236,72,153,0.15)'
-                                  : 'rgba(168,85,247,0.15)',
+                              backgroundColor: palette.accentSoft,
                             },
                           ]}
                         >
@@ -354,8 +306,7 @@ export default function CollaborationsScreen() {
                             style={[
                               styles.typeBadgeText,
                               {
-                                color:
-                                  partner.userType === 'brand' ? '#ec4899' : '#a855f7',
+                                color: palette.accent,
                               },
                             ]}
                           >

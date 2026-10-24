@@ -14,7 +14,8 @@ interface Props {
 
 export function Avatar({ uri, name, size = 40, ring = false }: Props) {
   const { palette } = useTheme();
-  const initial = (name || '?').trim().charAt(0).toUpperCase();
+  const cleanName = (name || '').trim();
+  const initial = cleanName && cleanName !== '?' ? cleanName.charAt(0).toUpperCase() : 'R';
 
   return (
     <View
@@ -24,9 +25,10 @@ export function Avatar({ uri, name, size = 40, ring = false }: Props) {
           width: size,
           height: size,
           borderRadius: radius.pill,
-          backgroundColor: palette.accentSoft,
+          backgroundColor: palette.cardElevated,
+          borderWidth: ring ? 2 : 1,
+          borderColor: ring ? palette.accent : palette.borderStrong,
         },
-        ring && { borderWidth: 2, borderColor: palette.accent },
       ]}
     >
       {uri ? (
@@ -34,8 +36,6 @@ export function Avatar({ uri, name, size = 40, ring = false }: Props) {
           source={{ uri }}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
-          // Blur up from a tiny placeholder instead of popping in — matters in the feed
-          // where dozens of avatars load while scrolling.
           transition={150}
           cachePolicy="memory-disk"
           accessibilityLabel={name ? `${name}'s profile picture` : 'Profile picture'}

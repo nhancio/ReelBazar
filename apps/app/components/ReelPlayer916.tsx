@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics';
 import type { Reel, BrandProduct } from '@reelbazaar/config';
 import { useTheme } from '@/context/ThemeContext';
 import { Avatar } from '@/components/Avatar';
+import { GlassSurface } from '@/components/GlassSurface';
 import { formatCount } from '@/lib/timeAgo';
 import { radius, spacing } from '@/theme';
 
@@ -196,7 +197,7 @@ export function ReelPlayer916({
               },
             ]}
           >
-            <Ionicons name="heart" size={100} color="#ff3366" />
+            <Ionicons name="heart" size={100} color="#ff2d78" />
           </Animated.View>
         </View>
       )}
@@ -210,7 +211,15 @@ export function ReelPlayer916({
       <View style={styles.rightRail}>
         {/* Creator avatar */}
         <Pressable onPress={onProfilePress} style={styles.creatorRailBtn}>
-          <Avatar uri={reel.creator?.avatarUrl} name={reel.creator?.name} size={44} ring />
+          <Avatar
+            uri={reel.creator?.avatarUrl}
+            name={reel.creator?.name || reel.brandTag?.replace(/^@/, '') || 'Rava'}
+            size={44}
+            ring
+          />
+          <View style={[styles.creatorPlusBadge, { backgroundColor: palette.accent }]}>
+            <Ionicons name="sparkles" size={9} color="#ffffff" />
+          </View>
         </Pressable>
 
         {/* Like */}
@@ -223,11 +232,11 @@ export function ReelPlayer916({
           style={styles.actionBtn}
           hitSlop={6}
         >
-          <View style={styles.actionIconWrap}>
+          <View style={[styles.actionIconWrap, liked && styles.actionIconActive]}>
             <Ionicons
               name={liked ? 'heart' : 'heart-outline'}
-              size={30}
-              color={liked ? '#ff3040' : '#ffffff'}
+              size={26}
+              color={liked ? '#ff2d78' : '#ffffff'}
             />
           </View>
           <Text style={styles.actionText}>{formatCount(reel.likesCount)}</Text>
@@ -243,7 +252,7 @@ export function ReelPlayer916({
           hitSlop={6}
         >
           <View style={styles.actionIconWrap}>
-            <Ionicons name="chatbubble-ellipses-outline" size={28} color="#ffffff" />
+            <Ionicons name="chatbubble-ellipses-outline" size={24} color="#ffffff" />
           </View>
           <Text style={styles.actionText}>{formatCount(reel.commentsCount || 0)}</Text>
         </Pressable>
@@ -258,11 +267,11 @@ export function ReelPlayer916({
           style={styles.actionBtn}
           hitSlop={6}
         >
-          <View style={styles.actionIconWrap}>
+          <View style={[styles.actionIconWrap, saved && styles.actionIconActive]}>
             <Ionicons
               name={saved ? 'bookmark' : 'bookmark-outline'}
-              size={28}
-              color={saved ? '#facc15' : '#ffffff'}
+              size={24}
+              color={saved ? '#ff2d78' : '#ffffff'}
             />
           </View>
           <Text style={styles.actionText}>{formatCount(reel.savesCount || 0)}</Text>
@@ -271,7 +280,7 @@ export function ReelPlayer916({
         {/* Share */}
         <Pressable onPress={onShare} style={styles.actionBtn} hitSlop={6}>
           <View style={styles.actionIconWrap}>
-            <Ionicons name="paper-plane-outline" size={26} color="#ffffff" />
+            <Ionicons name="paper-plane-outline" size={22} color="#ffffff" />
           </View>
           <Text style={styles.actionText}>Share</Text>
         </Pressable>
@@ -280,15 +289,17 @@ export function ReelPlayer916({
         {showProduct && (
           <Pressable
             onPress={() => product && onProductPress?.(product)}
-            style={[styles.shopBtnRail, { borderColor: palette.accent }]}
+            style={[styles.shopBtnRail, { borderColor: 'rgba(255, 255, 255, 0.35)' }]}
             hitSlop={6}
           >
             <LinearGradient
-              colors={['#ff3366', '#ff6b3d']}
+              colors={[...palette.accentGradient]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}
             />
-            <Ionicons name="bag-handle" size={22} color="#ffffff" />
-            <Text style={styles.shopRailText}>Buy</Text>
+            <Ionicons name="bag-handle" size={20} color="#ffffff" />
+            <Text style={styles.shopRailText}>Shop</Text>
           </Pressable>
         )}
       </View>
@@ -299,7 +310,7 @@ export function ReelPlayer916({
         <View style={styles.creatorRow}>
           <Pressable onPress={onProfilePress} style={styles.handlePress}>
             <Text style={styles.creatorHandle}>
-              @{reel.creator?.username || reel.creator?.name || 'creator'}
+              @{reel.creator?.username || reel.creator?.name?.replace(/\s+/g, '').toLowerCase() || reel.brandTag?.replace(/^@/, '').toLowerCase() || 'rava.creator'}
             </Text>
           </Pressable>
 
@@ -329,57 +340,64 @@ export function ReelPlayer916({
           </Pressable>
         ) : null}
 
-        {/* Floating Shoppable Product Pill */}
+        {/* Floating Shoppable Product Pill (Aura Liquid Glass) */}
         {showProduct && product && (
           <Pressable
             onPress={() => onProductPress?.(product)}
             style={({ pressed }) => [
-              styles.productPill,
-              pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+              pressed && { opacity: 0.92, transform: [{ scale: 0.985 }] },
             ]}
           >
-            <View style={styles.pillImageWrap}>
-              {product.imageUrl ? (
-                <Image source={{ uri: product.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-              ) : (
-                <View style={[StyleSheet.absoluteFill, styles.pillImageFallback]}>
-                  <Ionicons name="bag-handle" size={16} color="#ffffff" />
-                </View>
-              )}
-            </View>
-
-            <View style={styles.pillDetails}>
-              <View style={styles.pillBrandRow}>
-                <Text style={styles.pillBrandName} numberOfLines={1}>
-                  {product.brandName || 'Brand'}
-                </Text>
-                {product.commissionRate ? (
-                  <View style={styles.pillCommBadge}>
-                    <Text style={styles.pillCommText}>{product.commissionRate}% comm</Text>
+            <GlassSurface
+              interactive
+              raised
+              intensity={78}
+              cornerRadius={radius.md}
+              style={styles.productPill}
+            >
+              <View style={styles.pillImageWrap}>
+                {product.imageUrl ? (
+                  <Image source={{ uri: product.imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                ) : (
+                  <View style={[StyleSheet.absoluteFill, styles.pillImageFallback]}>
+                    <Ionicons name="bag-handle" size={16} color="#ffffff" />
                   </View>
-                ) : null}
-              </View>
-              <Text style={styles.pillProductName} numberOfLines={1}>
-                {product.name}
-              </Text>
-              <View style={styles.pillPriceRow}>
-                <Text style={styles.pillPrice}>₹{product.price?.toLocaleString('en-IN')}</Text>
-                {product.originalPrice && product.originalPrice > product.price && (
-                  <Text style={styles.pillMrp}>₹{product.originalPrice?.toLocaleString('en-IN')}</Text>
                 )}
               </View>
-            </View>
 
-            <View style={styles.pillCta}>
-              <LinearGradient
-                colors={['#ff3366', '#ff6b3d']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-              <Text style={styles.pillCtaText}>Buy Now</Text>
-              <Ionicons name="arrow-forward" size={13} color="#ffffff" />
-            </View>
+              <View style={styles.pillDetails}>
+                <View style={styles.pillBrandRow}>
+                  <Text style={styles.pillBrandName} numberOfLines={1}>
+                    {product.brandName || 'Rava Boutique'}
+                  </Text>
+                  {product.commissionRate ? (
+                    <View style={styles.pillCommBadge}>
+                      <Text style={styles.pillCommText}>{product.commissionRate}% comm</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={styles.pillProductName} numberOfLines={1}>
+                  {product.name}
+                </Text>
+                <View style={styles.pillPriceRow}>
+                  <Text style={styles.pillPrice}>₹{product.price?.toLocaleString('en-IN')}</Text>
+                  {product.originalPrice && product.originalPrice > product.price && (
+                    <Text style={styles.pillMrp}>₹{product.originalPrice?.toLocaleString('en-IN')}</Text>
+                  )}
+                </View>
+              </View>
+
+              <View style={styles.pillCta}>
+                <LinearGradient
+                  colors={[...palette.accentGradient]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                <Text style={styles.pillCtaText}>Buy Now</Text>
+                <Ionicons name="arrow-forward" size={13} color="#ffffff" />
+              </View>
+            </GlassSurface>
           </Pressable>
         )}
       </View>
@@ -397,7 +415,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#11141a',
+    backgroundColor: '#121217',
     gap: spacing.sm,
   },
   noVideoText: { color: 'rgba(255,255,255,0.6)', fontSize: 14 },
@@ -413,7 +431,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 300,
+    height: 320,
   },
   heartAnimContainer: {
     ...StyleSheet.absoluteFill,
@@ -422,10 +440,10 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   heartAnim: {
-    shadowColor: '#ff3366',
+    shadowColor: '#ff2d78',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
+    shadowOpacity: 0.55,
+    shadowRadius: 14,
   },
   muteIndicator: {
     position: 'absolute',
@@ -434,7 +452,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(12, 12, 16, 0.58)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
@@ -442,13 +462,26 @@ const styles = StyleSheet.create({
   rightRail: {
     position: 'absolute',
     right: 12,
-    bottom: 110,
+    bottom: 106,
     alignItems: 'center',
-    gap: 16,
+    gap: 14,
     zIndex: 10,
   },
   creatorRailBtn: {
-    marginBottom: 4,
+    marginBottom: 6,
+    position: 'relative',
+  },
+  creatorPlusBadge: {
+    position: 'absolute',
+    bottom: -4,
+    alignSelf: 'center',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#08080a',
   },
   actionBtn: {
     alignItems: 'center',
@@ -458,9 +491,15 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(12, 12, 16, 0.48)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  actionIconActive: {
+    backgroundColor: 'rgba(255, 45, 120, 0.20)',
+    borderColor: 'rgba(255, 45, 120, 0.45)',
   },
   actionText: {
     color: '#ffffff',
@@ -471,18 +510,18 @@ const styles = StyleSheet.create({
     textShadowRadius: 3,
   },
   shopBtnRail: {
-    width: 44,
-    height: 52,
-    borderRadius: 22,
+    width: 46,
+    height: 54,
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     borderWidth: 1.5,
     marginTop: 4,
-    shadowColor: '#ff3366',
+    shadowColor: '#ff2d78',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
   },
   shopRailText: {
     color: '#ffffff',
@@ -493,8 +532,8 @@ const styles = StyleSheet.create({
   bottomOverlay: {
     position: 'absolute',
     left: 14,
-    right: 76,
-    bottom: 96,
+    right: 74,
+    bottom: 92,
     zIndex: 10,
     gap: 8,
   },
@@ -509,24 +548,29 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '800',
-    textShadowColor: 'rgba(0,0,0,0.8)',
+    letterSpacing: -0.2,
+    textShadowColor: 'rgba(0,0,0,0.85)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
   categoryPill: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
     borderRadius: radius.pill,
   },
   categoryText: { color: '#ffffff', fontSize: 11, fontWeight: '700' },
   brandTagPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(236,72,153,0.3)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    gap: 4,
+    backgroundColor: 'rgba(255, 45, 120, 0.32)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 45, 120, 0.6)',
+    paddingHorizontal: 9,
+    paddingVertical: 3,
     borderRadius: radius.pill,
   },
   brandTagText: { color: '#ffffff', fontSize: 11, fontWeight: '700' },
@@ -534,39 +578,32 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   captionText: {
-    color: '#ffffff',
+    color: '#fafafc',
     fontSize: 13,
     lineHeight: 18,
-    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowColor: 'rgba(0,0,0,0.85)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
   productPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(20, 24, 33, 0.92)',
     borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    padding: 6,
+    padding: 8,
     gap: 10,
     maxWidth: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
   },
   pillImageWrap: {
-    width: 44,
-    height: 44,
+    width: 46,
+    height: 46,
     borderRadius: radius.sm,
     overflow: 'hidden',
-    backgroundColor: '#2a303c',
+    backgroundColor: '#1e1e28',
   },
   pillImageFallback: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ff3366',
+    backgroundColor: '#ff2d78',
   },
   pillDetails: {
     flex: 1,
@@ -579,25 +616,26 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   pillBrandName: {
-    color: '#94a3b8',
+    color: '#d4d4dc',
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   pillCommBadge: {
-    backgroundColor: 'rgba(34,197,94,0.2)',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 3,
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 4,
   },
   pillCommText: {
-    color: '#22c55e',
+    color: '#34d399',
     fontSize: 9,
     fontWeight: '800',
   },
   pillProductName: {
     color: '#ffffff',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
   pillPriceRow: {
@@ -607,26 +645,26 @@ const styles = StyleSheet.create({
   },
   pillPrice: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
   },
   pillMrp: {
-    color: '#94a3b8',
-    fontSize: 10,
+    color: '#8e8e9e',
+    fontSize: 11,
     textDecorationLine: 'line-through',
   },
   pillCta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: radius.pill,
     overflow: 'hidden',
   },
   pillCtaText: {
     color: '#ffffff',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
   },
 });

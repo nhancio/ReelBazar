@@ -36,12 +36,10 @@ export function RazorpayCheckoutModal({
   onSuccess,
   onClose,
 }: Props) {
-  const { palette, theme } = useTheme();
+  const { palette } = useTheme();
   const { showToast } = useToast();
   const [processing, setProcessing] = useState(false);
   const [verifying, setVerifying] = useState(false);
-
-  const isDark = theme !== 'light';
 
   const handleVerify = useCallback(
     async (rzpOrderId: string, paymentId: string, signature: string) => {
@@ -97,7 +95,7 @@ export function RazorpayCheckoutModal({
             contact: checkoutData.order.buyerPhone || '',
           },
           theme: {
-            color: '#ff3366',
+            color: '#ff2d78',
           },
           modal: { ondismiss: () => setProcessing(false) },
       });
@@ -155,8 +153,8 @@ export function RazorpayCheckoutModal({
           style={[
             styles.modalCard,
             {
-              backgroundColor: palette.card,
-              borderColor: palette.border,
+              backgroundColor: palette.sheet,
+              borderColor: palette.borderStrong,
             },
           ]}
         >
@@ -180,7 +178,7 @@ export function RazorpayCheckoutModal({
             <Text style={[styles.title, { color: palette.text }]}>
               {checkoutData.order.productName}
             </Text>
-            <Text style={[styles.amount, { color: palette.text }]}>
+            <Text style={[styles.amount, { color: palette.accent }]}>
               ₹{checkoutData.amount.toLocaleString('en-IN')}
             </Text>
 
@@ -189,14 +187,12 @@ export function RazorpayCheckoutModal({
                 style={[
                   styles.demoNotice,
                   {
-                    backgroundColor: isDark
-                      ? 'rgba(255,255,255,0.06)'
-                      : 'rgba(0,0,0,0.04)',
-                    borderColor: palette.border,
+                    backgroundColor: palette.cardElevated,
+                    borderColor: palette.borderStrong,
                   },
                 ]}
               >
-                <Ionicons name="information-circle" size={20} color={palette.accent} />
+                <Ionicons name="sparkles" size={20} color={palette.accent} />
                 <Text style={[styles.demoText, { color: palette.textSecondary }]}>
                   Razorpay keys are in demo sandbox mode. You can instantly confirm this order to test the live tracking timeline and creator earnings ledger.
                 </Text>

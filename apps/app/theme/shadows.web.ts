@@ -5,8 +5,9 @@ import type { ViewStyle } from 'react-native';
 // `elevation` on web logs a deprecation warning — so this variant sets neither.
 export type ShadowStyle = ViewStyle;
 
-export const shadows: Record<'card' | 'chrome' | 'floating', ShadowStyle> = {
-  card: { boxShadow: '0 8px 32px rgba(131,149,193,0.15)' } as ViewStyle,
-  chrome: { boxShadow: '0 4px 24px rgba(131,149,193,0.15)' } as ViewStyle,
-  floating: { boxShadow: '0 10px 20px rgba(0,0,0,0.25)' } as ViewStyle,
+export const shadows: Record<'card' | 'chrome' | 'floating' | 'glow', ShadowStyle> = {
+  card: { boxShadow: '0 8px 28px rgba(0, 0, 0, 0.24)' } as ViewStyle,
+  chrome: { boxShadow: '0 4px 20px rgba(0, 0, 0, 0.18)' } as ViewStyle,
+  floating: { boxShadow: '0 12px 28px rgba(0, 0, 0, 0.35)' } as ViewStyle,
+  glow: { boxShadow: '0 6px 20px rgba(255, 45, 120, 0.32)' } as ViewStyle,
 };

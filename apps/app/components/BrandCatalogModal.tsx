@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     height: 68,
     borderRadius: radius.sm,
     overflow: 'hidden',
-    backgroundColor: '#1f242d',
+    backgroundColor: '#1e1e28',
   },
   placeholderImg: { alignItems: 'center', justifyContent: 'center' },
   productInfo: { flex: 1, gap: 3 },

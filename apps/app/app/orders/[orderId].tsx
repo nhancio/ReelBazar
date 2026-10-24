@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
   courierLabel: { fontSize: 12 },
   courierVal: { fontSize: 12, fontWeight: '600' },
   productRow: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
-  productThumb: { width: 70, height: 70, borderRadius: radius.sm, overflow: 'hidden', backgroundColor: '#1f242d' },
+  productThumb: { width: 70, height: 70, borderRadius: radius.sm, overflow: 'hidden', backgroundColor: '#1a1a22' },
   thumbFallback: { alignItems: 'center', justifyContent: 'center' },
   productInfo: { flex: 1, gap: 2 },
   brandText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },

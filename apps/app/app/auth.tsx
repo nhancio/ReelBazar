@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { OAuthProvider, signInWithCredential } from 'firebase/auth';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Image } from 'expo-image';
 import { APP_NAME } from '@reelbazaar/config';
 import { auth } from '@/lib/firebase';
 import { signInWithGoogle } from '@/lib/googleSignIn';
@@ -18,7 +19,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { Button } from '@/components/Button';
-import { spacing, typography } from '@/theme';
+import { radius, spacing, typography } from '@/theme';
 
 export default function AuthScreen() {
   const { enterGuestMode, refreshUser, clearAuthError, authError } = useAuth();
@@ -35,7 +36,6 @@ export default function AuthScreen() {
       await refreshUser();
     } catch (err) {
       console.error('Google sign-in failed:', err);
-      // A cancelled sign-in is not an error worth shouting about.
       const code = (err as { code?: string })?.code ?? '';
       if (!/cancel/i.test(code) && !/cancel/i.test(String(err))) {
         showToast('Could not sign in with Google', 'error');
@@ -77,27 +77,63 @@ export default function AuthScreen() {
     <View
       style={[
         styles.wrap,
-        { backgroundColor: palette.background, paddingTop: insets.top + spacing.xxl, paddingBottom: insets.bottom + spacing.xl },
+        {
+          backgroundColor: palette.background,
+          paddingTop: insets.top + spacing.xxl,
+          paddingBottom: insets.bottom + spacing.xl,
+        },
       ]}
     >
+      {/* Ambient Rava Pink Glow */}
+      <View style={[styles.ambientGlow, { backgroundColor: palette.accentSoft }]} pointerEvents="none" />
+
       <View style={styles.brandBlock}>
+        <View style={[styles.logoFrame, { borderColor: palette.borderInteractive, backgroundColor: palette.card }]}>
+          <Image
+            source={require('../assets/images/icon.png')}
+            style={styles.logoImg}
+            contentFit="cover"
+          />
+        </View>
+
+        <View style={[styles.eyebrowPill, { backgroundColor: palette.accentSoft, borderColor: palette.borderInteractive }]}>
+          <Ionicons name="sparkles" size={12} color={palette.accent} />
+          <Text style={[styles.eyebrowText, { color: palette.accent }]}>SOCIAL FASHION BOUTIQUE</Text>
+        </View>
+
         <Text style={[styles.brand, { color: palette.text }]}>{APP_NAME}</Text>
-        <Text style={[styles.tagline, { color: palette.textMuted }]}>
-          Shop the fashion you scroll.
+        <Text style={[styles.tagline, { color: palette.textSecondary }]}>
+          Shop the fashion you scroll. Discover creator-curated drops & instant checkout.
         </Text>
+
+        <View style={styles.featurePills}>
+          {[
+            { icon: 'flash-outline' as const, label: 'Instant Buy' },
+            { icon: 'sparkles-outline' as const, label: 'AI Stylist' },
+            { icon: 'wallet-outline' as const, label: 'Creator Rewards' },
+          ].map((item) => (
+            <View
+              key={item.label}
+              style={[styles.featureChip, { backgroundColor: palette.cardElevated, borderColor: palette.border }]}
+            >
+              <Ionicons name={item.icon} size={13} color={palette.accent} />
+              <Text style={[styles.featureChipText, { color: palette.textSecondary }]}>{item.label}</Text>
+            </View>
+          ))}
+        </View>
       </View>
 
       <View style={styles.actions}>
         <Button
           label="Continue with Google"
+          icon="logo-google"
+          size="lg"
           onPress={handleGoogle}
           loading={busy === 'google'}
           disabled={busy !== null}
           fullWidth
         />
 
-        {/* iOS only — AppleAuthentication is unavailable elsewhere, and Apple's HIG forbids
-            showing the button on platforms where it cannot work. */}
         {Platform.OS === 'ios' ? (
           <AppleAuthentication.AppleAuthenticationButton
             buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
@@ -115,6 +151,7 @@ export default function AuthScreen() {
         <Button
           label="Browse as guest"
           variant="secondary"
+          size="lg"
           onPress={() => enterGuestMode()}
           disabled={busy !== null}
           fullWidth
@@ -122,7 +159,7 @@ export default function AuthScreen() {
       </View>
 
       {authError ? (
-        <View style={styles.error}>
+        <View style={[styles.error, { backgroundColor: palette.dangerSoft }]}>
           <Ionicons name="alert-circle-outline" size={16} color={palette.danger} />
           <Text style={[styles.errorText, { color: palette.danger }]}>{authError}</Text>
         </View>
@@ -132,18 +169,67 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, justifyContent: 'space-between', paddingHorizontal: spacing.xl },
+  wrap: { flex: 1, justifyContent: 'space-between', paddingHorizontal: spacing.xl, position: 'relative' },
+  ambientGlow: {
+    position: 'absolute',
+    top: '18%',
+    alignSelf: 'center',
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    opacity: 0.65,
+  },
   brandBlock: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.md },
-  brand: { fontSize: 44, fontWeight: '700', letterSpacing: -1 },
-  tagline: { ...typography.subtitle, textAlign: 'center' },
+  logoFrame: {
+    width: 84,
+    height: 84,
+    borderRadius: 24,
+    borderCurve: 'continuous',
+    borderWidth: 1.5,
+    overflow: 'hidden',
+    marginBottom: spacing.xs,
+  },
+  logoImg: { width: '100%', height: '100%' },
+  eyebrowPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
+  eyebrowText: { fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  brand: { fontSize: 46, fontWeight: '800', letterSpacing: -1.2 },
+  tagline: { ...typography.subtitle, fontSize: 15, lineHeight: 22, textAlign: 'center', maxWidth: 310 },
+  featurePills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  featureChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
+  featureChipText: { fontSize: 12, fontWeight: '600' },
   actions: { gap: spacing.md },
-  appleButton: { width: '100%', height: 48 },
+  appleButton: { width: '100%', height: 54 },
   error: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
   },
-  errorText: { ...typography.caption },
+  errorText: { ...typography.caption, fontWeight: '600' },
 });

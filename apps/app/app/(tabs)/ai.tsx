@@ -1,15 +1,3 @@
-/**
- * Ask Rava — natural-language reel discovery by text or voice.
- *
- * What this is: the query goes to GET /reels/search, which scores reels server-side across
- * category, brand tag, caption and creator, and returns them ranked.
- *
- * What this is NOT (yet): an LLM. There is no model call here, so no API key ships in the
- * bundle and there is no per-query cost. It handles "show me red lehengas" or "streetwear
- * under budget" well because those are keyword-shaped. It cannot reason ("what should I wear
- * to a beach wedding in Goa?"). Swapping in a model means changing only the backend handler —
- * this screen already speaks in questions and answers.
- */
 import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -40,8 +28,8 @@ const SUGGESTIONS = [
   'Red lehenga for a wedding',
   'Everyday cotton kurtis',
   'Streetwear co-ord sets',
-  'Party wear under 2000',
-  'Footwear for monsoon',
+  'Party wear under ₹2000',
+  'Statement footwear & heels',
 ];
 
 export default function AskScreen() {
@@ -57,7 +45,6 @@ export default function AskScreen() {
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
-  // Dictation writes straight into the field so the person can edit before sending.
   const voice = useVoiceInput(setQuery);
 
   const ask = useCallback(
@@ -105,15 +92,37 @@ export default function AskScreen() {
   return (
     <View style={[styles.fill, { backgroundColor: palette.background, paddingTop: insets.top }]}>
       <View style={styles.header}>
+        <View style={styles.headerTopRow}>
+          <View style={[styles.aiBadge, { backgroundColor: palette.accentSoft, borderColor: palette.accentGlow }]}>
+            <Ionicons name="sparkles" size={12} color={palette.accent} />
+            <Text style={[styles.aiBadgeText, { color: palette.accent }]}>RAVA AI STYLIST</Text>
+          </View>
+          {results !== null ? (
+            <Pressable
+              onPress={() => {
+                setResults(null);
+                setAsked(null);
+                setQuery('');
+              }}
+              hitSlop={8}
+            >
+              <Text style={[styles.resetText, { color: palette.accent }]}>New Prompt</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
         <Text style={[styles.title, { color: palette.text }]}>Ask Rava</Text>
-        <Text style={[styles.subtitle, { color: palette.textMuted }]}>
-          Describe what you want to wear. We will find the reels.
+        <Text style={[styles.subtitle, { color: palette.textSecondary }]}>
+          Describe the vibe, occasion, or outfit you want to wear. We will curate shoppable reels in seconds.
         </Text>
       </View>
 
       {results === null && !loading ? (
-        <ScrollView contentContainerStyle={styles.suggestWrap} keyboardShouldPersistTaps="handled">
-          <Text style={[styles.suggestLabel, { color: palette.textMuted }]}>Try asking</Text>
+        <ScrollView
+          contentContainerStyle={[styles.suggestWrap, { paddingBottom: composerBottom + 80 }]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={[styles.suggestLabel, { color: palette.textMuted }]}>POPULAR STYLE PROMPTS</Text>
           {SUGGESTIONS.map((s) => (
             <Pressable
               key={s}
@@ -123,20 +132,26 @@ export default function AskScreen() {
               }}
               style={({ pressed }) => [
                 styles.suggestion,
-                { borderColor: palette.borderInteractive, backgroundColor: palette.card },
-                pressed && { opacity: 0.6 },
+                {
+                  borderColor: palette.borderStrong,
+                  backgroundColor: palette.cardElevated,
+                },
+                pressed && { opacity: 0.75, borderColor: palette.accent },
               ]}
             >
-              <Ionicons name="sparkles-outline" size={16} color={palette.accent} />
+              <View style={[styles.suggestionIcon, { backgroundColor: palette.accentSoft }]}>
+                <Ionicons name="sparkles" size={15} color={palette.accent} />
+              </View>
               <Text style={[styles.suggestionText, { color: palette.text }]}>{s}</Text>
+              <Ionicons name="arrow-forward" size={16} color={palette.textMuted} />
             </Pressable>
           ))}
         </ScrollView>
       ) : loading ? (
         <View style={styles.centre}>
           <ActivityIndicator size="large" color={palette.accent} />
-          <Text style={[styles.thinking, { color: palette.textMuted }]}>
-            Looking for “{asked}”
+          <Text style={[styles.thinking, { color: palette.textSecondary }]}>
+            Curating looks for “{asked}”…
           </Text>
         </View>
       ) : (
@@ -151,17 +166,17 @@ export default function AskScreen() {
             <View style={styles.resultHead}>
               <Text style={[styles.resultCount, { color: palette.text }]}>
                 {(results ?? []).length
-                  ? `${(results ?? []).length} reel${(results ?? []).length === 1 ? '' : 's'} for “${asked}”`
+                  ? `${(results ?? []).length} look${(results ?? []).length === 1 ? '' : 's'} curated for “${asked}”`
                   : `Nothing matched “${asked}”`}
               </Text>
               {terms.length ? (
                 <Text style={[styles.terms, { color: palette.textMuted }]}>
-                  Searched: {terms.join(', ')}
+                  Matched tags: {terms.join(', ')}
                 </Text>
               ) : null}
               {!(results ?? []).length ? (
                 <Text style={[styles.terms, { color: palette.textMuted }]}>
-                  Try fewer words, or a category like “footwear” or “beauty”.
+                  Try fewer words, or a category like “footwear” or “women”.
                 </Text>
               ) : null}
             </View>
@@ -176,13 +191,14 @@ export default function AskScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={[styles.composerWrap, { bottom: composerBottom }]}
       >
-        <GlassSurface intensity={80} style={styles.composer}>
+        <GlassSurface intensity={85} style={styles.composer}>
           <View style={styles.composerRow}>
+            <Ionicons name="sparkles" size={18} color={palette.accent} />
             <TextInput
               ref={inputRef}
               value={query}
               onChangeText={setQuery}
-              placeholder={voice.listening ? 'Listening…' : 'Ask for anything to wear'}
+              placeholder={voice.listening ? 'Listening…' : 'Ask for an outfit, occasion, or brand…'}
               placeholderTextColor={palette.textMuted}
               style={[styles.input, { color: palette.text }]}
               returnKeyType="search"
@@ -199,13 +215,13 @@ export default function AskScreen() {
               accessibilityState={{ disabled: !voice.supported }}
               style={({ pressed }) => [
                 styles.iconBtn,
-                voice.listening && { backgroundColor: palette.danger },
+                { backgroundColor: voice.listening ? palette.danger : palette.cardElevated },
                 !voice.supported && styles.dimmed,
                 pressed && { opacity: 0.7 },
               ]}
             >
               <Ionicons
-                name={voice.listening ? 'stop' : 'mic'}
+                name={voice.listening ? 'stop' : 'mic-outline'}
                 size={18}
                 color={voice.listening ? '#fff' : palette.text}
               />
@@ -219,7 +235,7 @@ export default function AskScreen() {
               accessibilityLabel="Send"
               style={({ pressed }) => [
                 styles.iconBtn,
-                { backgroundColor: palette.accentStrong },
+                { backgroundColor: palette.accent },
                 (!query.trim() || loading) && styles.dimmed,
                 pressed && { opacity: 0.7 },
               ]}
@@ -235,44 +251,79 @@ export default function AskScreen() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  header: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.md },
-  title: { ...typography.title, fontSize: 30 },
-  subtitle: { ...typography.caption, marginTop: spacing.xs },
+  header: { paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.md, gap: 4 },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  aiBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
+  aiBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  resetText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  title: { ...typography.title, fontSize: 30, fontWeight: '900', letterSpacing: -0.6 },
+  subtitle: { ...typography.caption, lineHeight: 19 },
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.lg },
-  thinking: { ...typography.caption },
-  suggestWrap: { paddingHorizontal: spacing.xl, paddingTop: spacing.md, gap: spacing.md },
-  suggestLabel: { ...typography.label, marginBottom: spacing.xs },
+  thinking: { ...typography.caption, fontWeight: '600' },
+  suggestWrap: { paddingHorizontal: spacing.xl, paddingTop: spacing.md, gap: spacing.sm },
+  suggestLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
   suggestion: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
     borderRadius: radius.input,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
   },
-  suggestionText: { ...typography.body, flex: 1 },
+  suggestionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  suggestionText: { ...typography.body, fontWeight: '600', flex: 1 },
   resultHead: { paddingVertical: spacing.md, gap: 2 },
-  resultCount: { ...typography.label, fontSize: 15 },
+  resultCount: { ...typography.label, fontSize: 15, fontWeight: '800' },
   terms: { ...typography.caption, fontSize: 12 },
   grid: { gap: spacing.md },
   composerWrap: { position: 'absolute', left: spacing.md, right: spacing.md },
-  composer: { borderRadius: radius.card },
+  composer: { borderRadius: radius.pill },
   composerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    padding: spacing.sm,
+    padding: 6,
     paddingLeft: spacing.lg,
   },
-  input: { flex: 1, ...typography.body, paddingVertical: spacing.md, minHeight: 40 },
+  input: { flex: 1, ...typography.body, paddingVertical: 8, minHeight: 40 },
   iconBtn: {
     width: 38,
     height: 38,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(127,127,127,0.18)',
   },
-  dimmed: { opacity: 0.45 },
+  dimmed: { opacity: 0.4 },
 });

@@ -24,7 +24,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { commentsApi, reelsApi, type Comment } from '@reelbazaar/api';
-import { APP_NAME, APP_ORIGIN, type Reel, type User } from '@reelbazaar/config';
+import { APP_NAME, APP_ORIGIN, SAMPLE_PRODUCT, type BrandProduct, type Reel, type User } from '@reelbazaar/config';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -32,6 +32,7 @@ import { useToast } from '@/context/ToastContext';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { ProductPurchaseDrawer } from '@/components/ProductPurchaseDrawer';
 import { ReelPostCard } from '@/components/ReelPostCard';
 import { timeAgo } from '@/lib/timeAgo';
 import { radius, spacing, typography } from '@/theme';
@@ -40,7 +41,7 @@ export default function SingleReelScreen() {
   const { reelId } = useLocalSearchParams<{ reelId: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { palette, theme } = useTheme();
+  const { palette } = useTheme();
   const { user: currentUser, guestMode } = useAuth();
   const { showToast } = useToast();
 
@@ -56,6 +57,9 @@ export default function SingleReelScreen() {
   const [followPending, setFollowPending] = useState(false);
   const [muted, setMuted] = useState(false);
 
+  // Instant Checkout Drawer state
+  const [drawerVisible, setDrawerVisible] = useState(false);
+
   // Comments drawer state
   const [commentsVisible, setCommentsVisible] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -65,8 +69,6 @@ export default function SingleReelScreen() {
   const [hasMoreComments, setHasMoreComments] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
   const commentInputRef = useRef<TextInput>(null);
-
-  const isDark = theme !== 'light';
 
   const loadReel = useCallback(async () => {
     if (!reelId) {
@@ -353,6 +355,22 @@ export default function SingleReelScreen() {
   const showFollowButton =
     reel.creatorId && currentUser?.id && reel.creatorId !== currentUser.id && !guestMode;
 
+  const creatorDisplay =
+    reel.creator?.username ||
+    reel.creator?.name ||
+    reel.brandTag?.replace(/^@/, '') ||
+    'rava.creator';
+
+  const navigateToCreator = () => {
+    const targetId = reel.creatorId || reel.brandTag?.replace(/^@/, '') || 'rava-creator';
+    const params = new URLSearchParams();
+    if (reel.creator?.name) params.set('name', reel.creator.name);
+    if (reel.creator?.username) params.set('username', reel.creator.username);
+    if (reel.brandTag) params.set('brandTag', reel.brandTag);
+    const qs = params.toString();
+    router.push(`/profile/${targetId}${qs ? `?${qs}` : ''}`);
+  };
+
   return (
     <View style={[styles.fill, { backgroundColor: palette.background, paddingTop: insets.top }]}>
       {/* Top bar with back button & creator details */}
@@ -368,13 +386,18 @@ export default function SingleReelScreen() {
         </Pressable>
 
         <Pressable
-          onPress={() => reel.creatorId && router.push(`/profile/${reel.creatorId}`)}
+          onPress={navigateToCreator}
           style={styles.headerCreator}
         >
-          <Avatar uri={reel.creator?.avatarUrl} name={reel.creator?.name} size={30} />
-          <Text style={[styles.headerCreatorName, { color: palette.text }]} numberOfLines={1}>
-            {reel.creator?.username || reel.creator?.name || 'Creator'}
-          </Text>
+          <Avatar uri={reel.creator?.avatarUrl} name={creatorDisplay} size={32} ring />
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={[styles.headerCreatorName, { color: palette.text }]} numberOfLines={1}>
+                @{creatorDisplay.replace(/^@/, '')}
+              </Text>
+              <Ionicons name="checkmark-circle" size={14} color={palette.accent} />
+            </View>
+          </View>
         </Pressable>
 
         {showFollowButton ? (
@@ -384,11 +407,9 @@ export default function SingleReelScreen() {
             style={[
               styles.followBtn,
               {
-                backgroundColor: isFollowing
-                  ? isDark
-                    ? 'rgba(255,255,255,0.1)'
-                    : 'rgba(0,0,0,0.06)'
-                  : palette.accent,
+                backgroundColor: isFollowing ? palette.cardElevated : palette.accent,
+                borderColor: isFollowing ? palette.borderStrong : palette.accent,
+                borderWidth: 1,
               },
             ]}
           >
@@ -426,12 +447,21 @@ export default function SingleReelScreen() {
           onSave={handleSave}
           onShare={handleShare}
           onComment={openComments}
-          onProfilePress={() => reel.creatorId && router.push(`/profile/${reel.creatorId}`)}
+          onProfilePress={navigateToCreator}
           onProductLinkPress={() => {
             updateDoc(doc(db, 'reels', reel.id), { clicksCount: increment(1) }).catch(() => {});
+            setDrawerVisible(true);
           }}
         />
       </ScrollView>
+
+      {/* Shoppable Purchase Drawer */}
+      <ProductPurchaseDrawer
+        visible={drawerVisible}
+        product={(reel.product || SAMPLE_PRODUCT) as BrandProduct}
+        reel={reel}
+        onClose={() => setDrawerVisible(false)}
+      />
 
       {/* Comments Drawer / Modal */}
       <Modal
@@ -442,15 +472,15 @@ export default function SingleReelScreen() {
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.modalBackdrop}
+          style={[styles.modalBackdrop, { backgroundColor: palette.scrim }]}
         >
           <Pressable style={styles.modalDismissArea} onPress={() => setCommentsVisible(false)} />
           <View
             style={[
               styles.drawerCard,
               {
-                backgroundColor: isDark ? '#16181e' : '#ffffff',
-                borderTopColor: palette.border,
+                backgroundColor: palette.sheet,
+                borderTopColor: palette.borderStrong,
                 paddingBottom: insets.bottom + spacing.md,
               },
             ]}
@@ -460,7 +490,7 @@ export default function SingleReelScreen() {
               <View
                 style={[
                   styles.drawerHandle,
-                  { backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)' },
+                  { backgroundColor: palette.borderStrong },
                 ]}
               />
               <View style={styles.drawerHeaderRow}>
@@ -547,7 +577,7 @@ export default function SingleReelScreen() {
                 styles.commentInputRow,
                 {
                   borderTopColor: palette.border,
-                  backgroundColor: isDark ? '#16181e' : '#ffffff',
+                  backgroundColor: palette.sheet,
                 },
               ]}
             >
@@ -556,13 +586,13 @@ export default function SingleReelScreen() {
                 value={commentText}
                 onChangeText={setCommentText}
                 placeholder={guestMode ? 'Sign in to comment…' : 'Add a comment…'}
-                placeholderTextColor={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
+                placeholderTextColor={palette.textMuted}
                 editable={!guestMode && !postingComment}
                 style={[
                   styles.commentInput,
                   {
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-                    borderColor: palette.borderInteractive,
+                    backgroundColor: palette.inputBg,
+                    borderColor: palette.borderStrong,
                     color: palette.text,
                   },
                 ]}
@@ -572,11 +602,12 @@ export default function SingleReelScreen() {
                 disabled={!commentText.trim() || postingComment || guestMode}
                 style={({ pressed }) => [
                   styles.postBtn,
+                  { backgroundColor: palette.accent },
                   (!commentText.trim() || postingComment || guestMode) && styles.postBtnDisabled,
-                  pressed && { opacity: 0.6 },
+                  pressed && { opacity: 0.7 },
                 ]}
               >
-                <Text style={[styles.postBtnText, { color: palette.accent }]}>
+                <Text style={[styles.postBtnText, { color: palette.textOnAccent }]}>
                   {postingComment ? '…' : 'Post'}
                 </Text>
               </Pressable>
@@ -678,7 +709,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     fontSize: 14,
   },
-  postBtn: { paddingHorizontal: spacing.md, paddingVertical: 8 },
+  postBtn: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+    borderRadius: radius.pill,
+  },
   postBtnDisabled: { opacity: 0.35 },
-  postBtnText: { fontSize: 14, fontWeight: '700' },
+  postBtnText: { fontSize: 13, fontWeight: '800' },
 });

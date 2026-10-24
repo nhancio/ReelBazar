@@ -19,8 +19,8 @@ import { formatCount, timeAgo } from '@/lib/timeAgo';
 import { Avatar } from './Avatar';
 import { ReelVideo } from './ReelVideo';
 
-/** Instagram's brand gradient, reused by the web build for the product CTA. */
-const PRODUCT_CTA_GRADIENT = ['#f09433', '#e6683c', '#dc2743', '#cc2366', '#bc1888'] as const;
+/** Rava signature Pink-to-Rose gradient for the product CTA. */
+const PRODUCT_CTA_GRADIENT = ['#ff2d78', '#e11d62'] as const;
 /** The web card rendered media at aspect-[4/5]. */
 const MEDIA_ASPECT = 5 / 4;
 
@@ -44,7 +44,7 @@ interface Props {
   onProductLinkPress?: () => void;
 }
 
-const displayName = (user?: Reel['creator']) => user?.username || user?.name || 'User';
+const displayName = (user?: Reel['creator']) => user?.username || user?.name || 'Rava Creator';
 
 function isHttpUrl(s: string | undefined | null): s is string {
   return Boolean(s && /^https?:\/\//i.test(s.trim()));
@@ -200,7 +200,7 @@ export function ReelPostCard({
             <Ionicons
               name={liked ? 'heart' : 'heart-outline'}
               size={26}
-              color={liked ? '#ff3040' : iconColor}
+              color={liked ? '#ff2d78' : iconColor}
             />
           </Pressable>
 
@@ -236,7 +236,7 @@ export function ReelPostCard({
           <Ionicons
             name={saved ? 'bookmark' : 'bookmark-outline'}
             size={24}
-            color={saved ? '#facc15' : iconColor}
+            color={saved ? '#ff2d78' : iconColor}
           />
         </Pressable>
       </View>
