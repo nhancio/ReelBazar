@@ -25,7 +25,6 @@ import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { Button } from '@/components/Button';
 import { BrandCatalogModal } from '@/components/BrandCatalogModal';
-import { NativeDropdownPicker } from '@/components/NativeUI';
 import { radius, spacing, typography } from '@/theme';
 
 interface PickedVideo {
@@ -493,14 +492,7 @@ export default function CreateReelScreen() {
 
           {/* Category */}
           <View style={styles.field}>
-            <View style={styles.fieldHeaderRow}>
-              <Text style={[styles.fieldLabel, { color: palette.textMuted }]}>CATEGORY</Text>
-              <NativeDropdownPicker<Category>
-                options={CATEGORIES.map((c) => ({ label: c, value: c }))}
-                selectedValue={category}
-                onValueChange={setCategory}
-              />
-            </View>
+            <Text style={[styles.fieldLabel, { color: palette.textMuted }]}>CATEGORY</Text>
             <View style={styles.chipsRow}>
               {CATEGORIES.map((cat) => {
                 const isSelected = category === cat;

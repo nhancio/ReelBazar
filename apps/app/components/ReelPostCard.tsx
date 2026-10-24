@@ -88,8 +88,12 @@ export function ReelPostCard({
     [guestMode, onRequireAuth]
   );
 
+  const hasRealProduct = Boolean(reel.product && reel.product.id !== 'sample_prod_1');
+
   const handleProductPress = useCallback(async () => {
     onProductLinkPress?.();
+    if (hasRealProduct) return;
+
     const url = reel.productLink?.trim();
     if (!isHttpUrl(url)) return;
 
@@ -104,9 +108,9 @@ export function ReelPostCard({
     } catch {
       void Linking.openURL(url).catch(() => {});
     }
-  }, [onProductLinkPress, reel.productLink]);
+  }, [hasRealProduct, onProductLinkPress, reel.productLink]);
 
-  const showProductCta = isHttpUrl(reel.productLink);
+  const showProductCta = hasRealProduct || isHttpUrl(reel.productLink);
   const iconColor = palette.text;
 
   return (

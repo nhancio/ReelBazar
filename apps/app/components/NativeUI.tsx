@@ -96,7 +96,7 @@ export function NativeDropdownPicker<T extends string | number>({
 
   return (
     <Host
-      matchContents={{ vertical: true }}
+      matchContents
       colorScheme={theme === 'light' ? 'light' : 'dark'}
       seedColor={palette.accent}
       ignoreSafeArea="all"

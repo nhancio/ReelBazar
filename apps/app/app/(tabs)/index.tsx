@@ -31,7 +31,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { reelsApi } from '@reelbazaar/api';
-import { APP_NAME, APP_ORIGIN, CATEGORIES, SAMPLE_PRODUCT, type Category, type Reel, type User, type BrandProduct } from '@reelbazaar/config';
+import { APP_NAME, APP_ORIGIN, CATEGORIES, type Category, type Reel, type User, type BrandProduct } from '@reelbazaar/config';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -39,11 +39,23 @@ import { useToast } from '@/context/ToastContext';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ReelPlayer916 } from '@/components/ReelPlayer916';
 import { ProductPurchaseDrawer } from '@/components/ProductPurchaseDrawer';
-import { GlassIconButton, GlassSurface } from '@/components/GlassSurface';
+import { GlassSurface } from '@/components/GlassSurface';
 import { LinearGradient } from 'expo-linear-gradient';
 import { radius, spacing } from '@/theme';
 
 const PAGE_SIZE = 10;
+
+function toCreatedAtMs(val: unknown): number {
+  if (!val) return 0;
+  if (typeof val === 'string') {
+    const t = Date.parse(val);
+    return Number.isFinite(t) ? t : 0;
+  }
+  if (typeof val === 'object' && val !== null && 'toMillis' in val && typeof (val as { toMillis: unknown }).toMillis === 'function') {
+    return (val as { toMillis: () => number }).toMillis();
+  }
+  return 0;
+}
 
 export default function FeedScreen() {
   const { guestMode, user: currentUser } = useAuth();
@@ -92,26 +104,44 @@ export default function FeedScreen() {
         }
 
         const reelsCol = collection(db, 'reels');
-        let q = query(reelsCol, orderBy('createdAt', 'desc'), limit(PAGE_SIZE));
+        let docs: QueryDocumentSnapshot[] = [];
+        let usedFallbackNoIndex = false;
 
         if (selectedCategory !== 'All') {
-          q = !reset && lastDocRef.current
-            ? query(
-                reelsCol,
-                where('category', '==', selectedCategory),
-                orderBy('createdAt', 'desc'),
-                startAfter(lastDocRef.current),
-                limit(PAGE_SIZE)
-              )
-            : query(reelsCol, where('category', '==', selectedCategory), orderBy('createdAt', 'desc'), limit(PAGE_SIZE));
-        } else if (!reset && lastDocRef.current) {
-          q = query(reelsCol, orderBy('createdAt', 'desc'), startAfter(lastDocRef.current), limit(PAGE_SIZE));
+          try {
+            const q = !reset && lastDocRef.current
+              ? query(
+                  reelsCol,
+                  where('category', '==', selectedCategory),
+                  orderBy('createdAt', 'desc'),
+                  startAfter(lastDocRef.current),
+                  limit(PAGE_SIZE)
+                )
+              : query(reelsCol, where('category', '==', selectedCategory), orderBy('createdAt', 'desc'), limit(PAGE_SIZE));
+            const snapshot = await getDocs(q);
+            docs = [...snapshot.docs];
+          } catch {
+            // Fallback when Firestore composite index (category + createdAt) is not yet built
+            usedFallbackNoIndex = true;
+            if (reset) {
+              const snapshot = await getDocs(query(reelsCol, where('category', '==', selectedCategory)));
+              docs = [...snapshot.docs].sort(
+                (a, b) => toCreatedAtMs(b.data().createdAt) - toCreatedAtMs(a.data().createdAt)
+              );
+            } else {
+              docs = [];
+            }
+          }
+        } else {
+          const q = !reset && lastDocRef.current
+            ? query(reelsCol, orderBy('createdAt', 'desc'), startAfter(lastDocRef.current), limit(PAGE_SIZE))
+            : query(reelsCol, orderBy('createdAt', 'desc'), limit(PAGE_SIZE));
+          const snapshot = await getDocs(q);
+          docs = [...snapshot.docs];
         }
 
-        const snapshot = await getDocs(q);
-
         const creatorIds = [
-          ...new Set(snapshot.docs.map((d) => d.data().creatorId as string).filter(Boolean)),
+          ...new Set(docs.map((d) => d.data().creatorId as string).filter(Boolean)),
         ];
         const creators = new Map<string, User>();
         await Promise.all(
@@ -125,17 +155,17 @@ export default function FeedScreen() {
           })
         );
 
-        // Fetch tagged products for reels
+        // Fetch tagged products for reels (only real products from Firestore)
         const productIds = [
-          ...new Set(snapshot.docs.map((d) => d.data().productId as string).filter(Boolean)),
+          ...new Set(
+            docs
+              .map((d) => d.data().productId as string)
+              .filter((id): id is string => Boolean(id && id !== 'sample_prod_1'))
+          ),
         ];
         const productsMap = new Map<string, BrandProduct>();
         await Promise.all(
           productIds.map(async (id) => {
-            if (id === SAMPLE_PRODUCT.id) {
-              productsMap.set(id, SAMPLE_PRODUCT as BrandProduct);
-              return;
-            }
             try {
               const snap = await getDoc(doc(db, 'products', id));
               if (snap.exists()) productsMap.set(id, { id: snap.id, ...snap.data() } as BrandProduct);
@@ -145,14 +175,14 @@ export default function FeedScreen() {
           })
         );
 
-        const page = snapshot.docs.map((d) => {
+        const page = docs.map((d) => {
           const data = d.data();
-          const prod = data.productId ? (productsMap.get(data.productId) || null) : null;
+          const prod = data.productId ? (productsMap.get(data.productId) || undefined) : undefined;
           return {
             id: d.id,
             ...data,
             creator: creators.get(data.creatorId) ?? null,
-            product: prod || (data.productLink ? (SAMPLE_PRODUCT as BrandProduct) : undefined),
+            product: prod,
           } as Reel;
         });
 
@@ -163,8 +193,8 @@ export default function FeedScreen() {
         setReels((prev) =>
           reset ? page : [...prev, ...page.filter((n) => !prev.some((p) => p.id === n.id))]
         );
-        setHasMore(snapshot.docs.length === PAGE_SIZE);
-        lastDocRef.current = snapshot.docs[snapshot.docs.length - 1] ?? null;
+        setHasMore(!usedFallbackNoIndex && docs.length === PAGE_SIZE);
+        lastDocRef.current = !usedFallbackNoIndex ? (docs[docs.length - 1] ?? null) : null;
       } catch (err) {
         console.warn('Firestore feed query failed, fallback to API:', err);
         try {
@@ -174,7 +204,7 @@ export default function FeedScreen() {
           );
           const page = (res.reels || []).map((r) => ({
             ...r,
-            product: r.product || (SAMPLE_PRODUCT as BrandProduct),
+            product: r.product && r.product.id !== 'sample_prod_1' ? r.product : undefined,
           }));
 
           if (page.length > 0 && (!activeId || reset)) {
@@ -328,8 +358,9 @@ export default function FeedScreen() {
 
   return (
     <View style={[styles.fill, { backgroundColor: '#000000' }]}>
-      {/* Top Floating Glass Header */}
+      {/* Top Floating Glass Header (pointerEvents="box-none" so right-side mute button is never blocked) */}
       <View
+        pointerEvents="box-none"
         style={[
           styles.topHeader,
           {
@@ -337,7 +368,7 @@ export default function FeedScreen() {
           },
         ]}
       >
-        <View style={styles.headerLeft}>
+        <View style={styles.headerLeft} pointerEvents="auto">
           <View style={[styles.brandDot, { backgroundColor: palette.accent }]} />
           <Text style={styles.brandTitle}>{APP_NAME}</Text>
           {currentUser?.streakCount ? (
@@ -346,30 +377,10 @@ export default function FeedScreen() {
             </View>
           ) : null}
         </View>
-
-        <View style={styles.headerRight}>
-          <GlassIconButton
-            icon="search"
-            label="Search"
-            size={38}
-            iconSize={19}
-            color="#ffffff"
-            onPress={() => router.push('/search')}
-          />
-
-          <GlassIconButton
-            icon="bag-handle-outline"
-            label="My Orders"
-            size={38}
-            iconSize={19}
-            color="#ffffff"
-            onPress={() => router.push('/orders')}
-          />
-        </View>
       </View>
 
       {/* Floating Category Filters (Aura Liquid Glass Chips) */}
-      <View style={[styles.categoryBar, { top: insets.top + 50 }]}>
+      <View style={[styles.categoryBar, { top: insets.top + 50 }]} pointerEvents="box-none">
         <FlatList
           horizontal
           data={['All', ...CATEGORIES]}
@@ -407,6 +418,7 @@ export default function FeedScreen() {
               >
                 <GlassSurface
                   interactive
+                  colorScheme="dark"
                   intensity={55}
                   cornerRadius={radius.pill}
                   style={styles.categoryGlassPill}

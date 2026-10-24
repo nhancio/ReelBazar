@@ -9,7 +9,8 @@ import { useCallback, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { OAuthProvider, signInWithCredential } from 'firebase/auth';
+import * as Crypto from 'expo-crypto';
+import { OAuthProvider, signInWithCredential, updateProfile } from 'firebase/auth';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Image } from 'expo-image';
 import { APP_NAME } from '@reelbazaar/config';
@@ -49,22 +50,51 @@ export default function AuthScreen() {
     clearAuthError();
     setBusy('apple');
     try {
+      const rawNonce = Crypto.getRandomValues(new Uint8Array(16))
+        .reduce((acc, b) => acc + b.toString(16).padStart(2, '0'), '');
+      const hashedNonce = await Crypto.digestStringAsync(
+        Crypto.CryptoDigestAlgorithm.SHA256,
+        rawNonce
+      );
+
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
+        nonce: hashedNonce,
       });
       if (!credential.identityToken) throw new Error('Apple sign-in returned no identity token.');
       const provider = new OAuthProvider('apple.com');
-      await signInWithCredential(
+      const userCred = await signInWithCredential(
         auth,
-        provider.credential({ idToken: credential.identityToken })
+        provider.credential({
+          idToken: credential.identityToken,
+          rawNonce,
+        })
       );
-      await refreshUser();
+
+      const fullName = [credential.fullName?.givenName, credential.fullName?.familyName]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      if (fullName && userCred.user && !userCred.user.displayName) {
+        await updateProfile(userCred.user, { displayName: fullName }).catch(() => {});
+      }
+
+      await refreshUser(userCred.user);
     } catch (err) {
-      const code = (err as { code?: string })?.code;
-      if (code !== 'ERR_REQUEST_CANCELED') {
+      const code = (err as { code?: string | number })?.code ?? '';
+      const msg = err instanceof Error ? err.message : String(err);
+      const isCancelled =
+        code === 'ERR_REQUEST_CANCELED' ||
+        code === 'ERR_CANCELED' ||
+        code === 1001 ||
+        code === '1001' ||
+        /cancel|1001/i.test(String(code)) ||
+        /cancel/i.test(msg);
+
+      if (!isCancelled) {
         console.error('Apple sign-in failed:', err);
         showToast('Could not sign in with Apple', 'error');
       }

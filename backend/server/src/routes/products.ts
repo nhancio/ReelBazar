@@ -73,23 +73,41 @@ productsRouter.get('/', async (req: Request, res: Response) => {
     const { cursor, limit = '20', brandId, category, q } = req.query;
     const take = parseIntegerQuery(limit, 20, 50);
 
-    let query: FirebaseFirestore.Query = db().collection('products');
-    if (brandId) {
-      query = query.where('brandId', '==', normalizeDocumentId(brandId, 'Brand id'));
-    }
-    if (category) {
-      const safeCategory = normalizeString(category, { maxLength: 30 });
-      query = query.where('category', '==', safeCategory);
-    }
-    query = query.orderBy('createdAt', 'desc');
+    const safeBrandId = brandId ? normalizeDocumentId(brandId, 'Brand id') : null;
+    const safeCategory = category ? normalizeString(category, { maxLength: 30 }) : null;
+    let products: any[] = [];
 
-    if (cursor) {
-      const cursorDoc = await db().collection('products').doc(normalizeDocumentId(cursor, 'Cursor')).get();
-      if (cursorDoc.exists) query = query.startAfter(cursorDoc);
-    }
+    try {
+      let query: FirebaseFirestore.Query = db().collection('products');
+      if (safeBrandId) {
+        query = query.where('brandId', '==', safeBrandId);
+      }
+      if (safeCategory) {
+        query = query.where('category', '==', safeCategory);
+      }
+      query = query.orderBy('createdAt', 'desc');
 
-    const snapshot = await query.limit(take + 1).get();
-    let products = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      if (cursor) {
+        const cursorDoc = await db().collection('products').doc(normalizeDocumentId(cursor, 'Cursor')).get();
+        if (cursorDoc.exists) query = query.startAfter(cursorDoc);
+      }
+
+      const snapshot = await query.limit(take + 1).get();
+      products = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    } catch (queryErr) {
+      if (safeBrandId || safeCategory) {
+        let fallbackQuery: FirebaseFirestore.Query = db().collection('products');
+        if (safeBrandId) fallbackQuery = fallbackQuery.where('brandId', '==', safeBrandId);
+        if (safeCategory) fallbackQuery = fallbackQuery.where('category', '==', safeCategory);
+        const snapshot = await fallbackQuery.get();
+        products = snapshot.docs
+          .map((doc) => ({ id: doc.id, ...doc.data() } as any))
+          .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')))
+          .slice(0, take + 1);
+      } else {
+        throw queryErr;
+      }
+    }
 
     // In-memory text search filter if q is provided
     if (q) {
@@ -104,11 +122,6 @@ productsRouter.get('/', async (req: Request, res: Response) => {
 
     const hasMore = products.length > take;
     if (hasMore) products = products.slice(0, take);
-
-    // Keep the demo flow alive: an empty catalog still shows the sample product.
-    if (products.length === 0 && !cursor && !brandId && !isProductionRuntime(process.env)) {
-      products = [SAMPLE_PRODUCT];
-    }
 
     const enriched = await enrichProductsWithBrands(products);
 
@@ -130,13 +143,23 @@ productsRouter.get('/', async (req: Request, res: Response) => {
 productsRouter.get('/brand/:brandId', async (req: Request, res: Response) => {
   try {
     const brandId = normalizeDocumentId(req.params.brandId, 'Brand id');
-    const snapshot = await db()
-      .collection('products')
-      .where('brandId', '==', brandId)
-      .orderBy('createdAt', 'desc')
-      .get();
-
-    let products = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    let products: any[] = [];
+    try {
+      const snapshot = await db()
+        .collection('products')
+        .where('brandId', '==', brandId)
+        .orderBy('createdAt', 'desc')
+        .get();
+      products = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    } catch {
+      const snapshot = await db()
+        .collection('products')
+        .where('brandId', '==', brandId)
+        .get();
+      products = snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() } as any))
+        .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')));
+    }
     products = await enrichProductsWithBrands(products);
 
     res.json({ products });
@@ -152,8 +175,8 @@ productsRouter.get('/brand/:brandId', async (req: Request, res: Response) => {
 productsRouter.get('/:id', async (req: Request, res: Response) => {
   try {
     const id = normalizeDocumentId(req.params.id, 'Product id');
-    if (id === SAMPLE_PRODUCT.id && !isProductionRuntime(process.env)) {
-      return res.json({ product: SAMPLE_PRODUCT });
+    if (id === SAMPLE_PRODUCT.id) {
+      return res.status(404).json({ message: 'Product not found' });
     }
 
     const doc = await db().collection('products').doc(id).get();

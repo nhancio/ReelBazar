@@ -55,7 +55,8 @@ EAS_PROFILE="${EAS_PROFILE:-preview}"
 EAS_IOS_PROFILE="${EAS_IOS_PROFILE:-production}"
 EAS_WAIT_FLAG="--no-wait"
 
-DEPLOY_FIREBASE=0
+DEPLOY_FIREBASE=1
+DO_WEB_BUILD=1
 USE_CI=0
 BUILD_ONLY=0
 FIREBASE_ONLY="hosting,functions"
@@ -503,26 +504,24 @@ firebase_deploy_with_retry() {
   return 1
 }
 
-if [[ "$DEPLOY_FIREBASE" -eq 1 || "$BUILD_ONLY" -eq 1 ]]; then
+if [[ "$DO_WEB_BUILD" -eq 1 || "$DEPLOY_FIREBASE" -eq 1 || "$BUILD_ONLY" -eq 1 ]]; then
   echo ""
   echo "====================================================================="
-  echo "==> Step 4/4: Build & Deploy Firebase ($FIREBASE_ONLY)"
+  echo "==> Step 4/4: Web Build (app, landing-page, server) & Firebase Deploy"
   echo "====================================================================="
   if [[ "$USE_CI" -eq 1 ]]; then
     npm ci
-  else
-    npm install
   fi
   npm run deploy:build
 
-  if [[ "$BUILD_ONLY" -eq 0 ]]; then
+  if [[ "$DEPLOY_FIREBASE" -eq 1 && "$BUILD_ONLY" -eq 0 ]]; then
     ensure_landing_site
     hide_function_env_for_deploy
     firebase_deploy_with_retry "$FIREBASE_ONLY"
     restore_function_env
   fi
 else
-  echo "==> Step 4/4: Firebase deploy — skipped (pass --with-firebase to include)."
+  echo "==> Step 4/4: Web build & Firebase deploy — skipped."
 fi
 
 echo ""

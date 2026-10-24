@@ -20,7 +20,6 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { Button } from '@/components/Button';
-import { NativeSegmentedPicker } from '@/components/NativeUI';
 import { radius, spacing, typography } from '@/theme';
 
 const INTEREST_OPTIONS = [
@@ -210,12 +209,6 @@ export default function OnboardingScreen() {
           {/* Persona selector */}
           <View style={styles.section}>
             <Text style={[styles.label, { color: palette.textMuted }]}>SELECT YOUR PERSONA</Text>
-            <NativeSegmentedPicker<Persona>
-              options={PERSONAS.map((p) => ({ label: p, value: p }))}
-              selectedValue={selectedPersona}
-              onValueChange={setSelectedPersona}
-              style={{ marginBottom: spacing.xs }}
-            />
             <View style={styles.personaList}>
               {PERSONAS.map((p) => {
                 const isSelected = selectedPersona === p;

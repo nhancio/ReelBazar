@@ -75,6 +75,8 @@ interface Props {
   raised?: boolean;
   /** Native only: adds Apple's touch-reactive glass highlight (buttons, chips). */
   interactive?: boolean;
+  /** Override the glass color scheme (e.g. 'dark' for video overlays with white text). */
+  colorScheme?: 'light' | 'dark';
 }
 
 /**
@@ -96,17 +98,28 @@ export function GlassSurface({
   cornerRadius = 26,
   raised = false,
   interactive = false,
+  colorScheme,
 }: Props) {
   const { palette, theme } = useTheme();
-  const isLight = theme === 'light';
+  const effectiveScheme = colorScheme ?? (theme === 'light' ? 'light' : 'dark');
+  const isLight = effectiveScheme === 'light';
   const { inner, outer } = splitGlassStyle(style);
   const resolvedRadius =
     typeof (outer as ViewStyle).borderRadius === 'number'
       ? ((outer as ViewStyle).borderRadius as number)
       : cornerRadius;
+  const hasExplicitHeight = (outer as ViewStyle).height !== undefined;
+
+  const darkTint = raised ? 'rgba(18, 16, 24, 0.72)' : 'rgba(18, 16, 24, 0.56)';
+  const effectiveTint =
+    colorScheme === 'dark'
+      ? darkTint
+      : raised
+        ? palette.glassFillStrong
+        : palette.glassFill;
 
   const content = children ? (
-    <View style={[styles.content, inner]}>{children}</View>
+    <View style={[hasExplicitHeight && styles.contentFill, inner]}>{children}</View>
   ) : null;
 
   if (LIQUID_GLASS) {
@@ -121,10 +134,11 @@ export function GlassSurface({
         <GlassView
           glassEffectStyle="regular"
           isInteractive={interactive}
-          tintColor={raised ? palette.glassFillStrong : palette.glassFill}
-          colorScheme={isLight ? 'light' : 'dark'}
+          tintColor={effectiveTint}
+          colorScheme={effectiveScheme}
           style={[
             absolute && StyleSheet.absoluteFill,
+            hasExplicitHeight && styles.contentFill,
             styles.glassNative,
             { borderRadius: resolvedRadius },
           ]}
@@ -143,7 +157,7 @@ export function GlassSurface({
         {
           borderRadius: resolvedRadius,
           borderCurve: 'continuous',
-          borderColor: palette.glassBorder,
+          borderColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.18)' : palette.glassBorder,
         },
         outer,
       ]}
@@ -164,7 +178,7 @@ export function GlassSurface({
       <View
         style={[
           StyleSheet.absoluteFill,
-          { backgroundColor: raised ? palette.glassFillStrong : palette.glassFill },
+          { backgroundColor: effectiveTint },
         ]}
         pointerEvents="none"
       />
@@ -221,6 +235,7 @@ export function GlassIconButton({
   size = 38,
   iconSize,
   color,
+  colorScheme,
   disabled,
   style,
 }: {
@@ -230,10 +245,12 @@ export function GlassIconButton({
   size?: number;
   iconSize?: number;
   color?: string;
+  colorScheme?: 'light' | 'dark';
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const { palette } = useTheme();
+  const effectiveScheme = colorScheme ?? (color === '#ffffff' ? 'dark' : undefined);
   return (
     <Pressable
       onPress={() => {
@@ -248,6 +265,7 @@ export function GlassIconButton({
       accessibilityLabel={label}
       accessibilityState={{ disabled: !!disabled }}
       style={({ pressed }) => [
+        { width: size, height: size, borderRadius: size / 2 },
         pressed && { transform: [{ scale: 0.94 }], opacity: 0.9 },
         style,
       ]}
@@ -255,6 +273,7 @@ export function GlassIconButton({
       <GlassSurface
         interactive
         raised
+        colorScheme={effectiveScheme}
         cornerRadius={size / 2}
         intensity={72}
         style={{
@@ -300,5 +319,9 @@ const styles = StyleSheet.create({
     right: 0,
     height: StyleSheet.hairlineWidth,
   },
-  content: { flex: 1 },
+  contentFill: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
 });

@@ -15,7 +15,7 @@
     "dev:web": "turbo run dev --filter=web-app",
     "dev:landing": "turbo run dev --filter=landing-page",
     "db:seed": "cd backend/server && npx tsx src/seed.ts",
-    "deploy:build": "turbo run build --filter=web-app --filter=landing-page --filter=server",
+    "deploy:build": "turbo run build --filter=app --filter=landing-page --filter=server",
     "deploy:firebase": "firebase deploy --only hosting,functions",
     "deploy": "bash deploy.sh"
   },

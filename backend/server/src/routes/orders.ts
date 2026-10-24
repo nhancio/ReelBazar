@@ -27,7 +27,7 @@ const checkoutRateLimit = createRateLimit({
 const APP_ORIGIN = process.env.APP_ORIGIN || 'https://app.rava.one';
 
 async function getProduct(productId: string): Promise<FirebaseFirestore.DocumentData | null> {
-  if (productId === SAMPLE_PRODUCT.id) return SAMPLE_PRODUCT;
+  if (!productId || productId === SAMPLE_PRODUCT.id) return null;
   const doc = await db().collection('products').doc(productId).get();
   return doc.exists ? { id: doc.id, ...doc.data() } : null;
 }
@@ -310,14 +310,26 @@ ordersRouter.post('/verify', authMiddleware, requireRegistered, async (req: Requ
 // GET /orders/my and /orders/me — buyer's orders, newest first
 const getBuyerOrdersHandler = async (req: Request, res: Response) => {
   try {
-    const snapshot = await db()
-      .collection('orders')
-      .where('buyerId', '==', req.user!.id)
-      .orderBy('createdAt', 'desc')
-      .limit(50)
-      .get();
+    let docs: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+    try {
+      const snapshot = await db()
+        .collection('orders')
+        .where('buyerId', '==', req.user!.id)
+        .orderBy('createdAt', 'desc')
+        .limit(50)
+        .get();
+      docs = snapshot.docs;
+    } catch {
+      const snapshot = await db()
+        .collection('orders')
+        .where('buyerId', '==', req.user!.id)
+        .get();
+      docs = [...snapshot.docs]
+        .sort((a, b) => String(b.data()?.createdAt ?? '').localeCompare(String(a.data()?.createdAt ?? '')))
+        .slice(0, 50);
+    }
 
-    const orders = snapshot.docs.map((doc) => {
+    const orders = docs.map((doc) => {
       const data = doc.data();
       return { id: doc.id, ...data, tracking: buildTracking(data) };
     });
@@ -336,14 +348,26 @@ ordersRouter.get('/me', authMiddleware, requireRegistered, getBuyerOrdersHandler
 // GET /orders/brand — brand's incoming orders to fulfill
 ordersRouter.get('/brand', authMiddleware, requireRegistered, async (req: Request, res: Response) => {
   try {
-    const snapshot = await db()
-      .collection('orders')
-      .where('brandId', '==', req.user!.id)
-      .orderBy('createdAt', 'desc')
-      .limit(100)
-      .get();
+    let docs: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+    try {
+      const snapshot = await db()
+        .collection('orders')
+        .where('brandId', '==', req.user!.id)
+        .orderBy('createdAt', 'desc')
+        .limit(100)
+        .get();
+      docs = snapshot.docs;
+    } catch {
+      const snapshot = await db()
+        .collection('orders')
+        .where('brandId', '==', req.user!.id)
+        .get();
+      docs = [...snapshot.docs]
+        .sort((a, b) => String(b.data()?.createdAt ?? '').localeCompare(String(a.data()?.createdAt ?? '')))
+        .slice(0, 100);
+    }
 
-    const orders = snapshot.docs.map((doc) => {
+    const orders = docs.map((doc) => {
       const data = doc.data();
       return { id: doc.id, ...data, tracking: buildTracking(data) };
     });

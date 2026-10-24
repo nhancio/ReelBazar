@@ -52,8 +52,7 @@ async function getCreatorData(creatorId: string) {
 
 // Helper: get product data for a reel's tagged product
 async function getProductData(productId?: string) {
-  if (!productId) return null;
-  if (productId === SAMPLE_PRODUCT.id) return SAMPLE_PRODUCT;
+  if (!productId || productId === SAMPLE_PRODUCT.id) return null;
   try {
     const doc = await db().collection('products').doc(productId).get();
     if (doc.exists) {
@@ -68,7 +67,9 @@ async function getProductData(productId?: string) {
 // Helper: enrich reels with creator data and product data
 async function enrichReels(reels: ReelDoc[]) {
   const creatorIds = [...new Set(reels.map((r) => r.creatorId))].filter(Boolean);
-  const productIds = [...new Set(reels.map((r) => r.productId))].filter(Boolean) as string[];
+  const productIds = [...new Set(reels.map((r) => r.productId))].filter(
+    (id): id is string => Boolean(id && id !== SAMPLE_PRODUCT.id)
+  );
 
   const creatorMap: Record<string, CreatorSummary> = {};
   const productMap: Record<string, any> = {};
@@ -97,19 +98,13 @@ async function enrichReels(reels: ReelDoc[]) {
   }
 
   if (productIds.length > 0) {
-    const validFirestoreProductIds = productIds.filter((id) => id !== SAMPLE_PRODUCT.id);
-    if (validFirestoreProductIds.length > 0) {
-      const productRefs = validFirestoreProductIds.map((id) => db().collection('products').doc(id));
-      const productDocs = await db().getAll(...productRefs);
-      productDocs.forEach((doc) => {
-        if (doc.exists) {
-          productMap[doc.id] = { id: doc.id, ...doc.data() };
-        }
-      });
-    }
-    if (productIds.includes(SAMPLE_PRODUCT.id)) {
-      productMap[SAMPLE_PRODUCT.id] = SAMPLE_PRODUCT;
-    }
+    const productRefs = productIds.map((id) => db().collection('products').doc(id));
+    const productDocs = await db().getAll(...productRefs);
+    productDocs.forEach((doc) => {
+      if (doc.exists) {
+        productMap[doc.id] = { id: doc.id, ...doc.data() };
+      }
+    });
   }
 
   return reels.map((r) => {
@@ -132,23 +127,37 @@ reelsRouter.get('/', async (req: Request, res: Response) => {
     const { category, cursor, limit = '10' } = req.query;
     const take = parseIntegerQuery(limit, 10, 50);
 
-    let query: FirebaseFirestore.Query = db().collection('reels');
+    let reels: ReelDoc[] = [];
+    const safeCategory = category ? normalizeString(category, { maxLength: 20 }) : null;
 
-    if (category) {
-      const safeCategory = normalizeString(category, { maxLength: 20 });
-      query = query.where('category', '==', safeCategory);
-    }
-    query = query.orderBy('createdAt', 'desc');
+    try {
+      let query: FirebaseFirestore.Query = db().collection('reels');
+      if (safeCategory) {
+        query = query.where('category', '==', safeCategory);
+      }
+      query = query.orderBy('createdAt', 'desc');
 
-    if (cursor) {
-      const cursorDoc = await db().collection('reels').doc(normalizeDocumentId(cursor, 'Cursor')).get();
-      if (cursorDoc.exists) {
-        query = query.startAfter(cursorDoc);
+      if (cursor) {
+        const cursorDoc = await db().collection('reels').doc(normalizeDocumentId(cursor, 'Cursor')).get();
+        if (cursorDoc.exists) {
+          query = query.startAfter(cursorDoc);
+        }
+      }
+
+      const snapshot = await query.limit(take + 1).get();
+      reels = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as ReelDoc));
+    } catch (queryErr) {
+      if (safeCategory) {
+        // Fallback if composite index on category + createdAt is not yet ready
+        const snapshot = await db().collection('reels').where('category', '==', safeCategory).get();
+        reels = snapshot.docs
+          .map((doc) => ({ id: doc.id, ...doc.data() } as ReelDoc))
+          .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')))
+          .slice(0, take + 1);
+      } else {
+        throw queryErr;
       }
     }
-
-    const snapshot = await query.limit(take + 1).get();
-    let reels = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as ReelDoc));
 
     const hasMore = reels.length > take;
     if (hasMore) reels = reels.slice(0, take);

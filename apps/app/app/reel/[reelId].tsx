@@ -24,7 +24,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { commentsApi, reelsApi, type Comment } from '@reelbazaar/api';
-import { APP_NAME, APP_ORIGIN, SAMPLE_PRODUCT, type BrandProduct, type Reel, type User } from '@reelbazaar/config';
+import { APP_NAME, APP_ORIGIN, type BrandProduct, type Reel, type User } from '@reelbazaar/config';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -86,13 +86,24 @@ export default function SingleReelScreen() {
       if (reelDoc.exists()) {
         const data = reelDoc.data();
         let creator: User | null = null;
+        let product: BrandProduct | undefined = undefined;
         if (data.creatorId) {
           const userDoc = await getDoc(doc(db, 'users', data.creatorId));
           if (userDoc.exists()) {
             creator = { id: userDoc.id, ...userDoc.data() } as User;
           }
         }
-        setReel({ id: reelDoc.id, ...data, creator } as Reel);
+        if (data.productId && data.productId !== 'sample_prod_1') {
+          try {
+            const prodDoc = await getDoc(doc(db, 'products', data.productId));
+            if (prodDoc.exists()) {
+              product = { id: prodDoc.id, ...prodDoc.data() } as BrandProduct;
+            }
+          } catch {
+            /* ignore */
+          }
+        }
+        setReel({ id: reelDoc.id, ...data, creator, product } as Reel);
         return;
       }
 
@@ -450,15 +461,17 @@ export default function SingleReelScreen() {
           onProfilePress={navigateToCreator}
           onProductLinkPress={() => {
             updateDoc(doc(db, 'reels', reel.id), { clicksCount: increment(1) }).catch(() => {});
-            setDrawerVisible(true);
+            if (reel.product && reel.product.id !== 'sample_prod_1') {
+              setDrawerVisible(true);
+            }
           }}
         />
       </ScrollView>
 
       {/* Shoppable Purchase Drawer */}
       <ProductPurchaseDrawer
-        visible={drawerVisible}
-        product={(reel.product || SAMPLE_PRODUCT) as BrandProduct}
+        visible={drawerVisible && Boolean(reel.product)}
+        product={reel.product ?? null}
         reel={reel}
         onClose={() => setDrawerVisible(false)}
       />

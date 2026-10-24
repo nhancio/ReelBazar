@@ -51,7 +51,6 @@ import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import {
-  NativeDropdownPicker,
   NativeSegmentedPicker,
   NativeSwitch,
 } from '@/components/NativeUI';
@@ -835,18 +834,6 @@ export default function ProfileScreen() {
             </View>
 
             {/* 4 Multi-Sided Marketplace Tabs */}
-            <View style={{ marginTop: spacing.md }}>
-              <NativeSegmentedPicker<'my' | 'saved' | 'creator_hub' | 'brand_hub'>
-                options={[
-                  { label: 'Posts', value: 'my' },
-                  { label: 'Saved', value: 'saved' },
-                  { label: 'Earnings', value: 'creator_hub' },
-                  { label: 'Brand Hub', value: 'brand_hub' },
-                ]}
-                selectedValue={activeTab}
-                onValueChange={setActiveTab}
-              />
-            </View>
             <View style={[styles.hubTabsRow, { borderBottomColor: palette.border }]}>
               <Pressable
                 onPress={() => setActiveTab('my')}
@@ -1217,14 +1204,7 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.editField}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={[styles.editLabel, { color: palette.textMuted }]}>CATEGORY *</Text>
-                <NativeDropdownPicker<Category>
-                  options={CATEGORIES.map((c) => ({ label: c, value: c }))}
-                  selectedValue={prodCategory}
-                  onValueChange={setProdCategory}
-                />
-              </View>
+              <Text style={[styles.editLabel, { color: palette.textMuted }]}>CATEGORY *</Text>
               <View style={styles.chipsRow}>
                 {CATEGORIES.map((category) => (
                   <Pressable

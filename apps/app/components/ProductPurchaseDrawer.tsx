@@ -22,7 +22,6 @@ import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
-import { NativeDropdownPicker } from '@/components/NativeUI';
 import { RazorpayCheckoutModal } from '@/components/RazorpayCheckoutModal';
 import { radius, spacing, typography } from '@/theme';
 
@@ -57,6 +56,7 @@ export function ProductPurchaseDrawer({
   const [checkoutData, setCheckoutData] = useState<CheckoutResponse | null>(null);
   const [showRazorpayModal, setShowRazorpayModal] = useState(false);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const resetForm = useCallback(() => {
     setQuantity(1);
@@ -64,6 +64,7 @@ export function ProductPurchaseDrawer({
     setCheckoutData(null);
     setShowRazorpayModal(false);
     setConfirmedOrder(null);
+    setFormError(null);
   }, []);
 
   const handleClose = () => {
@@ -79,6 +80,7 @@ export function ProductPurchaseDrawer({
   const totalPrice = price * quantity;
 
   const handleBuyNow = async () => {
+    setFormError(null);
     if (guestMode || !user) {
       showToast('Please sign in to place an order', 'info');
       onClose();
@@ -87,12 +89,12 @@ export function ProductPurchaseDrawer({
     }
 
     if (!street.trim() || !city.trim() || !stateName.trim() || !pincode.trim()) {
-      showToast('Please fill in complete delivery address', 'info');
+      setFormError('Please fill in your complete delivery address (Street, City, Pincode & State).');
       return;
     }
 
     if (!/^\d{6}$/.test(pincode.trim())) {
-      showToast('Please enter a valid 6-digit pincode', 'info');
+      setFormError('Please enter a valid 6-digit pincode.');
       return;
     }
 
@@ -121,7 +123,7 @@ export function ProductPurchaseDrawer({
     } catch (err: unknown) {
       console.error('Checkout error:', err);
       const msg = err instanceof Error ? err.message : 'Could not initialize checkout';
-      showToast(msg, 'error');
+      setFormError(msg);
     } finally {
       setCheckingOut(false);
     }
@@ -295,14 +297,6 @@ export function ProductPurchaseDrawer({
                 <View style={[styles.sectionRow, { borderBottomColor: palette.border }]}>
                   <Text style={[styles.sectionTitle, { color: palette.text }]}>Quantity</Text>
                   <View style={styles.qtyControl}>
-                    <NativeDropdownPicker<number>
-                      options={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => ({
-                        label: `Qty: ${n}`,
-                        value: n,
-                      }))}
-                      selectedValue={quantity}
-                      onValueChange={setQuantity}
-                    />
                     <Pressable
                       onPress={() => setQuantity((q) => Math.max(1, q - 1))}
                       style={[styles.qtyBtn, { borderColor: palette.borderStrong, backgroundColor: palette.cardElevated }]}
@@ -328,7 +322,7 @@ export function ProductPurchaseDrawer({
                   <View style={styles.formGrid}>
                     <TextInput
                       value={buyerName}
-                      onChangeText={setBuyerName}
+                      onChangeText={(v) => { setBuyerName(v); if (formError) setFormError(null); }}
                       placeholder="Full Name"
                       placeholderTextColor={palette.textMuted}
                       style={[styles.input, { backgroundColor: palette.inputBg, borderColor: palette.borderStrong, color: palette.text }]}
@@ -336,7 +330,7 @@ export function ProductPurchaseDrawer({
 
                     <TextInput
                       value={buyerPhone}
-                      onChangeText={setBuyerPhone}
+                      onChangeText={(v) => { setBuyerPhone(v); if (formError) setFormError(null); }}
                       placeholder="Mobile Phone (for delivery SMS)"
                       keyboardType="phone-pad"
                       placeholderTextColor={palette.textMuted}
@@ -345,7 +339,7 @@ export function ProductPurchaseDrawer({
 
                     <TextInput
                       value={street}
-                      onChangeText={setStreet}
+                      onChangeText={(v) => { setStreet(v); if (formError) setFormError(null); }}
                       placeholder="House / Flat / Street Address"
                       placeholderTextColor={palette.textMuted}
                       style={[styles.input, { backgroundColor: palette.inputBg, borderColor: palette.borderStrong, color: palette.text }]}
@@ -354,14 +348,14 @@ export function ProductPurchaseDrawer({
                     <View style={styles.inputRow}>
                       <TextInput
                         value={city}
-                        onChangeText={setCity}
+                        onChangeText={(v) => { setCity(v); if (formError) setFormError(null); }}
                         placeholder="City"
                         placeholderTextColor={palette.textMuted}
                         style={[styles.input, { flex: 1, backgroundColor: palette.inputBg, borderColor: palette.borderStrong, color: palette.text }]}
                       />
                       <TextInput
                         value={pincode}
-                        onChangeText={setPincode}
+                        onChangeText={(v) => { setPincode(v); if (formError) setFormError(null); }}
                         placeholder="Pincode"
                         keyboardType="number-pad"
                         maxLength={6}
@@ -372,7 +366,7 @@ export function ProductPurchaseDrawer({
 
                     <TextInput
                       value={stateName}
-                      onChangeText={setStateName}
+                      onChangeText={(v) => { setStateName(v); if (formError) setFormError(null); }}
                       placeholder="State (e.g. Maharashtra, Karnataka)"
                       placeholderTextColor={palette.textMuted}
                       style={[styles.input, { backgroundColor: palette.inputBg, borderColor: palette.borderStrong, color: palette.text }]}
@@ -400,6 +394,13 @@ export function ProductPurchaseDrawer({
                     <Text style={[styles.totalVal, { color: palette.accent }]}>₹{totalPrice.toLocaleString('en-IN')}</Text>
                   </View>
                 </View>
+
+                {formError ? (
+                  <View style={[styles.errorBanner, { backgroundColor: palette.dangerSoft, borderColor: palette.danger }]}>
+                    <Ionicons name="alert-circle" size={16} color={palette.danger} />
+                    <Text style={[styles.errorBannerText, { color: palette.danger }]}>{formError}</Text>
+                  </View>
+                ) : null}
 
                 {/* Submit Checkout Button */}
                 <Button
@@ -550,6 +551,20 @@ const styles = StyleSheet.create({
   breakdownDivider: { height: StyleSheet.hairlineWidth, marginVertical: 4 },
   totalLabel: { fontSize: 15, fontWeight: '800' },
   totalVal: { fontSize: 18, fontWeight: '800' },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
   payBtn: { minHeight: 52, marginTop: spacing.xs },
   trustBadges: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', marginTop: spacing.xs },
   trustItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },

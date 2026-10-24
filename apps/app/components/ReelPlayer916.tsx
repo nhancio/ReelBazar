@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Animated,
   Dimensions,
+  Linking,
   Platform,
   Pressable,
   StyleSheet,
@@ -13,6 +14,7 @@ import { Image } from 'expo-image';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import * as WebBrowser from 'expo-web-browser';
 import type { Reel, BrandProduct } from '@reelbazaar/config';
 import { useTheme } from '@/context/ThemeContext';
 import { Avatar } from '@/components/Avatar';
@@ -138,8 +140,24 @@ export function ReelPlayer916({
     }
   };
 
-  const product = reel.product;
-  const showProduct = Boolean(product || (reel.productId && reel.productLink));
+  const product = reel.product && reel.product.id !== 'sample_prod_1' ? reel.product : undefined;
+  const showProduct = Boolean(product);
+  const externalProductUrl =
+    !product && reel.productLink && /^https?:\/\//i.test(reel.productLink.trim())
+      ? reel.productLink.trim()
+      : null;
+
+  const openExternalLink = useCallback(async (url: string) => {
+    if (Platform.OS === 'web') {
+      void Linking.openURL(url);
+      return;
+    }
+    try {
+      await WebBrowser.openBrowserAsync(url);
+    } catch {
+      void Linking.openURL(url).catch(() => {});
+    }
+  }, []);
 
   return (
     <View style={[styles.container, { width, height }]}>
@@ -203,8 +221,19 @@ export function ReelPlayer916({
       )}
 
       {/* Mute indicator pill */}
-      <Pressable onPress={onToggleMuted} style={styles.muteIndicator} hitSlop={8}>
-        <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={15} color="#ffffff" />
+      <Pressable
+        onPress={() => {
+          if (Platform.OS !== 'web') {
+            void Haptics.selectionAsync().catch(() => {});
+          }
+          onToggleMuted();
+        }}
+        style={styles.muteIndicator}
+        hitSlop={12}
+        accessibilityRole="button"
+        accessibilityLabel={muted ? 'Unmute video' : 'Mute video'}
+      >
+        <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={17} color="#ffffff" />
       </Pressable>
 
       {/* Right Action Rail */}
@@ -286,9 +315,15 @@ export function ReelPlayer916({
         </Pressable>
 
         {/* Buy / Shop Button */}
-        {showProduct && (
+        {(showProduct || externalProductUrl) && (
           <Pressable
-            onPress={() => product && onProductPress?.(product)}
+            onPress={() => {
+              if (product) {
+                onProductPress?.(product);
+              } else if (externalProductUrl) {
+                void openExternalLink(externalProductUrl);
+              }
+            }}
             style={[styles.shopBtnRail, { borderColor: 'rgba(255, 255, 255, 0.35)' }]}
             hitSlop={6}
           >
@@ -351,6 +386,7 @@ export function ReelPlayer916({
             <GlassSurface
               interactive
               raised
+              colorScheme="dark"
               intensity={78}
               cornerRadius={radius.md}
               style={styles.productPill}
@@ -447,17 +483,17 @@ const styles = StyleSheet.create({
   },
   muteIndicator: {
     position: 'absolute',
-    top: 54,
+    top: 52,
     right: 16,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(12, 12, 16, 0.58)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(12, 12, 16, 0.65)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
+    zIndex: 30,
   },
   rightRail: {
     position: 'absolute',
