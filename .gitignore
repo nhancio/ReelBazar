@@ -33,3 +33,6 @@ google-play-service-account.json
 .firebase/
 # Vercel CLI (`vercel link`, `vercel pull`): project.json + .env.*.local — never commit
 .vercel
+
+# Videos and marketing content live here; never committed.
+/content/
