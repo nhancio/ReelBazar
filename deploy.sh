@@ -131,7 +131,11 @@ sync_branches_into_main() {
 
   echo "==> 2/3 Merge local and GitHub branches into main"
   _sync_git fetch -q --prune origin || { echo "Deploy stopped: could not fetch from origin." >&2; return 1; }
-  git checkout -q main 2>/dev/null || git checkout -q -b main || return 1
+  if git show-ref --verify --quiet refs/heads/main || git show-ref --verify --quiet refs/remotes/origin/main; then
+    git checkout -q main || { echo "Deploy stopped: could not switch to main (git's reason is above)." >&2; return 1; }
+  else
+    git checkout -q -b main || return 1
+  fi
   for ref in "$start_ref" $(git for-each-ref --format='%(refname)' refs/heads refs/remotes/origin); do
     _sync_merge "$ref" || { echo "You were on $start; you are now on main." >&2; return 1; }
   done
