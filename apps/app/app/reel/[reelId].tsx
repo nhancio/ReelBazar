@@ -32,6 +32,7 @@ import { useToast } from '@/context/ToastContext';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { ModerationSheet } from '@/components/ModerationSheet';
 import { ProductPurchaseDrawer } from '@/components/ProductPurchaseDrawer';
 import { ReelPostCard } from '@/components/ReelPostCard';
 import { timeAgo } from '@/lib/timeAgo';
@@ -59,6 +60,7 @@ export default function SingleReelScreen() {
 
   // Instant Checkout Drawer state
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const [moderationVisible, setModerationVisible] = useState(false);
 
   // Comments drawer state
   const [commentsVisible, setCommentsVisible] = useState(false);
@@ -411,31 +413,45 @@ export default function SingleReelScreen() {
           </View>
         </Pressable>
 
-        {showFollowButton ? (
-          <Pressable
-            onPress={handleFollow}
-            disabled={followPending}
-            style={[
-              styles.followBtn,
-              {
-                backgroundColor: isFollowing ? palette.cardElevated : palette.accent,
-                borderColor: isFollowing ? palette.borderStrong : palette.accent,
-                borderWidth: 1,
-              },
-            ]}
-          >
-            <Text
+        <View style={styles.headerRight}>
+          {showFollowButton ? (
+            <Pressable
+              onPress={handleFollow}
+              disabled={followPending}
               style={[
-                styles.followBtnText,
-                { color: isFollowing ? palette.text : palette.textOnAccent },
+                styles.followBtn,
+                {
+                  backgroundColor: isFollowing ? palette.cardElevated : palette.accent,
+                  borderColor: isFollowing ? palette.borderStrong : palette.accent,
+                  borderWidth: 1,
+                },
               ]}
             >
-              {isFollowing ? 'Following' : 'Follow'}
-            </Text>
-          </Pressable>
-        ) : (
-          <View style={styles.headerBtn} />
-        )}
+              <Text
+                style={[
+                  styles.followBtnText,
+                  { color: isFollowing ? palette.text : palette.textOnAccent },
+                ]}
+              >
+                {isFollowing ? 'Following' : 'Follow'}
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {!currentUser || reel.creatorId !== currentUser.id ? (
+            <Pressable
+              onPress={() => setModerationVisible(true)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Report or block"
+              style={styles.headerBtn}
+            >
+              <Ionicons name="ellipsis-horizontal" size={22} color={palette.text} />
+            </Pressable>
+          ) : !showFollowButton ? (
+            <View style={styles.headerBtn} />
+          ) : null}
+        </View>
       </View>
 
       {/* Main Reel Card */}
@@ -460,7 +476,7 @@ export default function SingleReelScreen() {
           onComment={openComments}
           onProfilePress={navigateToCreator}
           onProductLinkPress={() => {
-            updateDoc(doc(db, 'reels', reel.id), { clicksCount: increment(1) }).catch(() => {});
+            reelsApi.click(reel.id).catch(() => {});
             if (reel.product && reel.product.id !== 'sample_prod_1') {
               setDrawerVisible(true);
             }
@@ -474,6 +490,21 @@ export default function SingleReelScreen() {
         product={reel.product ?? null}
         reel={reel}
         onClose={() => setDrawerVisible(false)}
+      />
+
+      {/* UGC Report & Block Sheet */}
+      <ModerationSheet
+        visible={moderationVisible}
+        target={{
+          targetType: 'reel',
+          targetId: reel.id,
+          userId: reel.creatorId,
+          userLabel: creatorDisplay,
+        }}
+        guestMode={guestMode}
+        onRequireAuth={requireAuth}
+        onClose={() => setModerationVisible(false)}
+        onBlocked={() => router.back()}
       />
 
       {/* Comments Drawer / Modal */}
@@ -645,6 +676,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   headerCreator: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1, paddingHorizontal: spacing.sm },
   headerCreatorName: { fontSize: 14, fontWeight: '700' },
   followBtn: {

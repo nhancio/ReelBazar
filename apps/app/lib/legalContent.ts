@@ -15,7 +15,7 @@
  * App Store Connect and Play Console listings.
  */
 
-export const LEGAL_ENTITY = '[LEGAL ENTITY NAME]';
+export const LEGAL_ENTITY = 'Nhancio (operating Rava)';
 export const CONTACT_EMAIL = 'shopatrava@gmail.com';
 export const GOVERNING_LAW = 'the laws of India, with courts at Hyderabad, Telangana';
 /** Effective date shown on both documents. Bump whenever the text materially changes. */
@@ -179,7 +179,7 @@ export const PRIVACY: LegalDoc = {
       heading: 'Contact',
       body: [
         `For any privacy question, or to exercise any of the rights above: ${CONTACT_EMAIL}`,
-        'Grievance Officer: [NAME], [EMAIL] — as required under India’s Information Technology Rules, 2021.',
+        `Grievance Redressal (India IT Rules, 2021): contact our designated grievance team at ${CONTACT_EMAIL} with subject "Privacy Grievance".`,
       ],
     },
   ],

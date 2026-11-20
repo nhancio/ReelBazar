@@ -30,13 +30,14 @@ import {
   where,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import { reelsApi } from '@reelbazaar/api';
+import { moderationApi, reelsApi } from '@reelbazaar/api';
 import { APP_NAME, APP_ORIGIN, CATEGORIES, type Category, type Reel, type User, type BrandProduct } from '@reelbazaar/config';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { ModerationSheet, type ModerationTarget } from '@/components/ModerationSheet';
 import { ReelPlayer916 } from '@/components/ReelPlayer916';
 import { ProductPurchaseDrawer } from '@/components/ProductPurchaseDrawer';
 import { GlassSurface } from '@/components/GlassSurface';
@@ -84,6 +85,10 @@ export default function FeedScreen() {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<BrandProduct | null>(null);
   const [selectedReel, setSelectedReel] = useState<Reel | null>(null);
+
+  // Moderation & blocked users state (App Store Guideline 1.2 / Play UGC policy)
+  const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
+  const [moderationTarget, setModerationTarget] = useState<ModerationTarget | null>(null);
 
   const lastDocRef = useRef<QueryDocumentSnapshot | null>(null);
   const apiCursorRef = useRef<string | undefined>(undefined);
@@ -235,23 +240,26 @@ export default function FeedScreen() {
     void loadReels(true);
   }, [loadReels]);
 
-  // Load liked & saved sets
+  // Load liked, saved & blocked sets
   useEffect(() => {
     if (guestMode || !currentUser) {
       setLikedReels(new Set());
       setSavedReels(new Set());
+      setBlockedIds(new Set());
       return;
     }
     let cancelled = false;
     void (async () => {
       try {
-        const [likes, saves] = await Promise.all([
+        const [likes, saves, blockedRes] = await Promise.all([
           getDocs(query(collection(db, 'reelLikes'), where('userId', '==', currentUser.id))),
           getDocs(query(collection(db, 'reelSaves'), where('userId', '==', currentUser.id))),
+          moderationApi.getBlocked().catch(() => ({ blockedIds: [], users: [] })),
         ]);
         if (cancelled) return;
         setLikedReels(new Set(likes.docs.map((d) => d.data().reelId as string)));
         setSavedReels(new Set(saves.docs.map((d) => d.data().reelId as string)));
+        setBlockedIds(new Set(blockedRes.blockedIds));
       } catch (err) {
         console.error('Failed to load like/save state:', err);
       }
@@ -326,11 +334,14 @@ export default function FeedScreen() {
   const trackView = useCallback((reelId: string) => {
     if (viewedRef.current.has(reelId)) return;
     viewedRef.current.add(reelId);
-    updateDoc(doc(db, 'reels', reelId), { viewsCount: increment(1) }).catch(() => {});
+    // viewsCount is backend-only in firestore.rules (drives creator payouts), so record via API.
+    if (!guestMode && currentUser) {
+      reelsApi.view(reelId).catch(() => {});
+    }
     setReels((prev) =>
       prev.map((r) => (r.id === reelId ? { ...r, viewsCount: (r.viewsCount || 0) + 1 } : r))
     );
-  }, []);
+  }, [guestMode, currentUser]);
 
   const handleShare = useCallback(async (reelId: string) => {
     try {
@@ -433,7 +444,7 @@ export default function FeedScreen() {
 
       {/* 9:16 Full-bleed Vertical Feed */}
       <FlatList
-        data={reels}
+        data={blockedIds.size ? reels.filter((r) => !blockedIds.has(r.creatorId)) : reels}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <ReelPlayer916
@@ -466,6 +477,17 @@ export default function FeedScreen() {
             }}
             onView={() => trackView(item.id)}
             onProductPress={(prod) => handleOpenProduct(prod, item)}
+            onMorePress={
+              !currentUser || item.creatorId !== currentUser.id
+                ? () =>
+                    setModerationTarget({
+                      targetType: 'reel',
+                      targetId: item.id,
+                      userId: item.creatorId,
+                      userLabel: item.creator?.username || item.creator?.name || item.brandTag || undefined,
+                    })
+                : undefined
+            }
           />
         )}
         pagingEnabled
@@ -514,6 +536,19 @@ export default function FeedScreen() {
         product={selectedProduct}
         reel={selectedReel}
         onClose={() => setDrawerVisible(false)}
+      />
+
+      {/* UGC Report & Block Sheet */}
+      <ModerationSheet
+        visible={moderationTarget !== null}
+        target={moderationTarget}
+        guestMode={guestMode}
+        onRequireAuth={requireAuth}
+        onClose={() => setModerationTarget(null)}
+        onBlocked={(blockedUid) => {
+          setBlockedIds((prev) => new Set(prev).add(blockedUid));
+          setReels((prev) => prev.filter((r) => r.creatorId !== blockedUid));
+        }}
       />
     </View>
   );

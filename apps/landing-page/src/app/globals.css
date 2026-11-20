@@ -2653,3 +2653,55 @@ body.modal-open {
   }
 }
 
+
+/* ============================================================
+   /myacc — Instagram worth calculator (single screen)
+   ============================================================ */
+.myacc{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:22px 18px 28px;background:radial-gradient(ellipse 90% 55% at 50% -8%,#fce4f0 0%,transparent 60%),radial-gradient(ellipse 70% 50% at 95% 100%,rgba(147,51,234,.16),transparent 60%),#faf5f8;color:var(--navy)}
+.myacc-top{width:min(680px,100%);display:flex;justify-content:space-between;align-items:center}
+.myacc-logo{font-weight:800;font-size:1.3rem;letter-spacing:-.03em}
+.myacc-badge{font-size:.75rem;font-weight:700;padding:6px 12px;border-radius:999px;background:#fff;border:1px solid rgba(219,39,119,.22);color:#9d2f6a}
+.myacc-hero{width:min(680px,100%);text-align:center;margin-top:5vh}
+.myacc-eyebrow{font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#be185d;margin:0 0 14px}
+.myacc-hero h1{font-size:clamp(2.2rem,6vw,3.4rem);line-height:1.05;letter-spacing:-.03em;margin:0 0 16px}
+.myacc-hero h1 em{font-style:normal;background:linear-gradient(120deg,#db2777,#9333ea);-webkit-background-clip:text;background-clip:text;color:transparent}
+.myacc-sub{max-width:52ch;margin:0 auto 28px;color:#6b4b63;line-height:1.6;font-size:1rem}
+.myacc-form{display:flex;align-items:center;gap:6px;background:#fff;border:1.5px solid rgba(219,39,119,.3);border-radius:999px;padding:6px 6px 6px 20px;box-shadow:0 14px 40px rgba(67,24,51,.12);max-width:520px;margin:0 auto}
+.myacc-form span{font-weight:700;color:#db2777}
+.myacc-form input{flex:1;min-width:0;border:0;outline:0;font:inherit;font-size:1.05rem;font-weight:600;color:var(--navy);background:transparent}
+.myacc-form button,.myacc-connect,.myacc-actions button{border:0;cursor:pointer;font:inherit;font-weight:700;border-radius:999px;transition:transform .15s ease,opacity .15s ease}
+.myacc-form button{background:linear-gradient(135deg,#db2777,#9333ea);color:#fff;padding:13px 24px;white-space:nowrap}
+.myacc-form button:disabled,.myacc-connect:disabled{opacity:.6;cursor:wait}
+.myacc-form button:hover,.myacc-connect:hover,.myacc-actions button:hover{transform:translateY(-1px)}
+.myacc-or{display:flex;align-items:center;gap:12px;max-width:520px;margin:18px auto;color:#b888a8;font-size:.8rem;font-weight:700}
+.myacc-or span{flex:1;height:1px;background:rgba(219,39,119,.25)}
+.myacc-connect{width:min(520px,100%);padding:15px 22px;color:#fff;background:linear-gradient(90deg,#f9ce34,#ee2a7b 55%,#6228d7);box-shadow:0 12px 32px rgba(238,42,123,.35)}
+.myacc-fine{max-width:52ch;margin:14px auto 0;font-size:.8rem;line-height:1.55;color:#9d6b8a}
+.myacc-notice{max-width:520px;margin:18px auto 0;background:#fff;border:1px solid rgba(219,39,119,.3);border-radius:16px;padding:14px 16px;font-size:.9rem;line-height:1.55}
+.myacc-notice button,.myacc-sample{background:none;border:0;color:#be185d;font:inherit;font-weight:700;cursor:pointer;padding:0}
+.myacc-sample{margin-top:18px;font-size:.92rem}
+.myacc-card{width:min(680px,100%);margin-top:34px;border-radius:32px;padding:30px;color:#fff;background:radial-gradient(ellipse 80% 60% at 12% 0%,rgba(244,114,182,.5),transparent 55%),linear-gradient(155deg,#7a1f4d,#431833 55%,#2a0f20);box-shadow:0 30px 70px rgba(67,24,51,.35);text-align:left}
+.myacc-sampletag{display:inline-block;margin:0 0 14px;padding:5px 11px;border-radius:999px;background:#f9ce34;color:#431833;font-size:.72rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.myacc-cardhead{display:flex;gap:14px;align-items:center}
+.myacc-cardhead img,.myacc-avatar{width:64px;height:64px;border-radius:50%;flex:0 0 auto}
+.myacc-cardhead img{object-fit:cover;border:2px solid rgba(255,255,255,.7)}
+.myacc-avatar{display:grid;place-items:center;background:linear-gradient(135deg,#f472b6,#9333ea);font-size:1.5rem;font-weight:800}
+.myacc-cardhead strong{display:block;font-size:1.25rem;word-break:break-word}
+.myacc-cardhead span{font-size:.82rem;color:#fbcfe8}
+.myacc-worthlabel{margin:28px 0 4px;font-size:.75rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#f9a8d4}
+.myacc-worth{margin:0;font-size:clamp(2.6rem,9vw,4.2rem);font-weight:800;letter-spacing:-.04em;line-height:1}
+.myacc-formula{margin:10px 0 0;font-size:.85rem;line-height:1.55;color:#fbcfe8}
+.myacc-stats,.myacc-rates{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:22px}
+.myacc-stats div,.myacc-rates div{background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.13);border-radius:18px;padding:14px}
+.myacc-stats span,.myacc-rates span{display:block;font-size:.7rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#f9a8d4;margin-bottom:6px}
+.myacc-stats strong,.myacc-rates strong{font-size:1.25rem;letter-spacing:-.02em}
+.myacc-rates div{background:#fff;color:var(--navy)}
+.myacc-rates span{color:#be185d}
+.myacc-rates strong{font-size:1.45rem}
+.myacc-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.myacc-actions button{padding:12px 20px;background:#fff;color:#431833}
+.myacc-actions button:first-child{background:linear-gradient(90deg,#f9ce34,#ee2a7b);color:#fff}
+.myacc-disclaimer{margin:16px 0 0;font-size:.74rem;line-height:1.55;color:rgba(255,255,255,.68)}
+.myacc-foot{margin-top:auto;padding-top:34px;display:flex;gap:18px;flex-wrap:wrap;justify-content:center;font-size:.8rem;color:#9d6b8a}
+.myacc-foot a{color:#6d2b4f;font-weight:600;text-decoration:none}
+@media(max-width:560px){.myacc-stats,.myacc-rates{grid-template-columns:repeat(2,1fr)}.myacc-form button{padding:12px 16px}.myacc-card{padding:22px}}

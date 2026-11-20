@@ -181,6 +181,20 @@ service cloud.firestore {
       allow read, write: if false; // written via POST /contact
     }
 
+    // ---------- /myacc (Instagram worth): backend (Admin SDK) only ----------
+    // Separate from the app's collections; clients never read or write these.
+    match /myacc_accounts/{accountId} {
+      allow read, write: if false; // written by the Instagram routes
+    }
+
+    match /myacc_cards/{cardId} {
+      allow read, write: if false;
+    }
+
+    match /myacc_events/{eventId} {
+      allow read, write: if false;
+    }
+
     // Deny everything not matched above.
     match /{document=**} {
       allow read, write: if false;

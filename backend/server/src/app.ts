@@ -15,6 +15,7 @@ import { productsRouter } from './routes/products';
 import { ordersRouter, razorpayWebhookHandler } from './routes/orders';
 import { payoutsRouter } from './routes/payouts';
 import { moderationRouter } from './routes/moderation';
+import { instagramRouter } from './routes/instagram';
 import { isProductionRuntime } from './orderLogic';
 
 initFirebaseAdmin();
@@ -220,6 +221,7 @@ apiRouter.use('/products', productsRouter);
 apiRouter.use('/orders', ordersRouter);
 apiRouter.use('/payouts', payoutsRouter);
 apiRouter.use('/moderation', moderationRouter);
+apiRouter.use('/instagram', instagramRouter);
 
 apiRouter.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Image } from 'expo-image';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -44,6 +45,7 @@ interface Props {
   onProfilePress?: () => void;
   onView?: () => void;
   onProductPress?: (product: BrandProduct) => void;
+  onMorePress?: () => void;
 }
 
 export function ReelPlayer916({
@@ -66,8 +68,10 @@ export function ReelPlayer916({
   onProfilePress,
   onView,
   onProductPress,
+  onMorePress,
 }: Props) {
   const { palette } = useTheme();
+  const insets = useSafeAreaInsets();
   const [captionExpanded, setCaptionExpanded] = useState(false);
   const [showHeartAnim, setShowHeartAnim] = useState(false);
   const heartScale = useRef(new Animated.Value(0)).current;
@@ -228,7 +232,7 @@ export function ReelPlayer916({
           }
           onToggleMuted();
         }}
-        style={styles.muteIndicator}
+        style={[styles.muteIndicator, { top: insets.top + 8 }]}
         hitSlop={12}
         accessibilityRole="button"
         accessibilityLabel={muted ? 'Unmute video' : 'Mute video'}
@@ -237,7 +241,7 @@ export function ReelPlayer916({
       </Pressable>
 
       {/* Right Action Rail */}
-      <View style={styles.rightRail}>
+      <View style={[styles.rightRail, { bottom: 98 + insets.bottom }]}>
         {/* Creator avatar */}
         <Pressable onPress={onProfilePress} style={styles.creatorRailBtn}>
           <Avatar
@@ -307,12 +311,33 @@ export function ReelPlayer916({
         </Pressable>
 
         {/* Share */}
-        <Pressable onPress={onShare} style={styles.actionBtn} hitSlop={6}>
+        <Pressable
+          onPress={onShare}
+          style={styles.actionBtn}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel="Share reel"
+        >
           <View style={styles.actionIconWrap}>
             <Ionicons name="paper-plane-outline" size={22} color="#ffffff" />
           </View>
           <Text style={styles.actionText}>Share</Text>
         </Pressable>
+
+        {/* Report / Block menu (UGC safety) */}
+        {onMorePress ? (
+          <Pressable
+            onPress={onMorePress}
+            style={styles.actionBtn}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="Report or block"
+          >
+            <View style={styles.actionIconWrap}>
+              <Ionicons name="ellipsis-horizontal" size={20} color="#ffffff" />
+            </View>
+          </Pressable>
+        ) : null}
 
         {/* Buy / Shop Button */}
         {(showProduct || externalProductUrl) && (
@@ -340,7 +365,7 @@ export function ReelPlayer916({
       </View>
 
       {/* Bottom Left Info & Shoppable Product Pill */}
-      <View style={styles.bottomOverlay}>
+      <View style={[styles.bottomOverlay, { bottom: 84 + insets.bottom }]}>
         {/* Creator Handle & Category */}
         <View style={styles.creatorRow}>
           <Pressable onPress={onProfilePress} style={styles.handlePress}>

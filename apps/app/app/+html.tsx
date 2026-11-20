@@ -13,8 +13,30 @@ export default function Root({ children }: { children: ReactNode }) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, shrink-to-fit=no, viewport-fit=cover"
+          content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
         />
+
+        <title>Rava — Shop From Fashion Reels</title>
+        <meta
+          name="description"
+          content="Shop fashion directly from creator reels in one tap. Discover curated drops, AI styling, and instant checkout on Rava."
+        />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Rava" />
+        <meta property="og:title" content="Rava — Shop From Fashion Reels" />
+        <meta
+          property="og:description"
+          content="Shop fashion directly from creator reels in one tap on Rava."
+        />
+        <meta property="og:url" content="https://app.rava.one/" />
+        <meta property="og:image" content="https://rava.one/logo/logo.jpeg" />
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content="Rava — Shop From Fashion Reels" />
+        <meta
+          name="twitter:description"
+          content="Shop fashion directly from creator reels in one tap on Rava."
+        />
+        <meta name="twitter:image" content="https://rava.one/logo/logo.jpeg" />
 
         {/* PWA — the Vite build shipped an installable app via vite-plugin-pwa, and
             public/site.webmanifest already exists at the repo root. */}

@@ -41,10 +41,11 @@ function useAuthRouting(hydrated: boolean) {
     const first = segments[0];
     const onAuthScreen = first === 'auth';
     const onOnboarding = first === 'onboarding';
+    const onLegalScreen = first === 'legal';
     const signedIn = Boolean(firebaseUser) || guestMode;
 
     if (!signedIn) {
-      if (!onAuthScreen) router.replace('/auth');
+      if (!onAuthScreen && !onLegalScreen) router.replace('/auth');
       return;
     }
     if (needsOnboarding) {
@@ -132,7 +133,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.fill}>
       <SafeAreaProvider>
-        <ThemeProvider>
+        <ThemeProvider hydrated={hydrated}>
           <ErrorBoundary>
             <AppFrame>
               {hydrated ? (

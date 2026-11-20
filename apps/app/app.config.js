@@ -2,6 +2,17 @@
 // an EAS-injected secret file in cloud builds while falling back to the local, gitignored
 // copy for local/dev builds. Carried over from the Aura+ setup, which shipped on this exact
 // pattern — see docs/EXPO_MIGRATION.md.
+const { withGradleProperties } = require('@expo/config-plugins');
+
+const withGradleHeap = (config) =>
+  withGradleProperties(config, (cfg) => {
+    const entry = cfg.modResults.find((p) => p.type === 'property' && p.key === 'org.gradle.jvmargs');
+    const value = '-Xmx4096m -XX:MaxMetaspaceSize=1024m';
+    if (entry) entry.value = value;
+    else cfg.modResults.push({ type: 'property', key: 'org.gradle.jvmargs', value });
+    return cfg;
+  });
+
 const appEnvironment = process.env.EXPO_PUBLIC_APP_ENV ?? 'development';
 const updateChannel =
   appEnvironment === 'production'
@@ -56,7 +67,7 @@ module.exports = {
       bundleIdentifier: 'com.nhancio.rava',
       appleTeamId: '76G23XAVL3',
       // Store build number. Bump before creating the next iOS artifact.
-      buildNumber: '4',
+      buildNumber: '5',
       // EAS Build injects the "GOOGLE_SERVICES_INFO_PLIST" file-type secret and points this env
       // var at it; locally it falls back to the gitignored copy in this directory. Omitted
       // entirely when neither exists.
@@ -76,7 +87,7 @@ module.exports = {
     android: {
       softwareKeyboardLayoutMode: 'resize',
       package: 'com.nhancio.rava',
-      versionCode: 1,
+      versionCode: 2,
       // EAS Build injects the "GOOGLE_SERVICES_JSON" file-type secret and points this env
       // var at it; locally it falls back to the gitignored copy in this directory. Omitted
       // entirely when neither exists, otherwise every `expo` command warns about a config it
@@ -114,6 +125,7 @@ module.exports = {
 
     plugins: [
       'expo-router',
+      withGradleHeap,
       [
         // R8 is OFF by default in the Expo Android template, which ships unshrunk DEX in
         // every release AAB. Rava pulls in camera + video + Google Play Services, so the

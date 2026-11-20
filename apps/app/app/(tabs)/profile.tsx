@@ -636,7 +636,12 @@ export default function ProfileScreen() {
       <View style={[styles.fill, { backgroundColor: palette.background, paddingTop: insets.top }]}>
         <View style={[styles.header, { borderBottomColor: palette.border }]}>
           <Text style={[styles.headerHandle, { color: palette.text }]}>Profile</Text>
-          <Pressable onPress={() => setShowSettings(true)} hitSlop={8}>
+          <Pressable
+            onPress={() => setShowSettings(true)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+          >
             <Ionicons name="settings-outline" size={24} color={palette.text} />
           </Pressable>
         </View>
@@ -656,6 +661,68 @@ export default function ProfileScreen() {
             fullWidth
           />
         </View>
+
+        <Modal visible={showSettings} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowSettings(false)}>
+          <View style={[styles.modalContainer, { backgroundColor: palette.background, paddingTop: insets.top + spacing.xs, paddingBottom: insets.bottom + spacing.md }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: palette.border }]}>
+              <View style={{ width: 40 }} />
+              <Text style={[styles.modalTitle, { color: palette.text }]}>Settings</Text>
+              <Pressable onPress={() => setShowSettings(false)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close settings">
+                <Ionicons name="close" size={24} color={palette.text} />
+              </Pressable>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.settingsContent}>
+              <Section title="Appearance" palette={palette}>
+                <View style={{ padding: spacing.md }}>
+                  <NativeSegmentedPicker<'dark' | 'light'>
+                    options={[
+                      { label: 'Obsidian Dark', value: 'dark' },
+                      { label: 'Alabaster Light', value: 'light' },
+                    ]}
+                    selectedValue={theme === 'light' ? 'light' : 'dark'}
+                    onValueChange={(next) => setTheme(next)}
+                  />
+                </View>
+              </Section>
+
+              <Section title="Legal" palette={palette}>
+                <Row
+                  icon="document-text-outline"
+                  label="Terms & Conditions"
+                  onPress={() => {
+                    setShowSettings(false);
+                    router.push('/legal?doc=terms');
+                  }}
+                  palette={palette}
+                />
+                <Row
+                  icon="lock-closed-outline"
+                  label="Privacy Policy"
+                  onPress={() => {
+                    setShowSettings(false);
+                    router.push('/legal?doc=privacy');
+                  }}
+                  palette={palette}
+                  last
+                />
+              </Section>
+
+              <Button
+                label="Sign in"
+                onPress={() => {
+                  setShowSettings(false);
+                  router.push('/auth');
+                }}
+                fullWidth
+              />
+
+              <Text style={[styles.footnote, { color: palette.textMuted }]}>
+                Rava 1.0.0 · Policies updated {LEGAL_LAST_UPDATED}
+              </Text>
+            </ScrollView>
+          </View>
+        </Modal>
       </View>
     );
   }

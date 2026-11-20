@@ -10,6 +10,21 @@ export default function robots(): MetadataRoute.Robots {
         allow: "/",
         disallow: ["/_next/", "/api/"],
       },
+      {
+        // Explicitly welcome AI search/answer crawlers so Rava can be cited.
+        userAgent: [
+          "OAI-SearchBot",
+          "ChatGPT-User",
+          "GPTBot",
+          "ClaudeBot",
+          "Claude-SearchBot",
+          "PerplexityBot",
+          "Google-Extended",
+          "Bingbot",
+        ],
+        allow: "/",
+        disallow: ["/_next/", "/api/"],
+      },
     ],
     sitemap: `${origin}/sitemap.xml`,
     host: origin,

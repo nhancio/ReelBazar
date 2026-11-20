@@ -95,7 +95,7 @@ async function calculateUserBalance(userId: string) {
   ]);
 
   const paidOutRequests = requestsSnap.docs
-    .filter((d) => ['completed', 'processing'].includes(d.data().status))
+    .filter((d) => ['pending', 'processing', 'completed'].includes(d.data().status))
     .reduce((sum, d) => sum + Number(d.data().amount || 0), 0);
 
   const legacyPaidOut = legacySnap.docs.reduce((sum, d) => sum + Number(d.data().amount || 0), 0);

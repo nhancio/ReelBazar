@@ -88,11 +88,6 @@ export function mobileApplicationJsonLd() {
     url: "https://app.rava.one/",
     description:
       "Social commerce mobile and web platform enabling instant shopping from curated fashion creator reels.",
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "4.9",
-      ratingCount: "128",
-    },
   };
 }
 
@@ -169,7 +164,7 @@ export function jsonLdScriptContent(): string {
       websiteJsonLd(),
       mobileApplicationJsonLd(),
       softwareApplicationJsonLd(),
-      faqPageJsonLd(),
+      // FAQPage omitted: Google requires the Q&A to be visible on the page. Re-add once page.tsx renders an FAQ section.
     ],
   });
 }

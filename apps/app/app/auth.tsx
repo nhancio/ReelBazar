@@ -6,8 +6,9 @@
  * third-party social login (Google, here) is offered. Shipping without it is a rejection.
  */
 import { useCallback, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import { OAuthProvider, signInWithCredential, updateProfile } from 'firebase/auth';
@@ -26,6 +27,7 @@ export default function AuthScreen() {
   const { enterGuestMode, refreshUser, clearAuthError, authError } = useAuth();
   const { palette, theme } = useTheme();
   const { showToast } = useToast();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState<'google' | 'apple' | null>(null);
 
@@ -186,6 +188,18 @@ export default function AuthScreen() {
           disabled={busy !== null}
           fullWidth
         />
+
+        <View style={styles.legalRow}>
+          <Text style={[styles.legalText, { color: palette.textMuted }]}>By continuing you agree to our </Text>
+          <Pressable onPress={() => router.push('/legal?doc=terms')} hitSlop={6} accessibilityRole="link">
+            <Text style={[styles.legalLink, { color: palette.accent }]}>Terms</Text>
+          </Pressable>
+          <Text style={[styles.legalText, { color: palette.textMuted }]}> &amp; </Text>
+          <Pressable onPress={() => router.push('/legal?doc=privacy')} hitSlop={6} accessibilityRole="link">
+            <Text style={[styles.legalLink, { color: palette.accent }]}>Privacy Policy</Text>
+          </Pressable>
+          <Text style={[styles.legalText, { color: palette.textMuted }]}>.</Text>
+        </View>
       </View>
 
       {authError ? (
@@ -251,6 +265,15 @@ const styles = StyleSheet.create({
   featureChipText: { fontSize: 12, fontWeight: '600' },
   actions: { gap: spacing.md },
   appleButton: { width: '100%', height: 54 },
+  legalRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: spacing.xs,
+  },
+  legalText: { fontSize: 12 },
+  legalLink: { fontSize: 12, fontWeight: '700' },
   error: {
     flexDirection: 'row',
     alignItems: 'center',

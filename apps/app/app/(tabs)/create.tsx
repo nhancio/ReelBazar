@@ -194,8 +194,10 @@ export default function CreateReelScreen() {
 
       // Strategy 2: Direct Firebase Storage fallback
       if (!videoUrl) {
+        const creatorUid = auth.currentUser?.uid ?? user.id;
         const fileId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        const storageRef = ref(storage, `reels/${fileId}_${video.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
+        // storage.rules requires owner-scoped path: reels/{uid}/...
+        const storageRef = ref(storage, `reels/${creatorUid}/${fileId}_${video.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
 
         let uploadBlob: Blob;
         if (Platform.OS === 'web' && video.webFile) {
@@ -226,7 +228,7 @@ export default function CreateReelScreen() {
           );
         });
 
-        // Save metadata to Firestore
+        // Save metadata to Firestore (firestore.rules requires caption to be a string <= 500 chars)
         await addDoc(collection(db, 'reels'), {
           videoUrl,
           thumbnailUrl: null,
@@ -234,10 +236,10 @@ export default function CreateReelScreen() {
           productId: effectiveProductId || null,
           commissionRate: effectiveCommissionRate,
           ordersCount: 0,
-          caption: caption.trim() || null,
+          caption: caption.trim(),
           brandTag: brandTag.trim() || null,
           category,
-          creatorId: auth.currentUser?.uid ?? user.id,
+          creatorId: creatorUid,
           likesCount: 0,
           viewsCount: 0,
           savesCount: 0,

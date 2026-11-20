@@ -31,6 +31,7 @@ import { useToast } from '@/context/ToastContext';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { ModerationSheet } from '@/components/ModerationSheet';
 import { UserListModal } from '@/components/UserListModal';
 import { formatCount } from '@/lib/timeAgo';
 import { radius, spacing, typography } from '@/theme';
@@ -80,6 +81,7 @@ export default function PublicProfileScreen() {
   // Follower/Following modal lists
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
+  const [moderationVisible, setModerationVisible] = useState(false);
   const [followersList, setFollowersList] = useState<User[]>([]);
   const [followingList, setFollowingList] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -366,7 +368,19 @@ export default function PublicProfileScreen() {
             {name}
           </Text>
         </View>
-        <View style={styles.headerBtn} />
+        {!isOwnProfile && targetUserId ? (
+          <Pressable
+            onPress={() => setModerationVisible(true)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Report or block user"
+            style={styles.headerBtn}
+          >
+            <Ionicons name="ellipsis-horizontal" size={22} color={palette.text} />
+          </Pressable>
+        ) : (
+          <View style={styles.headerBtn} />
+        )}
       </View>
 
       <FlatList
@@ -587,6 +601,26 @@ export default function PublicProfileScreen() {
         onUserPress={(id) => router.push(`/profile/${id}`)}
         onToggleFollow={toggleFollow}
       />
+
+      {/* UGC Report & Block Sheet */}
+      {!isOwnProfile && targetUserId ? (
+        <ModerationSheet
+          visible={moderationVisible}
+          target={{
+            targetType: 'user',
+            targetId: targetUserId,
+            userId: targetUserId,
+            userLabel: handle,
+          }}
+          guestMode={guestMode}
+          onRequireAuth={() => {
+            showToast('Sign in to report or block users', 'info');
+            router.push('/auth');
+          }}
+          onClose={() => setModerationVisible(false)}
+          onBlocked={() => router.back()}
+        />
+      ) : null}
     </View>
   );
 }

@@ -27,7 +27,22 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
       type: 'sourceFile',
     };
   }
-  return context.resolveRequest(context, moduleName, platform);
+  try {
+    return context.resolveRequest(context, moduleName, platform);
+  } catch (err) {
+    // Allow nested node_modules resolution (e.g. simple-swizzle -> is-arrayish) when disableHierarchicalLookup is true.
+    if (context.originModulePath && context.originModulePath.includes('node_modules')) {
+      try {
+        return {
+          filePath: require.resolve(moduleName, { paths: [path.dirname(context.originModulePath)] }),
+          type: 'sourceFile',
+        };
+      } catch {
+        // Fall through to original Metro error.
+      }
+    }
+    throw err;
+  }
 };
 
 module.exports = config;
