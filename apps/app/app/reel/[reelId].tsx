@@ -5,14 +5,15 @@ import {
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   Share,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useIsFocused } from 'expo-router/react-navigation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {
@@ -34,14 +35,16 @@ import { Button } from '@/components/Button';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ModerationSheet } from '@/components/ModerationSheet';
 import { ProductPurchaseDrawer } from '@/components/ProductPurchaseDrawer';
-import { ReelPostCard } from '@/components/ReelPostCard';
+import { ReelPlayer916 } from '@/components/ReelPlayer916';
 import { timeAgo } from '@/lib/timeAgo';
 import { radius, spacing, typography } from '@/theme';
 
 export default function SingleReelScreen() {
   const { reelId } = useLocalSearchParams<{ reelId: string }>();
   const router = useRouter();
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { palette } = useTheme();
   const { user: currentUser, guestMode } = useAuth();
   const { showToast } = useToast();
@@ -387,104 +390,89 @@ export default function SingleReelScreen() {
   };
 
   return (
-    <View style={[styles.fill, { backgroundColor: palette.background, paddingTop: insets.top }]}>
-      {/* Top bar with back button & creator details */}
-      <View style={[styles.header, { borderBottomColor: palette.border }]}>
+    <View style={[styles.fill, { backgroundColor: '#000000' }]}>
+      {/* Full-screen 9:16 Reel Player (unified with Feed view) */}
+      <ReelPlayer916
+        reel={reel}
+        active={isFocused && !commentsVisible && !drawerVisible && !moderationVisible}
+        height={windowHeight}
+        width={Math.min(windowWidth, 480)}
+        muted={muted}
+        onToggleMuted={() => setMuted((prev) => !prev)}
+        liked={liked}
+        saved={saved}
+        likeDisabled={likePending}
+        saveDisabled={savePending}
+        guestMode={guestMode}
+        onRequireAuth={requireAuth}
+        onLike={handleLike}
+        onSave={handleSave}
+        onShare={handleShare}
+        onComment={openComments}
+        onProfilePress={navigateToCreator}
+        onProductPress={() => {
+          reelsApi.click(reel.id).catch(() => {});
+          if (reel.product && reel.product.id !== 'sample_prod_1') {
+            setDrawerVisible(true);
+          }
+        }}
+        onMorePress={
+          !currentUser || reel.creatorId !== currentUser.id
+            ? () => setModerationVisible(true)
+            : undefined
+        }
+      />
+
+      {/* Floating top-left Back button + Follow pill (leaves top-right mute button unobstructed) */}
+      <View
+        pointerEvents="box-none"
+        style={{
+          position: 'absolute',
+          top: insets.top + 8,
+          left: 16,
+          right: 68,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+          zIndex: 25,
+        }}
+      >
         <Pressable
           onPress={() => router.back()}
-          hitSlop={8}
+          hitSlop={10}
           accessibilityRole="button"
           accessibilityLabel="Back"
-          style={styles.headerBtn}
-        >
-          <Ionicons name="arrow-back" size={24} color={palette.text} />
-        </Pressable>
-
-        <Pressable
-          onPress={navigateToCreator}
-          style={styles.headerCreator}
-        >
-          <Avatar uri={reel.creator?.avatarUrl} name={creatorDisplay} size={32} ring />
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={[styles.headerCreatorName, { color: palette.text }]} numberOfLines={1}>
-                @{creatorDisplay.replace(/^@/, '')}
-              </Text>
-              <Ionicons name="checkmark-circle" size={14} color={palette.accent} />
-            </View>
-          </View>
-        </Pressable>
-
-        <View style={styles.headerRight}>
-          {showFollowButton ? (
-            <Pressable
-              onPress={handleFollow}
-              disabled={followPending}
-              style={[
-                styles.followBtn,
-                {
-                  backgroundColor: isFollowing ? palette.cardElevated : palette.accent,
-                  borderColor: isFollowing ? palette.borderStrong : palette.accent,
-                  borderWidth: 1,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.followBtnText,
-                  { color: isFollowing ? palette.text : palette.textOnAccent },
-                ]}
-              >
-                {isFollowing ? 'Following' : 'Follow'}
-              </Text>
-            </Pressable>
-          ) : null}
-
-          {!currentUser || reel.creatorId !== currentUser.id ? (
-            <Pressable
-              onPress={() => setModerationVisible(true)}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Report or block"
-              style={styles.headerBtn}
-            >
-              <Ionicons name="ellipsis-horizontal" size={22} color={palette.text} />
-            </Pressable>
-          ) : !showFollowButton ? (
-            <View style={styles.headerBtn} />
-          ) : null}
-        </View>
-      </View>
-
-      {/* Main Reel Card */}
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xxl }}
-        showsVerticalScrollIndicator={false}
-      >
-        <ReelPostCard
-          reel={reel}
-          active={true}
-          muted={muted}
-          onToggleMuted={() => setMuted((prev) => !prev)}
-          liked={liked}
-          saved={saved}
-          likeDisabled={likePending}
-          saveDisabled={savePending}
-          guestMode={guestMode}
-          onRequireAuth={requireAuth}
-          onLike={handleLike}
-          onSave={handleSave}
-          onShare={handleShare}
-          onComment={openComments}
-          onProfilePress={navigateToCreator}
-          onProductLinkPress={() => {
-            reelsApi.click(reel.id).catch(() => {});
-            if (reel.product && reel.product.id !== 'sample_prod_1') {
-              setDrawerVisible(true);
-            }
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: 'rgba(0,0,0,0.45)',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
-        />
-      </ScrollView>
+        >
+          <Ionicons name="arrow-back" size={20} color="#ffffff" />
+        </Pressable>
+
+        {showFollowButton ? (
+          <Pressable
+            onPress={handleFollow}
+            disabled={followPending}
+            style={[
+              styles.followBtn,
+              {
+                backgroundColor: isFollowing ? 'rgba(0,0,0,0.45)' : palette.accent,
+                borderColor: isFollowing ? 'rgba(255,255,255,0.35)' : palette.accent,
+                borderWidth: 1,
+              },
+            ]}
+          >
+            <Text style={[styles.followBtnText, { color: '#ffffff' }]}>
+              {isFollowing ? 'Following' : 'Follow'}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
 
       {/* Shoppable Purchase Drawer */}
       <ProductPurchaseDrawer
