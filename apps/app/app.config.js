@@ -67,7 +67,7 @@ module.exports = {
       bundleIdentifier: 'com.nhancio.rava',
       appleTeamId: '76G23XAVL3',
       // Store build number. Bump before creating the next iOS artifact.
-      buildNumber: '5',
+      buildNumber: '6',
       // EAS Build injects the "GOOGLE_SERVICES_INFO_PLIST" file-type secret and points this env
       // var at it; locally it falls back to the gitignored copy in this directory. Omitted
       // entirely when neither exists.
@@ -147,6 +147,7 @@ module.exports = {
             extraProguardRules: '-keepattributes *Annotation*\n-dontwarn com.razorpay.**\n-keep class com.razorpay.** { *; }\n-optimizations !method/inlining/\n-keepclasseswithmembers class * { public void onPayment*(...); }',
           },
           ios: {
+            enableSceneSupport: true,
             // `pod install` fails outright without these:
             //   [!] The Swift pod `AppCheckCore` depends upon `GoogleUtilities` and
             //       `RecaptchaInterop`, which do not define modules.
@@ -200,6 +201,11 @@ module.exports = {
           supportsPictureInPicture: false,
         },
       ],
+      'expo-asset',
+      'expo-font',
+      'expo-image',
+      'expo-secure-store',
+      'expo-status-bar',
       'expo-web-browser',
     ],
 

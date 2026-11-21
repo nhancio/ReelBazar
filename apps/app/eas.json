@@ -44,7 +44,8 @@
       },
       "ios": {
         "buildConfiguration": "Release",
-        "credentialsSource": "local"
+        "credentialsSource": "local",
+        "image": "macos-tahoe-26.6-xcode-27.2"
       },
       "env": {
         "EXPO_PUBLIC_APP_ENV": "production"

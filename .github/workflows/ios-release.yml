@@ -1,0 +1,91 @@
+name: iOS Release (Xcode 27 / GitHub Actions + EAS Sync)
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner_mode:
+        description: "Build runner (github-local uses GitHub Xcode 27; eas-cloud uses EAS Xcode 27)"
+        required: true
+        default: github-local
+        type: choice
+        options:
+          - github-local
+          - eas-cloud
+
+jobs:
+  build-ios:
+    runs-on: xcode-27
+    timeout-minutes: 60
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Restore Firebase & iOS signing credentials
+        env:
+          GOOGLE_SERVICES_INFO_PLIST_B64: ${{ secrets.GOOGLE_SERVICES_INFO_PLIST_B64 }}
+          ASC_API_KEY_P8_B64: ${{ secrets.ASC_API_KEY_P8_B64 }}
+          IOS_DIST_CERT_P12_B64: ${{ secrets.IOS_DIST_CERT_P12_B64 }}
+          IOS_PROVISIONING_PROFILE_B64: ${{ secrets.IOS_PROVISIONING_PROFILE_B64 }}
+          IOS_DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+        run: |
+          mkdir -p apps/app/credentials/ios
+          echo "$GOOGLE_SERVICES_INFO_PLIST_B64" | base64 --decode > apps/app/GoogleService-Info.plist
+          echo "$ASC_API_KEY_P8_B64" | base64 --decode > apps/app/credentials/ios/AuthKey_6L9HHK2V5P.p8
+          echo "$IOS_DIST_CERT_P12_B64" | base64 --decode > apps/app/credentials/ios/dist-cert.p12
+          echo "$IOS_PROVISIONING_PROFILE_B64" | base64 --decode > apps/app/credentials/ios/profile.mobileprovision
+          node -e '
+            const fs = require("fs");
+            fs.writeFileSync("apps/app/credentials.json", JSON.stringify({
+              ios: {
+                provisioningProfilePath: "./credentials/ios/profile.mobileprovision",
+                distributionCertificate: {
+                  path: "./credentials/ios/dist-cert.p12",
+                  password: process.env.IOS_DIST_CERT_PASSWORD
+                }
+              }
+            }, null, 2));
+          '
+
+      - name: Build & Submit via EAS Cloud
+        if: ${{ inputs.runner_mode == 'eas-cloud' }}
+        working-directory: apps/app
+        run: eas build --platform ios --profile production --auto-submit --non-interactive --no-wait
+
+      - name: Ensure fastlane & CocoaPods
+        if: ${{ inputs.runner_mode == 'github-local' }}
+        run: |
+          which pod || brew install cocoapods
+          which fastlane || brew install fastlane
+
+      - name: Build signed iOS IPA locally on Xcode 27
+        if: ${{ inputs.runner_mode == 'github-local' }}
+        working-directory: apps/app
+        env:
+          EAS_NO_VCS: "1"
+          EAS_PROJECT_ROOT: ${{ github.workspace }}
+        run: |
+          mkdir -p artifacts
+          eas build --platform ios --profile production --local --non-interactive --output artifacts/Rava-ios.ipa
+
+      - name: Submit IPA to App Store Connect / TestFlight
+        if: ${{ inputs.runner_mode == 'github-local' }}
+        working-directory: apps/app
+        env:
+          EAS_NO_VCS: "1"
+          EAS_PROJECT_ROOT: ${{ github.workspace }}
+        run: |
+          eas submit --platform ios --profile production --path artifacts/Rava-ios.ipa --non-interactive --wait
