@@ -275,11 +275,13 @@ export default function SingleReelScreen() {
 
   const handleShare = async () => {
     if (!reel) return;
+    const url = `${APP_ORIGIN}/reel/${reel.id}`;
     try {
-      await Share.share({
-        message: `Check out this reel on ${APP_NAME}! ${APP_ORIGIN}/reel/${reel.id}`,
-        url: `${APP_ORIGIN}/reel/${reel.id}`,
-      });
+      await Share.share(
+        Platform.OS === 'ios'
+          ? { message: `Watch on ${APP_NAME}`, url }
+          : { message: `Watch on ${APP_NAME}\n${url}` },
+      );
     } catch {
       /* cancelled */
     }

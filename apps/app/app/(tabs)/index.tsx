@@ -359,11 +359,13 @@ export default function FeedScreen() {
   }, [guestMode, currentUser]);
 
   const handleShare = useCallback(async (reelId: string) => {
+    const url = `${APP_ORIGIN}/reel/${reelId}`;
     try {
-      await Share.share({
-        message: `Check out this shoppable reel on ${APP_NAME}! ${APP_ORIGIN}/reel/${reelId}`,
-        url: `${APP_ORIGIN}/reel/${reelId}`,
-      });
+      await Share.share(
+        Platform.OS === 'ios'
+          ? { message: `Watch on ${APP_NAME}`, url }
+          : { message: `Watch on ${APP_NAME}\n${url}` },
+      );
     } catch {
       /* dismiss */
     }

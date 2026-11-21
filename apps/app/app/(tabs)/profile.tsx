@@ -595,11 +595,13 @@ export default function ProfileScreen() {
   const handleShareProfile = async () => {
     if (!user) return;
     const handle = user.username || user.name.replace(/\s+/g, '').toLowerCase();
+    const url = `${APP_ORIGIN}/profile/${user.id}`;
     try {
-      await Share.share({
-        message: `Check out @${handle} on ${APP_NAME}! ${APP_ORIGIN}/profile/${user.id}`,
-        url: `${APP_ORIGIN}/profile/${user.id}`,
-      });
+      await Share.share(
+        Platform.OS === 'ios'
+          ? { message: `@${handle} on ${APP_NAME}`, url }
+          : { message: `@${handle} on ${APP_NAME}\n${url}` },
+      );
     } catch {
       /* dismiss */
     }
