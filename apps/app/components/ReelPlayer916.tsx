@@ -78,24 +78,61 @@ export function ReelPlayer916({
   const heartOpacity = useRef(new Animated.Value(0)).current;
   const lastTapRef = useRef<number>(0);
 
+  const activeRef = useRef(active);
+  const mutedRef = useRef(muted);
+  const onViewRef = useRef(onView);
+  activeRef.current = active;
+  mutedRef.current = muted;
+  onViewRef.current = onView;
+
   const player = useVideoPlayer(reel.videoUrl || '', (p) => {
     p.loop = true;
-    p.muted = muted;
+    p.muted = !activeRef.current || mutedRef.current;
   });
 
+  // Auto-resume playback if the player finishes buffering while this reel is active.
   useEffect(() => {
-    player.muted = muted;
-  }, [player, muted]);
+    const sub = player.addListener('statusChange', ({ status }) => {
+      if (status === 'readyToPlay' && activeRef.current) {
+        player.muted = mutedRef.current;
+        player.play();
+      }
+    });
+    return () => {
+      sub.remove();
+    };
+  }, [player]);
+
+  useEffect(() => {
+    player.muted = !active || muted;
+  }, [player, active, muted]);
 
   useEffect(() => {
     if (active) {
+      player.muted = mutedRef.current;
       player.play();
-      onView?.();
+      onViewRef.current?.();
     } else {
+      player.muted = true;
       player.pause();
-      player.currentTime = 0;
+      try {
+        player.currentTime = 0;
+      } catch {
+        // Ignore seek errors while unloading/not ready.
+      }
     }
-  }, [active, player, onView]);
+  }, [active, player]);
+
+  useEffect(() => {
+    return () => {
+      try {
+        player.muted = true;
+        player.pause();
+      } catch {
+        // Player may already be released on unmount.
+      }
+    };
+  }, [player]);
 
   const triggerHeartAnimation = useCallback(() => {
     setShowHeartAnim(true);
@@ -151,17 +188,27 @@ export function ReelPlayer916({
       ? reel.productLink.trim()
       : null;
 
+  // Prefer Linking.openURL first so iOS Universal Links / Android App Links open the native shopping app (Myntra, Amazon, Ajio, etc.) when installed, falling back to browser otherwise.
   const openExternalLink = useCallback(async (url: string) => {
-    if (Platform.OS === 'web') {
-      void Linking.openURL(url);
-      return;
-    }
     try {
-      await WebBrowser.openBrowserAsync(url);
+      await Linking.openURL(url);
+      return;
     } catch {
-      void Linking.openURL(url).catch(() => {});
+      // Fall back to in-app browser if direct open fails.
+    }
+    if (Platform.OS !== 'web') {
+      await WebBrowser.openBrowserAsync(url).catch(() => {});
     }
   }, []);
+
+  const displayHandle = (
+    reel.creator?.username ||
+    reel.creator?.name?.replace(/\s+/g, '').toLowerCase() ||
+    reel.brandTag?.replace(/^@/, '').toLowerCase() ||
+    'rava.creator'
+  ).replace(/^@/, '');
+  const cleanBrand = reel.brandTag?.replace(/^@/, '').toLowerCase() || '';
+  const showBrandPill = Boolean(reel.brandTag && cleanBrand !== displayHandle.toLowerCase());
 
   return (
     <View style={[styles.container, { width, height }]}>
@@ -195,7 +242,7 @@ export function ReelPlayer916({
 
       {/* Top Gradient Vignette */}
       <LinearGradient
-        colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.2)', 'transparent']}
+        colors={['rgba(0,0,0,0.78)', 'rgba(0,0,0,0.34)', 'transparent']}
         style={styles.topVignette}
         pointerEvents="none"
       />
@@ -369,9 +416,7 @@ export function ReelPlayer916({
         {/* Creator Handle & Category */}
         <View style={styles.creatorRow}>
           <Pressable onPress={onProfilePress} style={styles.handlePress}>
-            <Text style={styles.creatorHandle}>
-              @{reel.creator?.username || reel.creator?.name?.replace(/\s+/g, '').toLowerCase() || reel.brandTag?.replace(/^@/, '').toLowerCase() || 'rava.creator'}
-            </Text>
+            <Text style={styles.creatorHandle}>@{displayHandle}</Text>
           </Pressable>
 
           {reel.category && (
@@ -380,7 +425,7 @@ export function ReelPlayer916({
             </View>
           )}
 
-          {reel.brandTag && (
+          {showBrandPill && (
             <View style={styles.brandTagPill}>
               <Ionicons name="pricetag" size={10} color="#ffffff" />
               <Text style={styles.brandTagText}>{reel.brandTag}</Text>
@@ -485,7 +530,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 120,
+    height: 180,
   },
   bottomVignette: {
     position: 'absolute',

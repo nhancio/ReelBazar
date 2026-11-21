@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  AppState,
   FlatList,
   Platform,
   Pressable,
@@ -13,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useIsFocused } from 'expo-router/react-navigation';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   collection,
@@ -63,6 +65,7 @@ export default function FeedScreen() {
   const { palette } = useTheme();
   const { showToast } = useToast();
   const router = useRouter();
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
 
@@ -70,16 +73,24 @@ export default function FeedScreen() {
   const reelHeight = windowHeight;
   const reelWidth = Math.min(windowWidth, 480);
 
+  const [appActive, setAppActive] = useState(AppState.currentState === 'active');
   const [reels, setReels] = useState<Reel[]>([]);
   const [likedReels, setLikedReels] = useState<Set<string>>(new Set());
   const [savedReels, setSavedReels] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState<Set<string>>(new Set());
-  const [muted, setMuted] = useState<Record<string, boolean>>({});
+  const [globalMuted, setGlobalMuted] = useState(true);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => setAppActive(state === 'active'));
+    return () => sub.remove();
+  }, []);
+
+  const isFeedActive = isFocused && appActive;
 
   // Purchase Drawer state
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -89,6 +100,10 @@ export default function FeedScreen() {
   // Moderation & blocked users state (App Store Guideline 1.2 / Play UGC policy)
   const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
   const [moderationTarget, setModerationTarget] = useState<ModerationTarget | null>(null);
+
+  const visibleReels = blockedIds.size ? reels.filter((r) => !blockedIds.has(r.creatorId)) : reels;
+  const visibleReelsRef = useRef(visibleReels);
+  visibleReelsRef.current = visibleReels;
 
   const lastDocRef = useRef<QueryDocumentSnapshot | null>(null);
   const apiCursorRef = useRef<string | undefined>(undefined);
@@ -365,7 +380,17 @@ export default function FeedScreen() {
     if (first?.item) setActiveId((first.item as Reel).id);
   }).current;
 
-  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 70 }).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 55 }).current;
+
+  const syncActiveFromScroll = useCallback(
+    (offsetY: number) => {
+      if (!reelHeight) return;
+      const idx = Math.max(0, Math.min(visibleReelsRef.current.length - 1, Math.round(offsetY / reelHeight)));
+      const target = visibleReelsRef.current[idx];
+      if (target) setActiveId(target.id);
+    },
+    [reelHeight],
+  );
 
   return (
     <View style={[styles.fill, { backgroundColor: '#000000' }]}>
@@ -444,18 +469,18 @@ export default function FeedScreen() {
 
       {/* 9:16 Full-bleed Vertical Feed */}
       <FlatList
-        data={blockedIds.size ? reels.filter((r) => !blockedIds.has(r.creatorId)) : reels}
+        data={visibleReels}
+        extraData={`${activeId ?? ''}:${isFeedActive ? '1' : '0'}:${globalMuted ? '1' : '0'}`}
         keyExtractor={(item) => item.id}
+        getItemLayout={(_, index) => ({ length: reelHeight, offset: reelHeight * index, index })}
         renderItem={({ item }) => (
           <ReelPlayer916
             reel={item}
-            active={activeId === item.id}
+            active={isFeedActive && activeId === item.id}
             height={reelHeight}
             width={reelWidth}
-            muted={muted[item.id] ?? true}
-            onToggleMuted={() =>
-              setMuted((prev) => ({ ...prev, [item.id]: !(prev[item.id] ?? true) }))
-            }
+            muted={globalMuted}
+            onToggleMuted={() => setGlobalMuted((m) => !m)}
             liked={likedReels.has(item.id)}
             saved={savedReels.has(item.id)}
             likeDisabled={pending.has(item.id + 'like')}
@@ -523,10 +548,11 @@ export default function FeedScreen() {
         }
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
+        onMomentumScrollEnd={(e) => syncActiveFromScroll(e.nativeEvent.contentOffset.y)}
+        onScrollEndDrag={(e) => syncActiveFromScroll(e.nativeEvent.contentOffset.y)}
         windowSize={3}
         maxToRenderPerBatch={2}
         initialNumToRender={2}
-        removeClippedSubviews
         style={styles.fill}
       />
 

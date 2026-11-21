@@ -39,7 +39,12 @@ export default function OrdersListScreen() {
     }
 
     try {
-      const res = await ordersApi.getBuyerOrders();
+      const res = await Promise.race([
+        ordersApi.getBuyerOrders(),
+        new Promise<{ orders: Order[] }>((_, reject) =>
+          setTimeout(() => reject(new Error('Orders request timed out')), 8000),
+        ),
+      ]);
       setOrders(res.orders || []);
     } catch (err) {
       console.warn('Orders fetch fallback to empty list:', err);
@@ -84,7 +89,7 @@ export default function OrdersListScreen() {
   };
 
   return (
-    <View style={[styles.fill, { backgroundColor: palette.background, paddingTop: insets.top }]}>
+    <View style={[styles.fill, { backgroundColor: palette.background, paddingTop: insets.top, overflow: 'hidden' }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: palette.border }]}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>

@@ -25,11 +25,11 @@ import { GlassSurface } from '@/components/GlassSurface';
 import { radius, spacing, TAB_BAR_HEIGHT, typography } from '@/theme';
 
 const SUGGESTIONS = [
-  'Red lehenga for a wedding',
-  'Everyday cotton kurtis',
-  'Streetwear co-ord sets',
-  'Party wear under ₹2000',
-  'Statement footwear & heels',
+  'Women kurtis & ethnic wear',
+  'Birthday & party dresses',
+  'Myntra women looks',
+  'NewMe trending outfits',
+  'Casual daily wear',
 ];
 
 export default function AskScreen() {
@@ -42,6 +42,7 @@ export default function AskScreen() {
   const [asked, setAsked] = useState<string | null>(null);
   const [results, setResults] = useState<Reel[] | null>(null);
   const [terms, setTerms] = useState<string[]>([]);
+  const [isFallback, setIsFallback] = useState(false);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
@@ -56,11 +57,21 @@ export default function AskScreen() {
       setLoading(true);
       setAsked(q);
       setResults(null);
+      setIsFallback(false);
 
       try {
-        const res = await reelsApi.search(q, 24);
-        setResults(res.reels);
-        setTerms(res.terms);
+        const normalized = q.replace(/\bco-ord(s)?\b/gi, 'coord$1');
+        const res = await reelsApi.search(normalized, 24);
+        if (res.reels.length > 0) {
+          setResults(res.reels);
+          setTerms(res.terms);
+        } else {
+          // Graceful fallback: show closest trending shoppable reels instead of a dead empty screen.
+          const fallback = await reelsApi.getFeed().catch(() => ({ reels: [] as Reel[] }));
+          setResults(fallback.reels.slice(0, 12));
+          setTerms(res.terms);
+          setIsFallback(fallback.reels.length > 0);
+        }
         if (Platform.OS !== 'web') {
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         }
@@ -166,7 +177,9 @@ export default function AskScreen() {
             <View style={styles.resultHead}>
               <Text style={[styles.resultCount, { color: palette.text }]}>
                 {(results ?? []).length
-                  ? `${(results ?? []).length} look${(results ?? []).length === 1 ? '' : 's'} curated for “${asked}”`
+                  ? isFallback
+                    ? `Closest trending looks for “${asked}”`
+                    : `${(results ?? []).length} look${(results ?? []).length === 1 ? '' : 's'} curated for “${asked}”`
                   : `Nothing matched “${asked}”`}
               </Text>
               {terms.length ? (

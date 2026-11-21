@@ -97,16 +97,14 @@ export function ReelPostCard({
     const url = reel.productLink?.trim();
     if (!isHttpUrl(url)) return;
 
-    if (Platform.OS === 'web') {
-      // openBrowserAsync on web just calls window.open, but going through Linking keeps
-      // the same-tab/new-tab decision with the platform.
-      void Linking.openURL(url);
-      return;
-    }
     try {
-      await WebBrowser.openBrowserAsync(url);
+      await Linking.openURL(url);
+      return;
     } catch {
-      void Linking.openURL(url).catch(() => {});
+      // Fall back to in-app browser if direct app link fails.
+    }
+    if (Platform.OS !== 'web') {
+      await WebBrowser.openBrowserAsync(url).catch(() => {});
     }
   }, [hasRealProduct, onProductLinkPress, reel.productLink]);
 

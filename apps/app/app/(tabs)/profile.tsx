@@ -672,7 +672,13 @@ export default function ProfileScreen() {
               </Pressable>
             </View>
 
-            <ScrollView contentContainerStyle={styles.settingsContent}>
+            <ScrollView
+            contentContainerStyle={[
+              styles.settingsContent,
+              { paddingBottom: Math.max(48, insets.bottom + 36) },
+            ]}
+            showsVerticalScrollIndicator
+          >
               <Section title="Appearance" palette={palette}>
                 <View style={{ padding: spacing.md }}>
                   <NativeSegmentedPicker<'dark' | 'light'>
@@ -737,9 +743,11 @@ export default function ProfileScreen() {
           <Text style={[styles.headerHandle, { color: palette.text }]} numberOfLines={1}>
             @{handle}
           </Text>
-          <Text style={[styles.headerName, { color: palette.textMuted }]} numberOfLines={1}>
-            {user.name}
-          </Text>
+          {user.name && user.name.trim().toLowerCase() !== handle.toLowerCase() ? (
+            <Text style={[styles.headerName, { color: palette.textMuted }]} numberOfLines={1}>
+              {user.name}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.headerRightActions}>
@@ -1559,7 +1567,13 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
 
-          <ScrollView contentContainerStyle={styles.settingsContent}>
+          <ScrollView
+            contentContainerStyle={[
+              styles.settingsContent,
+              { paddingBottom: Math.max(48, insets.bottom + 36) },
+            ]}
+            showsVerticalScrollIndicator
+          >
             <Section title="Marketplace & Orders" palette={palette}>
               <Row
                 icon="bag-handle-outline"
