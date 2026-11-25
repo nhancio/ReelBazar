@@ -165,6 +165,36 @@ usersRouter.post('/:id/follow', authMiddleware, requireRegistered, async (req: R
   }
 });
 
+// Maps a Storage URL in our bucket to its object path. Handles both
+// https://storage.googleapis.com/<bucket>/<path> (server uploads) and
+// https://firebasestorage.googleapis.com/v0/b/<bucket>/o/<encoded path>?... (client getDownloadURL).
+export function storagePathFromUrl(url: unknown, bucketName: string): string | null {
+  if (typeof url !== 'string' || !url) return null;
+  try {
+    const u = new URL(url);
+    if (u.hostname === 'firebasestorage.googleapis.com') {
+      const m = u.pathname.match(/^\/v0\/b\/([^/]+)\/o\/(.+)$/);
+      return m && m[1] === bucketName ? decodeURIComponent(m[2]) : null;
+    }
+    if (u.hostname === 'storage.googleapis.com') {
+      const prefix = `/${bucketName}/`;
+      return u.pathname.startsWith(prefix) ? decodeURIComponent(u.pathname.slice(prefix.length)) : null;
+    }
+  } catch {
+    // not a URL
+  }
+  return null;
+}
+
+async function deleteStorageObject(url: unknown) {
+  const bucket = storage();
+  const path = storagePathFromUrl(url, bucket.name);
+  if (!path) return;
+  await bucket.file(path).delete({ ignoreNotFound: true }).catch((err: unknown) => {
+    console.error('Failed to delete storage object', path, err);
+  });
+}
+
 // DELETE /users/me — full account deletion (App Store / Play Store requirement).
 // Removes the user's reels (and their videos), likes, saves, views, comments,
 // follows, streak events, user doc, and finally the Firebase Auth account.
@@ -183,16 +213,18 @@ usersRouter.delete('/me', authMiddleware, requireRegistered, async (req: Request
       }
     }
 
-    // Delete reel videos from Storage, then the reel docs.
+    // Delete reel videos/thumbnails from Storage, then the reel docs.
     const reelsSnapshot = await db().collection('reels').where('creatorId', '==', userId).get();
     for (const reelDoc of reelsSnapshot.docs) {
-      const videoUrl: string | undefined = reelDoc.data().videoUrl;
-      if (videoUrl?.includes('storage.googleapis.com')) {
-        const path = videoUrl.split(`${storage().name}/`)[1];
-        if (path) await storage().file(path).delete().catch(() => undefined);
-      }
+      const { videoUrl, thumbnailUrl } = reelDoc.data();
+      await deleteStorageObject(videoUrl);
+      await deleteStorageObject(thumbnailUrl);
       await reelDoc.ref.delete();
     }
+
+    // Avatar uploaded by the user (Google/Apple profile photos are external and skipped).
+    const userSnap = await db().collection('users').doc(userId).get();
+    await deleteStorageObject(userSnap.data()?.avatarUrl);
 
     await deleteByQuery('reelLikes', 'userId', userId);
     await deleteByQuery('reelSaves', 'userId', userId);
